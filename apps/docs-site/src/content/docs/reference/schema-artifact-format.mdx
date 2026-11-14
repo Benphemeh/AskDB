@@ -138,6 +138,7 @@ The physical layer: the tables and columns AskDB read from the database. Here it
 - `"sensitive": false` on every table and column, so each one is explicit.
 - `"primaryKey": true` on primary-key columns only, and `relationships` only on tables with foreign keys.
 - For Postgres, the short type names: `timestamptz` for `timestamp with time zone`, `varchar(…)` for `character varying(…)`. Other engines' types are written as the engine reports them.
+- For SQLite, `"nullable": false` on a primary key that aliases `rowid`: a table's only primary-key column, declared `INTEGER`, in a table that isn't `WITHOUT ROWID`, however the key is written (`integer primary key`, `AUTOINCREMENT`, or `PRIMARY KEY (id)`). SQLite reports it as nullable, but it can never hold `NULL`. Other SQLite primary keys keep the nullability SQLite reports, since a table that isn't `WITHOUT ROWID` accepts `NULL` in them.
 
 `schema.json` holds no column comments, defaults, indexes, or unique or check constraints.
 
