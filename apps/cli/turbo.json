@@ -3,7 +3,7 @@
   "extends": ["//"],
   "tasks": {
     "test": {
-      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/apps/docs-site/src/content/docs/quickstart.mdx"]
+      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/apps/docs-site/src/content/docs/quickstart.mdx", "$TURBO_ROOT$/examples/quickstart-shop/**"]
     }
   }
 }

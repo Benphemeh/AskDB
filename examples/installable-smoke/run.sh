@@ -426,6 +426,9 @@ if [ -e "$WORK/apps/node_modules/.bin/askdb-rag" ]; then
   exit 1
 fi
 
+echo "smoke: the Quickstart example runs from the packed packages, with --mock-sql (#940)…"
+bash "$SCRIPT_DIR/quickstart-example.sh" "$WORK/tarballs" "$WORK/quickstart-example"
+
 echo "smoke: Yarn 4 Plug'n'Play: askdb and askdb-http load with strict peer resolution (#748)…"
 bash "$SCRIPT_DIR/yarn-pnp.sh" "$WORK/tarballs" "$WORK/yarn-pnp"
 

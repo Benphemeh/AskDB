@@ -4,6 +4,7 @@ description: "Create a small SQLite database, point AskDB at it, ask a question 
 ---
 
 import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+import ExampleLink from "../../components/ExampleLink.astro";
 
 <p class="doc-eyebrow">From zero to first query</p>
 
@@ -26,6 +27,8 @@ flowchart TB
 
 <figcaption>What we'll make, and the step that makes each. AskDB reads the schema and returns checked SQL. Our own code runs it.</figcaption>
 </figure>
+
+<Aside type="tip" title="Skip the typing">The files this tutorial has you type (`shop.sql`, `make-shop.mjs` and `run-query.mjs`) are in <ExampleLink path="examples/quickstart-shop" />, with a `package.json` that lists AskDB. To fetch them into a new `askdb-shop` folder, run `npx gitpick Ygilany/AskDB/tree/main/examples/quickstart-shop askdb-shop`. Then, in that folder, run `npm install` and `node make-shop.mjs`, and continue from `askdb init` in step 2. The folder's README has the same commands for pnpm.</Aside>
 
 ## Before you start
 
