@@ -571,7 +571,7 @@ function formatCheckLabel(check: string): string {
 
 /** The sensitive-column warning `askdb ask` prints for the same SQL, worded the same way. */
 function SensitiveWarning({ guardrail }: { guardrail: AskResponse["sensitiveGuardrail"] | undefined }) {
-  if (!guardrail || (guardrail.references.length === 0 && !guardrail.unresolvedScope)) return null;
+  if (!guardrail || (guardrail.references.length === 0 && !guardrail.unresolvedScopeNote)) return null;
   return (
     <div role="alert" style={{ display: "grid", gap: 6, marginBottom: 8 }}>
       {guardrail.references.length > 0 && (
@@ -580,7 +580,7 @@ function SensitiveWarning({ guardrail }: { guardrail: AskResponse["sensitiveGuar
           {" "}Review carefully before sharing or running this SQL outside AskDB.
         </p>
       )}
-      {guardrail.unresolvedScope && <p className="warning-block">Note: {guardrail.unresolvedScope}</p>}
+      {guardrail.unresolvedScopeNote && <p className="warning-block">Note: {guardrail.unresolvedScopeNote}</p>}
     </div>
   );
 }

@@ -300,7 +300,7 @@ describe("AskDB Studio server", () => {
 
     expect(generated.sensitiveGuardrail).toEqual({
       references: ["public.patients.diagnosis_code"],
-      unresolvedScope: null,
+      unresolvedScopeNote: null,
     });
   });
 

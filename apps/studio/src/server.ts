@@ -1003,7 +1003,7 @@ async function askSampleQuestion(
     sensitiveGuardrail: result.sensitiveGuardrail
       ? {
           references: result.sensitiveGuardrail.references.map(formatSensitiveReference),
-          unresolvedScope: result.sensitiveGuardrail.unresolvedScope?.message ?? null,
+          unresolvedScopeNote: result.sensitiveGuardrail.unresolvedScope?.message ?? null,
         }
       : null,
     rag: {
