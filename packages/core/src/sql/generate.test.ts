@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { MockLanguageModelV3 } from "ai/test";
 import { describe, expect, it, vi } from "vitest";
-import { AskDbError, SqlGenerationError, SqlValidationError, TenantGuardrailError } from "../errors.js";
+import { AskDbError, QuestionDeclinedError, SqlGenerationError, SqlValidationError, TenantGuardrailError } from "../errors.js";
 import { AskDbLogEvent } from "../logging/log-events.js";
 import { loadNormalizedSchemaFromJson } from "../schema/parse.js";
 import type { NormalizedSchema } from "../schema/types.js";
@@ -513,5 +513,64 @@ describe("generateSelectSql — a model call that fails before giving a reason",
     expect((thrown as Error).message).toBe(expected);
     expect(logged).toBe(expected);
     expect(`${(thrown as Error).message}${String(logged)}`).not.toMatch(/S3cret|admin|llm\.internal/);
+  });
+});
+
+// #949: a question the schema can't answer, or one that asks to change data, is declined with
+// a reason instead of answered with unrelated or rewritten SQL.
+describe("generateSelectSql — questions it can't answer as a read (#949)", () => {
+  const replyWith = (text: string) => vi.fn(async () => ({ text }));
+  const run = (text: string) =>
+    generateSelectSql(POSTGRES_DIALECT, "q", minimalSchema, fakeModel, { generateText: replyWith(text) }).catch(
+      (e: unknown) => e,
+    );
+
+  it("tells the model how to decline, in both prompts, and keeps the one-SELECT rule for answerable questions", async () => {
+    const generateText = replyWith("```sql\nSELECT id FROM users\n```");
+    await generateSelectSql(POSTGRES_DIALECT, "delete all users", minimalSchema, fakeModel, { generateText });
+    const { system, prompt } = generateText.mock.calls[0]![0] as { system: string; prompt: string };
+    expect(prompt).toMatch(/Output exactly one PostgreSQL SELECT query/);
+    for (const text of [system, prompt]) expect(text).toContain("```askdb-decline");
+    expect(prompt).toMatch(/can't be answered from the schema/i);
+    expect(prompt).toMatch(/change data/i);
+    expect(prompt).toMatch(/only part of it can be answered/i);
+  });
+
+  it("throws QuestionDeclinedError with the model's reason for a reply in the decline format the prompt asks for", async () => {
+    const thrown = await run("```askdb-decline\n  The schema has no weather data.\n```");
+    expect(thrown).toBeInstanceOf(QuestionDeclinedError);
+    expect(thrown).toMatchObject({
+      reason: "The schema has no weather data.",
+      message: "AskDB can't answer this as a read-only query: The schema has no weather data.",
+    });
+  });
+
+  it("declines before the checks run, and declines a mixed question as a whole even when the reply also has SQL", async () => {
+    for (const reply of [
+      "```sql\nDELETE FROM users\n```\n```askdb-decline\nAsks to delete data.\n```",
+      "```sql\nSELECT id FROM users ORDER BY id LIMIT 1\n```\n```askdb-decline\nIt also asks to delete the row; ask for the read part alone.\n```",
+    ]) {
+      expect(await run(reply)).toBeInstanceOf(QuestionDeclinedError);
+    }
+  });
+
+  it("joins a reason written over several lines into one, and names a missing one", async () => {
+    expect(await run("```askdb-decline\nNo weather\ndata here.\n```")).toMatchObject({ reason: "No weather data here." });
+    expect(await run("```askdb-decline\n```")).toMatchObject({ reason: "No reason given." });
+  });
+
+  it.each([
+    ["prose with an apostrophe", "I can't answer that: the schema has no weather data."],
+    ["prose", "I cannot answer this question from the schema."],
+    ["a blank reply", "   "],
+  ])("reports %s with no SQL fence as the model not returning SQL, not as a lexer error", async (_name, reply) => {
+    const thrown = await run(reply);
+    expect(thrown).toBeInstanceOf(SqlValidationError);
+    expect(thrown).toMatchObject({ rule: "SQL_EMPTY", message: expect.stringMatching(/^The model didn't return SQL/) });
+  });
+
+  it("still names the rule for an unfenced statement that isn't a read", async () => {
+    expect(await run("DELETE FROM users")).toMatchObject({ rule: "SQL_NOT_SELECT_OR_WITH" });
+    expect(await run("SELECT id FROM users; DROP TABLE users")).toMatchObject({ rule: "SQL_MULTI_STATEMENT" });
   });
 });

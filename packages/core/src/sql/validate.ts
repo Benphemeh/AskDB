@@ -96,8 +96,8 @@ export function validateSelectSql(dialect: DialectSpec, sql: string): string {
   if (!trimmed) {
     throw validationError(
       "SQL_EMPTY",
-      "Generated SQL is empty after extraction.",
-      "The model reply had no usable ```sql fenced block or the block was blank. Retry with a clearer question or inspect the raw model output with logging.",
+      "The model didn't return SQL: nothing is left after extraction.",
+      "The model reply had no ```sql fenced block with SQL in it, and wasn't a SQL statement itself. Retry with a clearer question or inspect the raw model output with logging.",
     );
   }
 

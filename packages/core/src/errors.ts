@@ -80,6 +80,19 @@ export class SqlGenerationError extends AskDbError {
 }
 
 /**
+ * The model declined the question instead of writing SQL (#949): the schema can't answer it, or
+ * it asks to change data. A question that mixes a read with a change is declined as a whole.
+ * `reason` is the model's one-line reason. Thrown by `ask()` and `generateSelectSql()` before any
+ * SQL is extracted or checked, so it carries no verdict.
+ */
+export class QuestionDeclinedError extends AskDbError {
+  constructor(public readonly reason: string) {
+    super(`AskDB can't answer this as a read-only query: ${reason}`);
+    this.name = "QuestionDeclinedError";
+  }
+}
+
+/**
  * A `dialect` passed to `ask()` that isn't a built-in dialect id: a string, or a `DialectSpec`
  * whose `id` isn't one (#717). `dialectId` is the id it got.
  */
