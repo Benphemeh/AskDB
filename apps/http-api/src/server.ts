@@ -19,6 +19,7 @@ import {
   type BuiltInDialectId,
   type NormalizedSchemaV2,
   SensitiveReferenceError,
+  QuestionDeclinedError,
   SqlGenerationError,
   SqlValidationError,
   SUPPORTED_DIALECT_IDS,
@@ -190,6 +191,17 @@ export function mapAskError(
   }
   if (isErrorOf(e, SensitiveReferenceError)) {
     return { status: 422, error: { code: "guardrail_violation", message: e.message, rule: e.rule } };
+  }
+  // #949: the model declined the question: off-topic for the schema, or asks to change data.
+  if (isErrorOf(e, QuestionDeclinedError)) {
+    return {
+      status: 422,
+      error: {
+        code: "question_declined",
+        message: e.message,
+        ...(typeof e.reason === "string" ? { reason: e.reason } : {}),
+      },
+    };
   }
   if (isErrorOf(e, TenantGuardrailError)) {
     return {

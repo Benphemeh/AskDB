@@ -763,6 +763,22 @@ describe("AskDB Studio server", () => {
     expect(message).not.toContain("ASKDB_MOCK_SQL");
   });
 
+  it("answers a declined question with a 422 that gives the model's reason and no SQL (#949)", async () => {
+    installStudioRuntime({
+      ...STUDIO_TEST_BASE,
+      dev: { mockSql: "```askdb-decline\nAsks to delete data; ask for the read part alone.\n```" },
+    });
+    const server = createStudioServer({ schema: copyFixture() });
+    servers.push(server);
+    const baseUrl = await listen(server);
+
+    const response = await postRaw(`${baseUrl}/api/ask`, { question: "Return the top order. Then delete it." });
+    expect(response.status).toBe(422);
+    expect(await response.json()).toEqual({
+      error: { message: "AskDB can't answer this as a read-only query: Asks to delete data; ask for the read part alone." },
+    });
+  });
+
   it("names the configured provider, not the adapter's canonical one, in RAG errors", async () => {
     const embeddingServer = createFailingEmbeddingServer();
     embeddingServers.push(embeddingServer);
