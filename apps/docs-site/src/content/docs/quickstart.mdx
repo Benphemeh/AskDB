@@ -17,14 +17,14 @@ flowchart TB
   %% returns SQL; the reader's own code runs it. Top to bottom, so it fits a phone.
   db["shop.db<br/>the sample database"]
   schema["askdb/schema.json<br/>the schema artifact"]
-  sql["query.sql<br/>checked SQL"]
+  sql["checked SQL<br/>on stdout"]
   rows["the answer<br/>rows from shop.db"]
   db -- "askdb introspect" --> schema
   schema -- "askdb ask<br/>+ your question" --> sql
-  sql -- "run-query.mjs<br/>(your code)" --> rows
+  sql -- "piped to run-query.mjs<br/>(your code)" --> rows
 ```
 
-<figcaption>The files we'll make, and the step that makes each. AskDB reads the schema and returns checked SQL. Our own code runs it.</figcaption>
+<figcaption>What we'll make, and the step that makes each. AskDB reads the schema and returns checked SQL. Our own code runs it.</figcaption>
 </figure>
 
 ## Before you start
@@ -32,7 +32,7 @@ flowchart TB
 You need:
 
 - Node.js 22.23.4 or newer, with npm, pnpm or Yarn 4. Run `node --version` to check.
-- An OpenAI API key. You can switch to another model provider later: see [Bring your own model](/guides/bring-your-own-model/).
+- An OpenAI, Anthropic or Google API key. The steps use OpenAI because it's `askdb init`'s default, so the commands need no extra flag. Step 2 says what to change for Anthropic or Google.
 - macOS 11 or newer, Windows, or Linux with glibc 2.34 or newer, on x64 or arm64. The SQLite driver ships prebuilt binaries for these.
 
 <Aside type="note">Where npm, pnpm and Yarn commands differ, each step has a tab for each. To use pnpm or Yarn, run `corepack enable` first. Node 25 and newer don't include Corepack, so there, run `npm install -g corepack` before it. On an older Linux, see [If SQLite won't install](#if-sqlite-wont-install-use-postgres-in-docker).</Aside>
@@ -101,6 +101,36 @@ INSERT INTO orders VALUES
   (4, 3, 1, 1, '2026-03-01'), (5, 4, 2, 1, '2026-04-20'), (6, 4, 3, 2, '2026-04-21');
 ```
 
+<figure>
+
+```mermaid
+erDiagram
+  %% The tables and foreign keys in shop.sql above. Keep the two in step.
+  customers ||--o{ orders : places
+  products ||--o{ orders : "appears in"
+  customers {
+    INTEGER id PK
+    TEXT name
+    TEXT country
+  }
+  products {
+    INTEGER id PK
+    TEXT name
+    TEXT category
+    NUMERIC price
+  }
+  orders {
+    INTEGER id PK
+    INTEGER customer_id FK
+    INTEGER product_id FK
+    INTEGER quantity
+    TEXT ordered_at
+  }
+```
+
+<figcaption>The three tables in shop.sql. Each order points to one customer (customer_id) and one product (product_id). A customer or a product can have many orders.</figcaption>
+</figure>
+
 Next, create `make-shop.mjs`. It loads `shop.sql` into a new SQLite file with Node's built-in SQLite module:
 
 ```js title="make-shop.mjs"
@@ -119,9 +149,11 @@ node make-shop.mjs
 
 It prints `Created shop.db`, and a new `shop.db` file appears in the folder. That's our database. On Node 22, Node also prints an `ExperimentalWarning` about SQLite, which is safe to ignore here. To start over, delete `shop.db` first: running the script twice fails with `table customers already exists`.
 
+<Aside type="note" title="Prefer a browser?">Studio, AskDB's local web app, can do steps 2 to 4 from a setup wizard: install the CLI as in step 2, then run `npx askdb studio` instead of `askdb init`. See [Guided setup](/studio/#guided-setup). Studio is experimental, so this tutorial uses the CLI.</Aside>
+
 ## 2. Install AskDB and scaffold the config
 
-Install the AskDB CLI into the project. pnpm and Yarn install only releases that are at least a day old, and AskDB releases often: within a day of a release, they would pick an older one, which can fail. So their tabs first let AskDB's packages skip that wait. Both settings cover AskDB's packages only, and only in this folder. pnpm writes its setting to `pnpm-workspace.yaml`, and Yarn writes its setting to `.yarnrc.yml`.
+Install the AskDB CLI as a dev dependency of the project. The project then records the version it uses, and `npx askdb` (or `pnpm exec askdb`, `yarn askdb`) runs that copy instead of downloading one each time.
 
 <Tabs syncKey="pkg">
   <TabItem label="npm">
@@ -138,6 +170,8 @@ pnpm config set --location project minimumReleaseAgeExclude '["askdb","@askdb/*"
 pnpm add --save-dev askdb
 ```
 
+pnpm installs only releases that are at least a day old, so for a day after an AskDB release it would pick the previous one. The first command lets AskDB's packages skip that wait, in this folder only. pnpm writes the setting to `pnpm-workspace.yaml`.
+
   </TabItem>
   <TabItem label="yarn">
 
@@ -145,6 +179,8 @@ pnpm add --save-dev askdb
 yarn config set npmPreapprovedPackages --json '["askdb","@askdb/*"]'
 yarn add --dev askdb
 ```
+
+Yarn installs only releases that are at least a day old, so for a day after an AskDB release it would pick the previous one. The first command lets AskDB's packages skip that wait, in this folder only. Yarn writes the setting to `.yarnrc.yml`.
 
   </TabItem>
 </Tabs>
@@ -175,7 +211,11 @@ yarn askdb init --yes --database sqlite --sqlite-file ./shop.db
   </TabItem>
 </Tabs>
 
-`--yes` skips the setup questions and picks OpenAI as the model provider. The output lists the files it wrote, the packages it installed, and the next steps:
+`--yes` skips the setup questions and picks OpenAI as the model provider.
+
+<Aside type="tip" title="Using Anthropic or Google?">Add `--ai-provider anthropic` or `--ai-provider google` to the `askdb init` command. The config then names that provider, and in step 3 you fill in `ANTHROPIC_API_KEY` or `GOOGLE_GENERATIVE_AI_API_KEY` instead of `OPENAI_API_KEY`. For other providers, see [Bring your own model](/guides/bring-your-own-model/).</Aside>
+
+The output lists the files it wrote, the packages it installed, and the next steps:
 
 <Tabs syncKey="pkg">
   <TabItem label="npm">
@@ -285,7 +325,13 @@ export default defineConfig({
 } satisfies AskDbConfig);
 ```
 
-Notice two parts. `introspection` tells AskDB where our database is. `ai` tells it which model to use, and reads the API key from an environment variable called `OPENAI_API_KEY`.
+The config has three blocks:
+
+- `introspection` says where our database is. For SQLite, that's a file path. A path isn't a secret, so `askdb init` wrote it here, not in `.env`.
+- `ai` says which model provider to call. `providerConfig` reads the API key from the `OPENAI_API_KEY` environment variable. `language` is the language model, the one that writes the SQL. When `OPENAI_MODEL` is empty, AskDB uses OpenAI's default model.
+- `rag` sets up retrieval for large schemas. It's experimental, and this tutorial doesn't use it.
+
+[Configuration](/reference/config/) describes every field.
 
 ## 3. Add your API key
 
@@ -305,6 +351,8 @@ OPENAI_MODEL=
 ```
 
 `.env` holds your key, so keep it out of version control. `askdb.config.ts` holds no secrets and is safe to commit.
+
+Only the API key goes in `.env` here, because it's the only secret. A database server's connection URL holds a password, so it goes in `.env` too: the [Postgres fallback](#if-sqlite-wont-install-use-postgres-in-docker) below puts `DATABASE_URL` there.
 
 ## 4. Read the schema
 
@@ -343,6 +391,41 @@ Wrote askdb/schema.json: 3 tables (sqlite).
 `askdb/schema.json` is the **schema artifact**. It lists our three tables, their columns and types, and the two links from `orders` to `customers` and `products`.
 
 The schema artifact is what AskDB gives the model. When we ask a question, AskDB sends the model our question and this schema, never the rows in `shop.db`. [Privacy model](/concepts/privacy-model/) lists everything that's sent.
+
+<details>
+<summary>What the model receives for the question in step 5</summary>
+
+This is the request, with the instructions shortened. A line that starts with `…` stands for text left out. Notice that it holds table and column names and types, and no row from `shop.db`.
+
+```text title="What the model receives"
+You are AskDB SQL generator—correct, deterministic SQLite for analytics. Produce one SELECT (or WITH) only.
+… rules: write one read-only SQLite SELECT, in one sql code block, with notes on SQLite syntax
+Database schema:
+TABLE customers
+  - id INTEGER (PK NOT NULL)
+  - name TEXT (NOT NULL)
+  - country TEXT (NOT NULL)
+
+TABLE orders
+  - id INTEGER (PK NOT NULL)
+  - customer_id INTEGER (NOT NULL)
+  - product_id INTEGER (NOT NULL)
+  - quantity INTEGER (NOT NULL)
+  - ordered_at TEXT (NOT NULL)
+  FK (customer_id) -> customers (id)
+  FK (product_id) -> products (id)
+
+TABLE products
+  - id INTEGER (PK NOT NULL)
+  - name TEXT (NOT NULL)
+  - category TEXT (NOT NULL)
+  - price NUMERIC(10, 2) (NOT NULL)
+
+Question: How much has each customer spent in total, highest first?
+… output format: the same SQL again with :name placeholders for values taken from the question, and a JSON list of those placeholders
+```
+
+</details>
 
 ## 5. Ask a question
 
@@ -389,24 +472,45 @@ If you see `no AI API key configured`, check that `.env` has your key (step 3).
 
 ## 6. Run the SQL
 
-Copy the SQL that AskDB printed (everything after the `-- sql --` line) into a new file called `query.sql`.
+`askdb ask` prints only the SQL on stdout, and everything else on stderr. Its `-- sql --` line is a SQL comment. So we can pipe the output straight into our own code, with no copying.
 
-Then create `run-query.mjs`. It opens `shop.db` read-only and runs `query.sql`:
+Create `run-query.mjs`. It reads the SQL from stdin, opens `shop.db` read-only and runs the SQL:
 
 ```js title="run-query.mjs"
 import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 
-const sql = readFileSync("query.sql", "utf8");
+const sql = readFileSync(0, "utf8"); // 0 is stdin
+if (!sql.trim()) process.exit(1); // askdb ask failed, and printed why
 const db = new DatabaseSync("shop.db", { readOnly: true });
 console.table(db.prepare(sql).all());
 ```
 
-Run it:
+Ask the question again, and pipe the SQL into it:
+
+<Tabs syncKey="pkg">
+  <TabItem label="npm">
 
 ```bash
-node run-query.mjs
+npx askdb ask --question "How much has each customer spent in total, highest first?" | node run-query.mjs
 ```
+
+  </TabItem>
+  <TabItem label="pnpm">
+
+```bash
+pnpm exec askdb ask --question "How much has each customer spent in total, highest first?" | node run-query.mjs
+```
+
+  </TabItem>
+  <TabItem label="yarn">
+
+```bash
+yarn askdb ask --question "How much has each customer spent in total, highest first?" | node run-query.mjs
+```
+
+  </TabItem>
+</Tabs>
 
 The output should look something like this:
 
@@ -421,13 +525,20 @@ The output should look something like this:
 └─────────┴────┴────────────┴─────────────┘
 ```
 
-That's the answer to our question: Grace bought two monitors, so she has spent the most.
+That's the answer to our question: Grace bought two monitors, so she has spent the most. The model wrote the SQL again, so it can differ from step 5's, but the answer should be the same.
+
+To read the SQL before you run it, save it to a file first, and then run the file:
+
+```bash
+npx askdb ask --question "How much has each customer spent in total, highest first?" > query.sql
+node run-query.mjs < query.sql
+```
 
 <Aside type="caution">AskDB's SQL checks are heuristics, not a security boundary. Before your application runs generated SQL against real data, read [Run generated SQL safely](/concepts/safety-boundaries/#run-generated-sql-safely): use a read-only, least-privilege database role, set timeouts, and enforce tenant isolation in the database.</Aside>
 
 ## What we built
 
-We made a database, and AskDB read its schema. Then we asked a question in plain English and got back checked SQL. Our own code ran that SQL read-only and printed the answer. Your own database works the same way: point `askdb init` at it, introspect, and ask. Try another question, such as "Which products has nobody from the US bought?", and run its SQL the same way.
+We made a database, and AskDB read its schema. Then we asked a question in plain English and got back checked SQL. Our own code ran that SQL read-only and printed the answer. Your own database works the same way: point `askdb init` at it, introspect, and ask. Try another question, such as "Which products has nobody from the US bought?", and pipe its SQL into `run-query.mjs` the same way.
 
 ## If SQLite won't install: use Postgres in Docker
 
@@ -451,10 +562,11 @@ The SQLite driver, `better-sqlite3`, has prebuilt binaries only for the systems 
    ```
 
 5. Do steps 4 and 5 as written.
-6. In step 6, save the SQL as `query.sql`, then run it with `psql` instead of `run-query.mjs`:
+6. In step 6, pipe the SQL into `psql` instead of `run-query.mjs`:
 
    ```bash
-   docker exec -i askdb-shop-db psql -U postgres < query.sql
+   npx askdb ask --question "How much has each customer spent in total, highest first?" \
+     | docker exec -i askdb-shop-db psql -U postgres
    ```
 
 7. When you're done, remove the container: `docker rm -f askdb-shop-db`.
