@@ -13,7 +13,7 @@ import InstallTabs from "../../../components/InstallTabs.astro";
 
 ## Wire it into a handler
 
-A handler has two parts. The first gets SQL for a question from AskDB, and the second runs that SQL against your database. Only the first part depends on how you give AskDB a model, and only the second depends on your database engine.
+A handler has two parts. The first gets SQL for a question from AskDB, and the second runs that SQL against your database. How you give AskDB a model changes the first part. Your database engine changes the second part, and with `ask()` it also sets the `dialect` you pass in the first.
 
 You can give AskDB a model in two ways, and both are first-party and return the same result:
 
@@ -31,7 +31,7 @@ Both ways need `ai` and the AI SDK package for your provider, such as `@ai-sdk/o
 
 <InstallTabs pkgs="@askdb/client @askdb/core @askdb/config ai @ai-sdk/openai" />
 
-`@askdb/core`, `@askdb/config` and `ai` are required peer dependencies of `@askdb/client`. npm and pnpm add them for you; Yarn doesn't, so the line lists them.
+`@askdb/core`, `@askdb/config` and `ai` (AI SDK 7) are required peer dependencies of `@askdb/client`. npm and pnpm add them for you; Yarn doesn't, so the line lists them.
 
   </TabItem>
   <TabItem label="Your app builds the model">
@@ -125,7 +125,7 @@ Set `dialect` to the engine you introspected: `"postgres"`, `"cockroachdb"`, `"m
 
 ### 3. Run the SQL in a handler
 
-Create `ask-handler.ts`. It opens your database read-only, calls `generateSql()`, logs the SQL and runs it. It's the same for both ways of building the model:
+Create `ask-handler.ts`. It calls `generateSql()`, logs the SQL and runs it read-only. It's the same for both ways of building the model:
 
 <Tabs syncKey="engine">
   <TabItem label="PostgreSQL">
@@ -206,6 +206,8 @@ export async function askQuestion(question: string) {
 
 `./shop.db` is the Quickstart's database; change it to your own file. On the `ask()` path, set `dialect: "sqlite"` in `generate-sql.ts`.
 
+SQLite has no statement timeout, and `better-sqlite3` runs each query synchronously. A slow generated query therefore blocks the whole Node process until it finishes, and every other request waits. Use this handler for local or single-user work, and use a database server with a statement timeout for a shared service.
+
   </TabItem>
 </Tabs>
 
@@ -241,7 +243,7 @@ These examples use `pg` and `better-sqlite3` to run the SQL, but the driver is y
 To run the same query again with a new value, such as another month, without a model call, see [Rerun a query with new values](/guides/rerun-a-query-with-new-values/).
 
 <Aside type="caution">
-AskDB's SQL checks catch common model mistakes but aren't a security boundary. Connect `DATABASE_URL` as a read-only, least-privilege role and keep `statement_timeout` set, or open a SQLite file read-only. See [Run generated SQL safely](/concepts/safety-boundaries/#run-generated-sql-safely).
+AskDB's SQL checks catch common model mistakes but aren't a security boundary. Connect `DATABASE_URL` as a read-only, least-privilege role and keep `statement_timeout` set. On SQLite, opening the file read-only stops writes, but nothing stops a slow query. See [Run generated SQL safely](/concepts/safety-boundaries/#run-generated-sql-safely).
 </Aside>
 
 ## Switching engines
