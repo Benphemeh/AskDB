@@ -3,9 +3,13 @@ title: "Studio tour"
 description: "A tour of Studio's seven views: enrich your schema, test questions against the SQL they generate, and check the RAG index, on your own machine."
 ---
 
+import { Aside } from "@astrojs/starlight/components";
+
 <p class="doc-eyebrow">Visual tour</p>
 
 <p class="doc-lede">Studio is a local web app for enriching your schema artifact and testing questions against the SQL they generate. It reads and writes the artifact on your machine, and its AI features send schema text and your questions to the model provider you configure. This tour walks through its seven views.</p>
+
+<Aside type="tip">Studio is the recommended way to enrich your schema: a local browser UI that edits your schema artifact directly. You can also edit the artifact's files by hand, in the [schema artifact format](/reference/schema-artifact-format/).</Aside>
 
 Launch it from your project root:
 
