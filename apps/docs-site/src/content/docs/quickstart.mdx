@@ -175,7 +175,7 @@ yarn askdb init --yes --database sqlite --sqlite-file ./shop.db
   </TabItem>
 </Tabs>
 
-`--yes` skips the setup questions and picks OpenAI as the model provider. The output starts with the files it wrote and the packages it installed:
+`--yes` skips the setup questions and picks OpenAI as the model provider. The output lists the files it wrote, the packages it installed, and the next steps:
 
 <Tabs syncKey="pkg">
   <TabItem label="npm">
@@ -189,6 +189,12 @@ Installing dependencies with npm in …/askdb-shop …
 
 added 2 packages in 497ms
 Installed: @askdb/config, better-sqlite3.
+
+Next steps:
+  1. Create .env from the example, then fill in your credentials:  cp .env.example .env
+     (Rename any `env("...")` call in askdb.config.ts if you prefer different variable names.)
+  2. Introspect your database:  npx askdb introspect
+  3. Ask a question:  npx askdb ask --question "Which customers signed up last week?"
 ```
 
   </TabItem>
@@ -206,6 +212,12 @@ dependencies:
 + better-sqlite3 13.0.3
 …
 Installed: @askdb/config, better-sqlite3.
+
+Next steps:
+  1. Create .env from the example, then fill in your credentials:  cp .env.example .env
+     (Rename any `env("...")` call in askdb.config.ts if you prefer different variable names.)
+  2. Introspect your database:  pnpm exec askdb introspect
+  3. Ask a question:  pnpm exec askdb ask --question "Which customers signed up last week?"
 ```
 
   </TabItem>
@@ -222,12 +234,20 @@ Installing dependencies with yarn in …/askdb-shop …
 ➤ YN0004: │ better-sqlite3@npm:13.0.3 lists build scripts, but all build scripts have been disabled.
 …
 Installed: @askdb/config, better-sqlite3.
+
+Next steps:
+  1. Create .env from the example, then fill in your credentials:  cp .env.example .env
+     (Rename any `env("...")` call in askdb.config.ts if you prefer different variable names.)
+  2. Introspect your database:  yarn askdb introspect
+  3. Ask a question:  yarn askdb ask --question "Which customers signed up last week?"
 ```
 
 The `YN0004` warning is safe to ignore here. Yarn skipped the SQLite driver's build script, and the driver doesn't need one on the systems in [Before you start](#before-you-start): it ships prebuilt binaries for them.
 
   </TabItem>
 </Tabs>
+
+Steps 3 to 5 of this tutorial follow those next steps.
 
 Open `askdb.config.ts`:
 
@@ -314,7 +334,13 @@ yarn askdb introspect
   </TabItem>
 </Tabs>
 
-It prints nothing when it succeeds. Look in the new `askdb` folder instead: `askdb/schema.json` is the **schema artifact**. It lists our three tables, their columns and types, and the two links from `orders` to `customers` and `products`.
+When it's done, it prints one line:
+
+```
+Wrote askdb/schema.json: 3 tables (sqlite).
+```
+
+`askdb/schema.json` is the **schema artifact**. It lists our three tables, their columns and types, and the two links from `orders` to `customers` and `products`.
 
 The schema artifact is what AskDB gives the model. When we ask a question, AskDB sends the model our question and this schema, never the rows in `shop.db`. [Privacy model](/concepts/privacy-model/) lists everything that's sent.
 

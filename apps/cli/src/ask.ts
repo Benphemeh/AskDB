@@ -120,9 +120,13 @@ async function runAsk(opts: AskOptions): Promise<number> {
   }
   logger.info({ event: AskDbLogEvent.RunStart }, "askdb run start");
 
+  // Only for a person at a terminal: structured logs, CI and mock SQL keep stderr as it was.
+  const progress = startProgress(
+    logLevel === "silent" && !mockSql && Boolean(process.stderr.isTTY) && !process.env.CI,
+  );
   try {
     const schema = loadSchemaFromPath(opts.schema ?? runtime.introspection.outputDir);
-    for (const line of schemaWarningLines(schema)) process.stderr.write(line);
+    for (const line of schemaWarningLines(schema)) progress.write(line);
 
     const askdb = createAskDb({
       config: runtime,
@@ -130,7 +134,7 @@ async function runAsk(opts: AskOptions): Promise<number> {
       onResolve: (info) => {
         if (info.dialect.note) {
           logger.info({ event: "askdb.pipeline.dialect_override", note: info.dialect.note }, info.dialect.note);
-          process.stderr.write(`Note: ${info.dialect.note}\n`);
+          progress.write(`Note: ${info.dialect.note}\n`);
         }
       },
     });
@@ -154,6 +158,7 @@ async function runAsk(opts: AskOptions): Promise<number> {
           }
         : {}),
     });
+    progress.stop();
 
     // `ask()` runs the sensitive-identifier guardrail in warn mode and emits
     // askdb.pipeline.sensitive_sql_warning through the logger above; the CLI
@@ -180,10 +185,42 @@ async function runAsk(opts: AskOptions): Promise<number> {
     logger.info({ event: AskDbLogEvent.RunEnd, ok: true }, "askdb run end");
     return 0;
   } catch (error) {
+    progress.stop();
     logger.error({ event: AskDbLogEvent.RunError, errMessage: errorMessage(error) }, "askdb run error");
     printCliError(error);
     return 1;
   }
+}
+
+const PROGRESS_LINE = "Generating SQL…";
+const CLEAR_LINE = "\r\x1b[K";
+
+/**
+ * A `Generating SQL…` line on stderr while the model runs, so a first-time user can tell
+ * `askdb ask` is working (#947). `write` prints a line above it; `stop` clears it, and so
+ * does Ctrl-C. Stdout never sees it. When `show` is false, `write` goes straight to stderr.
+ */
+function startProgress(show: boolean): { write(text: string): void; stop(): void } {
+  if (!show) return { write: (text) => void process.stderr.write(text), stop: () => {} };
+  let shown = true;
+  // `once` removes the listener first, so re-raising the signal ends the process as usual.
+  const onSigint = () => {
+    process.stderr.write(CLEAR_LINE);
+    process.kill(process.pid, "SIGINT");
+  };
+  process.once("SIGINT", onSigint);
+  process.stderr.write(PROGRESS_LINE);
+  return {
+    write(text) {
+      process.stderr.write(shown ? `${CLEAR_LINE}${text}${PROGRESS_LINE}` : text);
+    },
+    stop() {
+      if (!shown) return;
+      shown = false;
+      process.off("SIGINT", onSigint);
+      process.stderr.write(CLEAR_LINE);
+    },
+  };
 }
 
 /** The schema path, and a hint that names `askdb introspect` and the troubleshooting page. */

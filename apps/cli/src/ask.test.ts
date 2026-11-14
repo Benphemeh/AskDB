@@ -1,4 +1,5 @@
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -119,5 +120,110 @@ describe("askdb ask prints the loader's warnings on stderr", () => {
     expect(await runAskCli(["-q", "Which agencies?", "--mock-sql", "SELECT id FROM agencies", "--schema", dir])).toBe(1);
     expect(stderr.startsWith("Warning: tenant-policy.md: global table table:public.gone is not in schema.json\n")).toBe(true);
     expect(stderr).toContain("TenantScopeError");
+  });
+});
+
+/** A fake OpenAI Responses endpoint that answers every request with `sql`. Returns its base URL. */
+async function startFakeModel(sql: string): Promise<{ baseUrl: string; close: () => Promise<void> }> {
+  const server = createServer(async (req, res) => {
+    for await (const _ of req);
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(
+      JSON.stringify({
+        id: "resp_test",
+        object: "response",
+        created_at: 0,
+        model: "gpt-4o-mini",
+        status: "completed",
+        incomplete_details: null,
+        output: [
+          {
+            type: "message",
+            id: "msg_test",
+            status: "completed",
+            role: "assistant",
+            content: [{ type: "output_text", text: `\`\`\`sql\n${sql}\n\`\`\``, annotations: [] }],
+          },
+        ],
+        usage: {
+          input_tokens: 1,
+          input_tokens_details: { cached_tokens: 0 },
+          output_tokens: 1,
+          output_tokens_details: { reasoning_tokens: 0 },
+          total_tokens: 2,
+        },
+      }),
+    );
+  });
+  await new Promise<void>((done) => server.listen(0, "127.0.0.1", done));
+  const address = server.address();
+  if (!address || typeof address === "string") throw new Error("expected inet address");
+  return {
+    baseUrl: `http://127.0.0.1:${address.port}/v1`,
+    close: () => new Promise<void>((done) => server.close(() => done())),
+  };
+}
+
+// A model call can take seconds. A person watching a terminal sees one line on stderr
+// while it runs, cleared before anything else prints; pipes and logs see nothing (#947).
+describe("askdb ask shows progress while the model runs", () => {
+  const PROGRESS = "Generating SQL…";
+  const CLEAR = "\r\x1b[K";
+  let model: Awaited<ReturnType<typeof startFakeModel>>;
+  const stderrTTY = Object.getOwnPropertyDescriptor(process.stderr, "isTTY");
+
+  /** Point the project's config at a fake model that answers `sql`, and set whether stderr is a terminal. */
+  async function useModel(sql: string, { tty }: { tty: boolean }): Promise<void> {
+    model = await startFakeModel(sql);
+    const config = {
+      ai: {
+        provider: "openai",
+        providerConfig: { openai: { apiKey: "sk-test", baseUrl: model.baseUrl } },
+        language: { model: "gpt-4o-mini" },
+      },
+      introspection: { provider: "postgres", providerConfig: { postgres: {} }, outputDir: FIXTURE_DIR },
+    };
+    writeFileSync(join(project, "askdb.config.mjs"), `export default ${JSON.stringify(config)};\n`);
+    Object.defineProperty(process.stderr, "isTTY", { value: tty, configurable: true });
+  }
+
+  beforeEach(() => vi.stubEnv("CI", ""));
+
+  afterEach(async () => {
+    vi.unstubAllEnvs();
+    if (stderrTTY) Object.defineProperty(process.stderr, "isTTY", stderrTTY);
+    else delete (process.stderr as { isTTY?: boolean }).isTTY;
+    await model.close();
+  });
+
+  it("on a terminal, shows a progress line on stderr and clears it before the SQL; stdout holds only the SQL", async () => {
+    await useModel("SELECT id FROM users", { tty: true });
+
+    expect(await runAskCli(["-q", "Which users?"])).toBe(0);
+
+    expect(stderr).toBe(`${PROGRESS}${CLEAR}`);
+    expect(stdout).toBe("-- sql --\nSELECT id FROM users\n");
+  });
+
+  it("on a terminal, clears the progress line before an error", async () => {
+    await useModel("DELETE FROM users", { tty: true });
+
+    expect(await runAskCli(["-q", "Drop them"])).toBe(1);
+
+    expect(stderr.startsWith(`${PROGRESS}${CLEAR}SqlValidationError [`)).toBe(true);
+    expect(stdout).toBe("");
+  });
+
+  it.each([
+    ["stderr is not a terminal", { tty: false, ci: "" }],
+    ["CI is set", { tty: true, ci: "true" }],
+  ])("shows nothing when %s", async (_, { tty, ci }) => {
+    vi.stubEnv("CI", ci);
+    await useModel("SELECT id FROM users", { tty });
+
+    expect(await runAskCli(["-q", "Which users?"])).toBe(0);
+
+    expect(stderr).toBe("");
+    expect(stdout).toBe("-- sql --\nSELECT id FROM users\n");
   });
 });

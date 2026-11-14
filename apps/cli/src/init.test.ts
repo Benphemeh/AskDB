@@ -521,6 +521,40 @@ describe("runInitCli install", () => {
     expect(stderr.join("")).toContain(`  pnpm add ${packages.join(" ")}\n`);
   });
 
+  // #937: a local install puts no bare `askdb` on PATH, so each command the Next steps print
+  // runs the CLI through the project's package manager, and the copy step is a command too.
+  it.each([
+    ["package-lock.json", "linux", "cp", "npx askdb"],
+    ["pnpm-lock.yaml", "linux", "cp", "pnpm exec askdb"],
+    ["yarn.lock", "linux", "cp", "yarn askdb"],
+    ["bun.lock", "linux", "cp", "bunx askdb"],
+    ["package-lock.json", "win32", "copy", "npx askdb"],
+  ])("with %s on %s, the Next steps copy with `%s` and run `%s`", async (lockfile, os, copy, askdb) => {
+    enterProject({ "package.json": '{ "name": "app", "private": true }\n', [lockfile]: "" });
+    const platform = Object.getOwnPropertyDescriptor(process, "platform")!;
+    Object.defineProperty(process, "platform", { ...platform, value: os });
+    try {
+      const code = await runInitCli(
+        ["--yes", "--database", "sqlite", "--sqlite-file", "./shop.db", "--path", join(project, "askdb.config.ts")],
+        vi.fn().mockReturnValue(true),
+      );
+      expect(code).toBe(0);
+    } finally {
+      Object.defineProperty(process, "platform", platform);
+    }
+
+    expect(stdout.join("")).toContain(
+      [
+        "\nNext steps:",
+        `  1. Create .env from the example, then fill in your credentials:  ${copy} .env.example .env`,
+        "     (Rename any `env(\"...\")` call in askdb.config.ts if you prefer different variable names.)",
+        `  2. Introspect your database:  ${askdb} introspect`,
+        `  3. Ask a question:  ${askdb} ask --question "Which customers signed up last week?"`,
+        "",
+      ].join("\n"),
+    );
+  });
+
   // #863: pnpm also keeps settings such as minimumReleaseAgeExclude in pnpm-workspace.yaml,
   // so a one-package project can have the file without being a workspace.
   it("in a one-package project whose pnpm-workspace.yaml holds only settings, installs", async () => {
