@@ -434,6 +434,8 @@ function playgroundReducer(state: PlaygroundState, action: PlaygroundAction): Pl
           sql: action.entry.sql,
           explain: action.entry.explain ?? null,
           warnings: [],
+          // History doesn't keep the check's result; generate again to see it.
+          sensitiveGuardrail: null,
           rag: { enabled: false, chunks: [] },
           tenant: historyTenant(action.entry),
           usage: null,

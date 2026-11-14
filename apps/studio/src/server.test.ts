@@ -286,6 +286,24 @@ describe("AskDB Studio server", () => {
     expect(prompt).toContain("admitted_on");
   });
 
+  // #957: the Playground returns the sensitive-column check ask() ran, as `askdb ask` prints it.
+  it("returns the sensitive-column warning for Playground SQL that reads a column marked sensitive in front-matter", async () => {
+    installStudioRuntime({
+      ...STUDIO_TEST_BASE,
+      dev: { mockSql: "SELECT p.id, p.diagnosis_code FROM public.patients p" },
+    });
+    const server = createStudioServer({ schema: writeClinicSchema() });
+    servers.push(server);
+    const baseUrl = await listen(server);
+
+    const generated = await postJson(`${baseUrl}/api/ask`, { question: "Which diagnoses do patients have?" });
+
+    expect(generated.sensitiveGuardrail).toEqual({
+      references: ["public.patients.diagnosis_code"],
+      unresolvedScopeNote: null,
+    });
+  });
+
   // #625: AI enrichment suggestions follow the same rule as ask().
   it("suggests enrichment without sending any sensitive column when omitSensitiveFromPrompt is on", async () => {
     const { baseUrl, model } = await startClinicStudio({ omitSensitiveFromPrompt: true, reply: "A suggestion." });

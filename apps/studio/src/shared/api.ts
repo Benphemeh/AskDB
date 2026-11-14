@@ -161,6 +161,16 @@ export type AskResponse = {
   sql: string;
   explain: unknown | null;
   warnings: SchemaV2Warning[];
+  /**
+   * The sensitive-column check `ask()` ran on `sql`, in warn mode. `references` are the
+   * sensitive columns it reads, as `schema.table.column`; `unresolvedScopeNote` is the check's note
+   * when it couldn't fully resolve which tables the SQL reads. Null when the schema marks
+   * nothing sensitive.
+   */
+  sensitiveGuardrail: {
+    references: string[];
+    unresolvedScopeNote: string | null;
+  } | null;
   rag: {
     enabled: boolean;
     chunks: StudioRagChunkDto[];
