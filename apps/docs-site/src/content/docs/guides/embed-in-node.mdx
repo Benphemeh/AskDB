@@ -1,49 +1,139 @@
 ---
 title: "Embed AskDB in a Node app"
-description: "Add natural-language SQL to a TypeScript service in twenty lines: load a schema, call ask(), run the SQL through your own pool."
+description: "Add natural-language SQL to a TypeScript service: get checked SQL from AskDB, then run it through your own PostgreSQL or SQLite driver."
 ---
 
-import { Aside } from "@astrojs/starlight/components";
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
 import ExampleLink from "../../../components/ExampleLink.astro";
 import InstallTabs from "../../../components/InstallTabs.astro";
 
 <p class="doc-eyebrow">Integrator guide</p>
 
-<p class="doc-lede">Add AskDB to a TypeScript service. It generates checked SQL from a question and hands it back. Your service runs it through its own connection pool against a read-only role.</p>
+<p class="doc-lede">Add AskDB to a TypeScript service. It generates checked SQL from a question and hands it back. Your service runs it through its own database connection, read-only.</p>
 
 ## Wire it into a handler
 
-There are two ways to give AskDB a model, and both return the same result. Pick by who owns your provider configuration ([Bring your own model](/guides/bring-your-own-model/#which-should-i-use) compares them):
+A handler has two parts. The first gets SQL for a question from AskDB, and the second runs that SQL against your database. Only the first part depends on how you give AskDB a model, and only the second depends on your database engine.
 
-- **With your config:** `createAskDb()` from `@askdb/client` resolves the schema, model and dialect from `askdb.config.ts`, the file `askdb init` scaffolded and the CLI and Studio read.
-- **With your own model:** `ask()` from `@askdb/core` takes a Vercel AI SDK model that your app builds, and reads no config.
+You can give AskDB a model in two ways, and both are first-party and return the same result:
 
-### With your config: `createAskDb()`
+- **AskDB builds the model:** `createAskDb()` from `@askdb/client` reads the model, schema and dialect from `askdb.config.ts`, the file that `askdb init` wrote and that the CLI and Studio read.
+- **Your app builds the model:** `ask()` from `@askdb/core` takes a Vercel AI SDK model that your app builds, and reads no config.
 
-<InstallTabs pkgs="@askdb/client @askdb/core @askdb/config ai @ai-sdk/openai pg" />
+If your app already builds AI SDK models, building this one yourself keeps all model configuration in one place. If it doesn't, `askdb.config.ts` already holds it. [Bring your own model](/guides/bring-your-own-model/#which-should-i-use) compares the two.
 
-| Package | Why |
-| --- | --- |
-| `@askdb/client` | `createAskDb()` — resolves the schema, model, and dialect from config. |
-| `@ai-sdk/openai` | The AI SDK package for the provider your config selects. Swap it for `@ai-sdk/anthropic`, `@ai-sdk/google`, or `@ai-sdk/azure` (the Vercel AI Gateway needs none). AskDB loads it on first use. |
-| `@askdb/config` | Loads `.env` and `askdb.config.ts` at startup. |
-| `@askdb/core`, `ai` | With `@askdb/config`, the required peer dependencies of `@askdb/client` (`ai` at AI SDK 7). npm and pnpm add them for you; Yarn doesn't, so list them. |
-| `pg` | The Postgres driver. AskDB doesn't open the connection; your app does. |
+### 1. Install the packages
 
-Call `createAskDb` once at startup, then `askdb.ask(question)` per request:
+Both ways need `ai` and the AI SDK package for your provider, such as `@ai-sdk/openai`, because your app owns the AI SDK version. `createAskDb()` adds `@askdb/client` and `@askdb/config`.
+
+<Tabs syncKey="wiring">
+  <TabItem label="AskDB builds the model">
+
+<InstallTabs pkgs="@askdb/client @askdb/core @askdb/config ai @ai-sdk/openai" />
+
+`@askdb/core`, `@askdb/config` and `ai` are required peer dependencies of `@askdb/client`. npm and pnpm add them for you; Yarn doesn't, so the line lists them.
+
+  </TabItem>
+  <TabItem label="Your app builds the model">
+
+<InstallTabs pkgs="@askdb/core ai @ai-sdk/openai" />
+
+`ai` is a required peer dependency of `@askdb/core` (AI SDK 6 or 7).
+
+  </TabItem>
+</Tabs>
+
+For another provider, swap `@ai-sdk/openai` for `@ai-sdk/anthropic`, `@ai-sdk/google` or `@ai-sdk/azure`. The Vercel AI Gateway needs none. All six dialects are built into `@askdb/core`, so you don't need an engine package such as `@askdb/postgres` to generate SQL.
+
+Then install the driver for your database. AskDB doesn't open the connection; your app does.
+
+<Tabs syncKey="engine">
+  <TabItem label="PostgreSQL">
+
+<InstallTabs pkgs="pg" />
+
+  </TabItem>
+  <TabItem label="SQLite">
+
+<InstallTabs pkgs="better-sqlite3" />
+
+If you followed the [Quickstart](/quickstart/), `askdb init` already installed `better-sqlite3`.
+
+  </TabItem>
+</Tabs>
+
+For TypeScript types, add `@types/pg` or `@types/better-sqlite3` as a dev dependency.
+
+### 2. Get SQL for a question
+
+Create `generate-sql.ts`. It sets up AskDB once at startup and exports `generateSql(question)`, which returns checked SQL:
+
+<Tabs syncKey="wiring">
+  <TabItem label="AskDB builds the model">
 
 ```ts
-// ask-handler.ts
+// generate-sql.ts
 import { createAskDb } from "@askdb/client";
 import { bootstrapAskDbEnv, getAskDbRuntimeConfig } from "@askdb/config";
-import { Pool } from "pg";
 
+// Loads .env and askdb.config.ts from the working directory.
 bootstrapAskDbEnv({ cwd: process.cwd() });
 
 const askdb = createAskDb({
   config: getAskDbRuntimeConfig(),                 // ai.provider picks the model
-  schema: { path: "./my-app.schema" },             // or set host.schemaPath in config and omit
+  schema: { path: "./askdb" },                     // or set host.schemaPath in config and omit
 });
+
+export function generateSql(question: string) {
+  return askdb.ask(question);
+}
+```
+
+The dialect follows the engine the schema artifact recorded at introspection, so a SQLite schema gets SQLite SQL with no change. Set `dialect` in `askdb.config.ts` to override it. The schema loads on the first `ask()` and stays in memory on the client. If the artifact changes while the process runs, call `askdb.reload()`.
+
+On `askdb.ask(question, overrides)`, the question is the first argument and the other options are per-call overrides. Pass `schema` per call to serve several schemas from one client. `schema`, `model` and `dialect` take the client's forms, and `mode` and `omitSensitiveIdentifiersFromNlToSqlPrompt` can only tighten what the config sets. See [`AskOverrides`](/reference/client-api/#overrides--askoverrides).
+
+  </TabItem>
+  <TabItem label="Your app builds the model">
+
+```ts
+// generate-sql.ts
+import { ask, loadSchema } from "@askdb/core";
+import { openai } from "@ai-sdk/openai";
+
+// loadSchema is synchronous; it autodetects the artifact directory,
+// a bundled .bundle.json, or a bare schema.json. Load once at startup.
+const schema = loadSchema("./askdb");
+const model = openai("gpt-4o-mini");               // reads OPENAI_API_KEY
+
+export function generateSql(question: string) {
+  return ask({
+    question,
+    schema,
+    dialect: "postgres",                           // the engine the schema came from: "sqlite" for a SQLite file
+    model,
+  });
+}
+```
+
+Set `dialect` to the engine you introspected: `"postgres"`, `"cockroachdb"`, `"mysql"`, `"mariadb"`, `"sqlite"` or `"sqlserver"`. Every option `ask()` takes, such as modes, tenant scope, retrieval and sensitive-field handling, is in the [@askdb/core API reference](/reference/core-api/).
+
+  </TabItem>
+</Tabs>
+
+`./askdb` is the folder `askdb introspect` writes the schema artifact to, unless `introspection.outputDir` in `askdb.config.ts` names another one.
+
+### 3. Run the SQL in a handler
+
+Create `ask-handler.ts`. It opens your database read-only, calls `generateSql()`, logs the SQL and runs it. It's the same for both ways of building the model:
+
+<Tabs syncKey="engine">
+  <TabItem label="PostgreSQL">
+
+```ts
+// ask-handler.ts
+import { Pool } from "pg";
+import { generateSql } from "./generate-sql.js";
 
 // Connect as a read-only, least-privilege role, with a statement timeout.
 const pool = new Pool({
@@ -75,7 +165,7 @@ async function runReadOnly(sql: string, params: unknown[] = []) {
 }
 
 export async function askQuestion(question: string) {
-  const { sql, tenantParams } = await askdb.ask(question);
+  const { sql, tenantParams } = await generateSql(question);
 
   // Audit hook — log every question and generated SQL.
   console.log({ question, sql });
@@ -86,50 +176,57 @@ export async function askQuestion(question: string) {
 }
 ```
 
-`./my-app.schema` is a **directory**, not a file — `<name>.schema/` is AskDB's convention for the introspected-and-enriched artifact. The schema loads on the first `ask()` and stays in memory on the client; call `askdb.reload()` if the artifact changes while the process runs.
-
-To serve several schemas from one client, pass `schema` per call.
-
-### With your own model: `ask()`
-
-<InstallTabs pkgs="@askdb/core ai @ai-sdk/openai pg" />
-
-`ai` is a required peer dependency of `@askdb/core` (AI SDK 6 or 7) — your app owns its version.
-
-All six built-in dialects are built into `@askdb/core` — install `@askdb/postgres` only if this service also runs `askdb introspect` programmatically.
-
-Load the schema and build the model once at startup, then call `ask()` per request:
+  </TabItem>
+  <TabItem label="SQLite">
 
 ```ts
 // ask-handler.ts
-import { ask, loadSchema } from "@askdb/core";
-import { openai } from "@ai-sdk/openai";
-import { Pool } from "pg";
+import Database from "better-sqlite3";
+import { generateSql } from "./generate-sql.js";
 
-// loadSchema is synchronous; it autodetects the artifact directory,
-// a bundled .bundle.json, or a bare schema.json. Load once at startup.
-const schema = loadSchema("./my-app.schema");
-const model = openai("gpt-4o-mini");
+// Open the file read-only, so a generated write fails.
+const db = new Database("./shop.db", { readonly: true, fileMustExist: true });
 
-// Connect as a read-only, least-privilege role, with a statement timeout.
-const pool = new Pool({ connectionString: process.env.DATABASE_URL, statement_timeout: 5000 });
-pool.on("error", (err) => console.error({ err }, "idle database client error"));
+// Runs one generated statement. prepare() takes one statement, so a stacked second statement fails.
+function runReadOnly(sql: string, params: unknown[] = []) {
+  return db.prepare(sql).all(...params);
+}
 
 export async function askQuestion(question: string) {
-  const { sql, tenantParams } = await ask({
-    question,
-    schema,
-    dialect: "postgres",
-    model,
-  });
+  const { sql, tenantParams } = await generateSql(question);
 
-  // runReadOnly: copy the helper from the first example; it uses this pool.
-  const rows = await runReadOnly(sql, tenantParams ?? []);
+  // Audit hook — log every question and generated SQL.
+  console.log({ question, sql });
+
+  // `sql` runs with `tenantParams`, which is empty unless you pass a tenant scope.
+  const rows = runReadOnly(sql, tenantParams ?? []);
   return { sql, rows };
 }
 ```
 
-Every option `ask()` takes — modes, tenant scope, retrieval, sensitive-field handling — is in the [@askdb/core API reference](/reference/core-api/). On `askdb.ask(question, overrides)`, the question is the first argument and the other options are per-call overrides. `schema`, `model` and `dialect` take the client's forms, and `mode` and `omitSensitiveIdentifiersFromNlToSqlPrompt` can only tighten what the config sets. See [`AskOverrides`](/reference/client-api/#overrides--askoverrides).
+`./shop.db` is the Quickstart's database; change it to your own file. On the `ask()` path, set `dialect: "sqlite"` in `generate-sql.ts`.
+
+  </TabItem>
+</Tabs>
+
+### 4. Try it
+
+Call the handler from a short script:
+
+```ts
+// try-it.ts
+import { askQuestion } from "./ask-handler.js";
+
+askQuestion("How much has each customer spent in total, highest first?").then(({ rows }) => console.table(rows));
+```
+
+Run it with [tsx](https://tsx.is/), which runs TypeScript files directly. `--env-file` loads your API key from `.env` (and `DATABASE_URL` for PostgreSQL):
+
+```bash
+npx tsx --env-file=.env try-it.ts
+```
+
+It logs the question and the SQL, then prints the rows as a table. If it fails with `no AI API key configured` or `Incorrect API key provided`, check that `.env` has your provider's key.
 
 ## Run the SQL it returns
 
@@ -138,18 +235,18 @@ AskDB returns checked SQL; your handler logs it, runs it, and returns the result
 `askdb.ask()` and `ask()` both return the query in two forms, each with its own array. Run `sql` with `tenantParams`, the tenant IDs for its markers, which it has only when you pass a tenant scope. Or run `unboundSql` with `params`, which binds every value as a parameter. Never mix the two arrays. `unboundSql` comes with `parameterize` on, the default; set `parameterize: false` to save the output tokens it costs. The result also has `verdict`, what AskDB's SQL checks found, and `usage`, the token counts when your provider reports them. [Result — `AskPipelineResult`](/reference/core-api/ask/#result--askpipelineresult) lists every field.
 
 <Aside type="note">
-This example uses `pg` to run the SQL, but the driver is your choice — AskDB never opens a connection. If you already use an ORM or query builder (Prisma, Drizzle, Sequelize, Knex, …), skip `pg` entirely and pass the returned `sql` string and its values (`tenantParams ?? []`) to your existing client, e.g. `prisma.$queryRawUnsafe(sql, ...values)` or `db.execute(sql, values)`.
+These examples use `pg` and `better-sqlite3` to run the SQL, but the driver is your choice — AskDB never opens a connection. If you already use an ORM or query builder (Prisma, Drizzle, Sequelize, Knex, …), skip the driver and pass the returned `sql` string and its values (`tenantParams ?? []`) to your existing client, e.g. `prisma.$queryRawUnsafe(sql, ...values)` or `db.execute(sql, values)`.
 </Aside>
 
 To run the same query again with a new value, such as another month, without a model call, see [Rerun a query with new values](/guides/rerun-a-query-with-new-values/).
 
 <Aside type="caution">
-AskDB's SQL checks catch common model mistakes but aren't a security boundary. Connect `DATABASE_URL` as a read-only, least-privilege role and keep `statement_timeout` set. See [Run generated SQL safely](/concepts/safety-boundaries/#run-generated-sql-safely).
+AskDB's SQL checks catch common model mistakes but aren't a security boundary. Connect `DATABASE_URL` as a read-only, least-privilege role and keep `statement_timeout` set, or open a SQLite file read-only. See [Run generated SQL safely](/concepts/safety-boundaries/#run-generated-sql-safely).
 </Aside>
 
 ## Switching engines
 
-With `createAskDb()`, the dialect follows the engine the schema artifact recorded at introspection, unless `askdb.config.ts` sets `dialect`. With `ask()`, change `dialect: "postgres"` to `"cockroachdb"`, `"mysql"`, `"mariadb"`, `"sqlite"` or `"sqlserver"`. See [Switch engines](/guides/switch-engines/) for the full migration matrix.
+With `createAskDb()`, the dialect follows the engine the schema artifact recorded at introspection, unless `askdb.config.ts` sets `dialect`. With `ask()`, change `dialect` to `"postgres"`, `"cockroachdb"`, `"mysql"`, `"mariadb"`, `"sqlite"` or `"sqlserver"`. For the MySQL and SQL Server drivers and the full migration matrix, see [Switch engines](/guides/switch-engines/).
 
 ## Complete example: Express server
 
