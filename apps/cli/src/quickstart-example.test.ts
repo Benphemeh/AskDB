@@ -7,6 +7,7 @@
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import semver from "semver";
 import { describe, expect, it } from "vitest";
 
 const repoRoot = join(import.meta.dirname, "../../..");
@@ -54,8 +55,8 @@ describe("examples/quickstart-shop", () => {
       devDependencies?: Record<string, string>;
     };
     const range = example.devDependencies?.askdb;
-    // A caret range on the CLI's major: `^1.0.0-rc.1` admits every 1.0 prerelease after it and every 1.x.
+    // A caret range, such as `^1.0.0-rc.1`, so a reader gets the latest release on the line.
     expect(range).toMatch(/^\^\d+\.\d+\.\d+(-[\w.]+)?$/);
-    expect(range!.slice(1).split(".")[0]).toBe(cliVersion.split(".")[0]);
+    expect(semver.satisfies(cliVersion, range!), `${range} doesn't admit askdb ${cliVersion}`).toBe(true);
   });
 });

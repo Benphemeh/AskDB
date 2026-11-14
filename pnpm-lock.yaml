@@ -112,6 +112,12 @@ importers:
       '@askdb/prisma':
         specifier: workspace:*
         version: link:../../packages/prisma
+      '@types/semver':
+        specifier: ^7.8.0
+        version: 7.8.0
+      semver:
+        specifier: ^7.8.6
+        version: 7.8.6
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -3580,6 +3586,9 @@ packages:
 
   '@types/sax@1.2.7':
     resolution: {integrity: sha512-rO73L89PJxeYM3s3pPPjiPgVVcymqU490g0YO5n5By0k2Erzj6tay/4lr1CHAAU4JyOWd1rpQ8bCf6cZfHU96A==}
+
+  '@types/semver@7.8.0':
+    resolution: {integrity: sha512-1mAINjtQCXXeLkJ9ehXkwOcBpqtLxiVtKhpUf83DdRNdQKV0iXZpaHYqRr7nj+wvxuJzoAmAwXI+sCNMv1CzLQ==}
 
   '@types/send@1.2.1':
     resolution: {integrity: sha512-arsCikDvlU99zl1g69TcAB3mzZPpxgw0UQnaHeC1Nwb015xp8bknZv5rIfri9xTOcMuaVgvabfIRA7PSZVuZIQ==}
@@ -9962,6 +9971,8 @@ snapshots:
   '@types/sax@1.2.7':
     dependencies:
       '@types/node': 22.20.5
+
+  '@types/semver@7.8.0': {}
 
   '@types/send@1.2.1':
     dependencies:

@@ -12,6 +12,11 @@
 # example's own package.json installs unchanged. @askdb/prisma is left out: it's an optional
 # peer of askdb, and pnpm installs an optional peer whose override is a tarball.
 #
+# Why here and not in the consumer lab, which pins tarballs the same way: the lab tests its own
+# committed host project, against the multi-engine fixture and a chosen target, while this
+# check tests a different project (the example's own package.json) on every smoke run, from the
+# tarballs the smoke just packed and with no database container.
+#
 # One step differs from the page. `askdb init` installs @askdb/config at the CLI's own version
 # from the registry, and before a release that version isn't there: neither a pnpm override
 # nor an npm one redirects a package named on the add command. So init runs with
@@ -44,30 +49,31 @@ OVERRIDES="$(node --input-type=module -e "
   process.stdout.write(JSON.stringify(overrides));
 " "$TARBALLS")"
 
-# Run as a reader would: not under the `pnpm smoke:install` that started this script.
-p() { (cd "$DIR" && env -u npm_config_user_agent -u npm_config_frozen_lockfile "$@"); }
+# Runs a command in the example folder as a reader would: not under the `pnpm smoke:install`
+# that started this script.
+in_example() { (cd "$DIR" && env -u npm_config_user_agent -u npm_config_frozen_lockfile "$@"); }
 
 echo "quickstart-example: pnpm install from the packed packages…"
 # The README's pnpm commands, then the overrides that point AskDB at the tarballs.
-p pnpm config set --location project minimumReleaseAgeExclude '["askdb","@askdb/*"]' --json
-p pnpm config set --location project overrides "$OVERRIDES" --json
+in_example pnpm config set --location project minimumReleaseAgeExclude '["askdb","@askdb/*"]' --json
+in_example pnpm config set --location project overrides "$OVERRIDES" --json
 # Overrides don't reach a peer pnpm installs itself, so @askdb/client's @askdb/config peer would
 # come from the registry, where a version not yet released isn't. Without auto-installed peers
 # it resolves to the @askdb/config `askdb init` adds below, from its tarball.
-p pnpm config set --location project autoInstallPeers false
-p pnpm install --silent
+in_example pnpm config set --location project autoInstallPeers false
+in_example pnpm install --silent
 
 echo "quickstart-example: node make-shop.mjs…"
-p node make-shop.mjs 2>/dev/null | grep -qx 'Created shop.db'
+in_example node make-shop.mjs 2>/dev/null | grep -qx 'Created shop.db'
 
 echo "quickstart-example: askdb init…"
-INIT_OUTPUT="$(p pnpm exec askdb init --yes --database sqlite --sqlite-file ./shop.db --skip-install 2>&1)" || {
+INIT_OUTPUT="$(in_example pnpm exec askdb init --yes --database sqlite --sqlite-file ./shop.db --skip-install 2>&1)" || {
   echo "quickstart-example: FAILED — askdb init exited non-zero:" >&2
   echo "$INIT_OUTPUT" >&2
   exit 1
 }
 CONFIG_TARBALL="$(node -e "const m = JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8')); process.stdout.write(process.argv[2] + '/' + m.find((p) => p.name === '@askdb/config').file)" "$TARBALLS/manifest.json" "$TARBALLS")"
-p pnpm add --silent "$CONFIG_TARBALL" better-sqlite3
+in_example pnpm add --silent "$CONFIG_TARBALL" better-sqlite3
 
 # Every AskDB package in the lockfile must come from a tarball, or this tested the registry.
 node --input-type=module -e "
@@ -84,7 +90,7 @@ node --input-type=module -e "
 cp "$DIR/.env.example" "$DIR/.env"
 
 echo "quickstart-example: askdb introspect…"
-INTROSPECT_OUTPUT="$(p pnpm exec askdb introspect 2>&1)"
+INTROSPECT_OUTPUT="$(in_example pnpm exec askdb introspect 2>&1)"
 grep -qx 'Wrote askdb/schema.json: 3 tables (sqlite).' <<<"$INTROSPECT_OUTPUT" || {
   echo "quickstart-example: FAILED — askdb introspect didn't print the page's line:" >&2
   echo "$INTROSPECT_OUTPUT" >&2
@@ -105,7 +111,7 @@ read_page() {
 }
 QUESTION="$(read_page question)"
 SQL="$(read_page sql)"
-ROWS="$(p bash -c 'set -o pipefail; pnpm exec askdb ask --question "$1" --mock-sql "$2" | node run-query.mjs 2>/dev/null' _ "$QUESTION" "$SQL")"
+ROWS="$(in_example bash -c 'set -o pipefail; pnpm exec askdb ask --question "$1" --mock-sql "$2" | node run-query.mjs 2>/dev/null' _ "$QUESTION" "$SQL")"
 
 # The page's step 6 table, row by row: each row's values must appear in the output, in order.
 node --input-type=module -e "
