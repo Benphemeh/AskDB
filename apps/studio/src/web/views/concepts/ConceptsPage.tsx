@@ -9,6 +9,7 @@ import { Input } from "../../components/ui/input";
 import { ListInput } from "../../components/ui/list-input";
 import { Textarea } from "../../components/ui/textarea";
 import { StatusBanner } from "../../components/common/StatusBanner";
+import { SubRail, SubRailProvider, SubRailTrigger, useSubRail } from "../../components/common/SubRail";
 
 /* ─── helpers ─── */
 const CONCEPT_PREFIX = "concept:";
@@ -64,14 +65,16 @@ export function ConceptsPage() {
 
   return (
     <main className="main-pane">
-      <ConceptsEditor
-        key={conceptsKey}
-        concepts={workspace.concepts}
-        linkOptions={linkOptions}
-        onSave={onSave}
-        saveStatus={saveStatus}
-        busy={busy}
-      />
+      <SubRailProvider>
+        <ConceptsEditor
+          key={conceptsKey}
+          concepts={workspace.concepts}
+          linkOptions={linkOptions}
+          onSave={onSave}
+          saveStatus={saveStatus}
+          busy={busy}
+        />
+      </SubRailProvider>
     </main>
   );
 }
@@ -151,6 +154,7 @@ function ConceptsEditor({
     conceptSearch: "",
   }));
   const { draft, selectedIndex, addOpen, addDraft, conceptSearch } = state;
+  const { setOpen: setRailOpen } = useSubRail();
 
   const dirty = JSON.stringify(draft) !== JSON.stringify(concepts);
 
@@ -193,6 +197,7 @@ function ConceptsEditor({
   return (
     <>
       <div className="main-hd">
+        <SubRailTrigger label="Concepts" />
         <div className="main-title">
           <h1><Hexagon size={18} style={{ display: "inline", marginRight: 8 }} />Concepts</h1>
           <div className="main-sub">Cross-table domain vocabulary for NL→SQL grounding</div>
@@ -220,9 +225,9 @@ function ConceptsEditor({
 
       {saveStatus && <StatusBanner status={saveStatus} />}
 
-      <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", flex: 1, minHeight: 0, overflow: "hidden" }}>
+      <div className="concepts-grid">
         {/* ── Left: concept list ── */}
-        <div className="sub-rail" style={{ borderRight: "1px solid var(--border)" }}>
+        <SubRail title="Concepts" style={{ borderRight: "1px solid var(--border)" }}>
           <div className="sub-rail-hd">
             <h2>Concepts</h2>
             <span className="muted tiny">{draft.length}</span>
@@ -242,7 +247,10 @@ function ConceptsEditor({
               type="button"
               className="btn sm"
               style={{ width: "100%", justifyContent: "center" }}
-              onClick={() => dispatch({ type: "open_add_form" })}
+              onClick={() => {
+                setRailOpen(false);
+                dispatch({ type: "open_add_form" });
+              }}
             >
               <Plus size={12} /> Add concept
             </button>
@@ -253,7 +261,10 @@ function ConceptsEditor({
                 type="button"
                 key={concept.id}
                 className={`sub-rail-row ${selectedIndex === index ? "active" : ""}`}
-                onClick={() => dispatch({ type: "select_concept", index })}
+                onClick={() => {
+                  setRailOpen(false);
+                  dispatch({ type: "select_concept", index });
+                }}
               >
                 <Hexagon size={12} style={{ flexShrink: 0, color: "var(--ink-400)" }} />
                 <span className="row-name">{concept.label}</span>
@@ -266,7 +277,7 @@ function ConceptsEditor({
               </div>
             )}
           </div>
-        </div>
+        </SubRail>
 
         {/* ── Right: detail ── */}
         <div style={{ overflow: "auto", padding: "var(--pad-y) var(--pad-x)" }}>

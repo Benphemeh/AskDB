@@ -448,6 +448,29 @@ code, pre, .mono { font-family: var(--font-mono); }
   letter-spacing: 0;
 }
 
+/* Sub-rail inside its narrow-window drawer (SubRail.tsx) */
+.sub-rail-sheet {
+  gap: 0;
+  padding: 0;
+}
+
+.sub-rail-sheet .sub-rail {
+  flex: 1;
+  border-right: 0;
+}
+
+/* Leave room for the drawer's close button */
+.sub-rail-sheet .sub-rail-hd { padding-right: 44px; }
+
+/* Concepts: list beside detail */
+.concepts-grid {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
 /* ───────── Schema groups (tables sub-rail) ───────── */
 .schema-group {
   margin-bottom: 2px;
@@ -1580,11 +1603,16 @@ select:focus-visible {
     --sub-w: 0px;
   }
 
-  .sub-rail { display: none; }
-
+  /* The sub-rail moves into a drawer (SubRail.tsx), opened from the view header. */
   .app-content {
     grid-template-columns: 1fr;
   }
+
+  .concepts-grid { grid-template-columns: 1fr; }
+
+  /* Let a header's actions wrap under the title instead of squeezing it */
+  .main-hd { flex-wrap: wrap; }
+  .main-hd .main-title { min-width: 160px; }
 
   .grid-4 { grid-template-columns: 1fr; }
   .grid-3 { grid-template-columns: 1fr; }
