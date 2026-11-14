@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { brokenLinks } from "./check-link-targets.mjs";
+import { brokenLinks, sitePathsIn } from "./check-link-targets.mjs";
 
 const page = (body) => `<!doctype html><html><head><title>t</title></head><body>${body}</body></html>`;
 const redirect = (to) => `<!doctype html><meta http-equiv="refresh" content="0;url=${to}"><a href="${to}">${to}</a>`;
@@ -76,4 +76,27 @@ test("brokenLinks resolves links under a base path, and reports one without it",
     { page: "/index.html", href: "/guide/", reason: "no page at this path" },
     { page: "/guide/index.html", href: "#nowhere", reason: 'no id="nowhere" on /guide/index.html' },
   ]);
+});
+
+test("brokenLinks checks the site paths written in /AGENTS.md, under the base", () => {
+  const agentsMd = [
+    "- See `/guide/` and `/guide/#steps`, or the skill at `/skills/x/SKILL.md`.",
+    "- A missing page: `/missing/`, a missing anchor: `/guide/#nowhere`, and a file: `/skills/y/SKILL.md`.",
+    "- Not a site path: `askdb ask`, `ask()`.",
+  ].join("\n");
+  assert.deepEqual(sitePathsIn(agentsMd), ["/guide/", "/guide/#steps", "/skills/x/SKILL.md", "/missing/", "/guide/#nowhere", "/skills/y/SKILL.md"]);
+
+  const built = new Map([
+    ["/guide/index.html", page(`<h2 id="steps">Steps</h2>`)],
+    ["/skills/x/SKILL.md", null],
+    ["/AGENTS.md", null],
+  ]);
+  const expected = (base) => [
+    { page: "/AGENTS.md", href: `${base}/missing/`, reason: "no page at this path" },
+    { page: "/AGENTS.md", href: `${base}/guide/#nowhere`, reason: 'no id="nowhere" on /guide/index.html' },
+    { page: "/AGENTS.md", href: `${base}/skills/y/SKILL.md`, reason: "no page at this path" },
+  ];
+  const paths = new Map([["/AGENTS.md", sitePathsIn(agentsMd)]]);
+  assert.deepEqual(brokenLinks(built, "/", paths), expected(""));
+  assert.deepEqual(brokenLinks(built, "/AskDB/", paths), expected("/AskDB"));
 });
