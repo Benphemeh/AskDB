@@ -6,36 +6,31 @@
       "id": "table:public.orders",
       "name": "orders",
       "schema": "public",
-      "sensitive": false,
       "columns": [
         {
           "id": "table:public.orders#id",
           "name": "id",
           "type": "uuid",
           "nullable": false,
-          "primaryKey": true,
-          "sensitive": false
+          "primaryKey": true
         },
         {
           "id": "table:public.orders#user_id",
           "name": "user_id",
           "type": "uuid",
-          "nullable": false,
-          "sensitive": false
+          "nullable": false
         },
         {
           "id": "table:public.orders#status",
           "name": "status",
           "type": "text",
-          "nullable": false,
-          "sensitive": false
+          "nullable": false
         },
         {
           "id": "table:public.orders#total_amount",
           "name": "total_amount",
           "type": "integer",
-          "nullable": false,
-          "sensitive": false
+          "nullable": false
         }
       ],
       "relationships": [
@@ -49,29 +44,25 @@
       "id": "table:public.users",
       "name": "users",
       "schema": "public",
-      "sensitive": false,
       "columns": [
         {
           "id": "table:public.users#id",
           "name": "id",
           "type": "uuid",
           "nullable": false,
-          "primaryKey": true,
-          "sensitive": false
+          "primaryKey": true
         },
         {
           "id": "table:public.users#email",
           "name": "email",
           "type": "text",
-          "nullable": false,
-          "sensitive": false
+          "nullable": false
         },
         {
           "id": "table:public.users#created_at",
           "name": "created_at",
           "type": "timestamptz",
-          "nullable": false,
-          "sensitive": false
+          "nullable": false
         }
       ]
     }

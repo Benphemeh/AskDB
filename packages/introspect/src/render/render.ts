@@ -99,26 +99,25 @@ function mergeWithExistingArtifact(
     }
   }
 
-  for (const table of fresh.tables) {
-    const existingTable = existingTables.get(table.id);
-    if (existingTable?.sensitive !== undefined) {
-      table.sensitive = existingTable.sensitive;
-    }
-
-    for (const column of table.columns) {
+  // Only a human-set `sensitive: true` carries over. A `false` says nothing
+  // introspection doesn't already say by leaving the key out (#956).
+  const tables = fresh.tables.map((table) => {
+    const columns = table.columns.map((column) => {
       const existingColumn = existingColumns.get(column.id);
-      if (existingColumn) {
-        if (existingColumn.sensitive !== undefined) {
-          column.sensitive = existingColumn.sensitive;
-        }
-      } else {
+      if (!existingColumn) {
         warnings.push({ code: "new_column", id: column.id, tableId: table.id });
       }
-    }
-  }
+      return existingColumn?.sensitive === true ? { ...column, sensitive: true } : column;
+    });
+    if (existingTables.get(table.id)?.sensitive !== true) return { ...table, columns };
+    // Write it where the contract's example has it: after `schema`, before `columns`.
+    const { id, name, schema, columns: _unmergedColumns, ...rest } = table;
+    return { id, name, schema, sensitive: true, columns, ...rest };
+  });
+  const merged: V2SchemaJson = { ...fresh, tables };
 
-  warnings.push(...findOrphanWarnings(existingArtifactDir, fresh));
-  return fresh;
+  warnings.push(...findOrphanWarnings(existingArtifactDir, merged));
+  return merged;
 }
 
 function readExistingPhysical(existingArtifactDir: string): V2SchemaJson {
@@ -278,7 +277,6 @@ function toV2Table(table: SqlTable): V2Table {
     id: table.id,
     name: table.name,
     schema: table.schema,
-    sensitive: false,
     columns: toV2Columns(table.columns),
   };
 
@@ -295,21 +293,21 @@ function toV2View(view: SqlView): V2Table {
     id: makeTableId(view.schema, view.name),
     name: view.name,
     schema: view.schema,
-    sensitive: false,
     columns: toV2Columns(view.columns),
   };
 }
 
 function toV2Column(column: SqlColumn): V2Column {
   // Field order matches the hand-authored fixtures:
-  //   id, name, type, nullable, [primaryKey], sensitive.
+  //   id, name, type, nullable, [primaryKey], [sensitive].
+  // Introspection can't know sensitivity, so it writes no `sensitive` key; the
+  // merge with an existing artifact adds a human-set `true` back (#956).
   return {
     id: column.id,
     name: column.name,
     type: compactPostgresType(column.dataType, column.udtName),
     nullable: column.nullable,
     ...(column.primaryKey ? { primaryKey: true } : {}),
-    sensitive: false,
   };
 }
 

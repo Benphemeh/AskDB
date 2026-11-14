@@ -51,7 +51,7 @@ Runs `options.connector.describe(input)`. The connector's package owns the shape
 | `renderToSchemaV2(schema, options)` | Writes `<outDir>/schema.json` from a `SqlSchema` and returns a `RenderResult`. It creates `outDir` if it's missing, and writes through `@askdb/core`'s `saveSchemaFile()`, which refuses a `schema.json` that is a symbolic link and renames a temporary file into place. It writes only `schema.json`. |
 | `renderSchemaV2Body(schema, options)` | The same output without writing: returns `{ json, body, warnings }` (a `RenderBodyResult`), where `body` is the exact file contents. `askdb introspect --out`, `--print` and `--diff` all use it. |
 | `isSchemaV2Json(value)` | `true` when a parsed `schema.json` passes the check the merge applies first: `version` 2, a schema id, and each table's `id`, `name` and `schema` and each column's `id`, `name`, `type` and `nullable`, with optional boolean `sensitive` flags. It never throws. |
-| `toV2SchemaJson(schema, schemaId, provider?)` | Builds the `schema.json` document without writing it. Views become tables. Every `sensitive` flag is `false`. |
+| `toV2SchemaJson(schema, schemaId, provider?)` | Builds the `schema.json` document without writing it. Views become tables. It writes no `sensitive` key, since introspection can't know sensitivity. |
 | `compactPostgresType(dataType, udtName)` | Shortens Postgres type names the way the artifact stores them (`timestamp with time zone` → `timestamptz`, `character varying(80)` → `varchar(80)`). Other strings pass through. `udtName` is unused. |
 
 The output is deterministic: tables sorted by schema and name, columns in their ordinal order, and `JSON.stringify(json, null, 2)` plus a newline, so the same catalog gives the same bytes.
@@ -66,7 +66,7 @@ When the schema renders no tables or views, `renderSchemaV2Body()`, and so `rend
 | `schemaId` | `string` | The artifact's `schemaId`. |
 | `provider` | `string` | Dialect id to record in `schema.json`, so hosts pick the SQL dialect from it. |
 | `filters` | `IntrospectionFilters` | The filters the connector ran with. Read only to name them in `EmptyIntrospectionError`. |
-| `existingArtifactDir` | `string` | Merge with the `schema.json` already in this directory: `sensitive` flags set there are kept, and a column the old file lacks gets a `new_column` warning. Each id in `tables/*.md` that the new schema no longer has gets an `orphan_id` warning. The markdown files are read, never changed. |
+| `existingArtifactDir` | `string` | Merge with the `schema.json` already in this directory: a `"sensitive": true` set there is kept (a `false` is dropped, since no key means the same), and a column the old file lacks gets a `new_column` warning. Each id in `tables/*.md` that the new schema no longer has gets an `orphan_id` warning. The markdown files are read, never changed. |
 
 `RenderBodyOptions` is `RenderOptions` without `outDir`. `RenderResult` is `{ schemaJsonPath, warnings }`, with the absolute path of the written file.
 
