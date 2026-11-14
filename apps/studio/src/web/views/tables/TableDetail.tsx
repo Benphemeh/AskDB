@@ -3,6 +3,7 @@ import { Loader2, RotateCcw, Save } from "lucide-react";
 import { useWorkspace } from "../../contexts/workspace-context";
 import { useRag } from "../../contexts/rag-context";
 import { StatusBanner } from "../../components/common/StatusBanner";
+import { SubRailTrigger } from "../../components/common/SubRail";
 
 export function TableDetail() {
   const { selectedTable, selectedDraft, dirty, saveStatus, saveSelectedTable, resetSelectedDraft, busy } = useWorkspace();
@@ -23,6 +24,7 @@ export function TableDetail() {
   return (
     <main className="main-pane">
       <div className="main-hd">
+        <SubRailTrigger label="Tables" />
         <div className="main-title">
           <h1>
             <span className={`enrich-dot ${level}`} style={{ marginRight: 8 }} />

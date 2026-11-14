@@ -120,7 +120,7 @@ export function NavRail() {
           <Database size={14} className="shrink-0" />
           <span className="truncate font-mono group-data-[collapsible=icon]:hidden">
             {workspace
-              ? `${workspace.aiProvider || "postgres"} · ${workspace.schemaId.split("/").pop() || workspace.schemaId}`
+              ? `${workspace.dialect ? `${workspace.dialect} · ` : ""}${workspace.schemaId.split("/").pop() || workspace.schemaId}`
               : "connecting…"}
           </span>
         </div>

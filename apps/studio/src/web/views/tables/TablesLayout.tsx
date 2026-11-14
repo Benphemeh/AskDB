@@ -7,6 +7,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "../../components/ui/collapsible";
+import { SubRail, SubRailProvider, useSubRail } from "../../components/common/SubRail";
 
 type EnrichLevel = "enriched" | "partial" | "none";
 type TrackFilter = "tracked" | "untracked";
@@ -18,6 +19,15 @@ const LEVEL_LABELS: Record<EnrichLevel, string> = {
 };
 
 export function TablesLayout() {
+  return (
+    <SubRailProvider>
+      <TablesLayoutInner />
+    </SubRailProvider>
+  );
+}
+
+function TablesLayoutInner() {
+  const { setOpen: setRailOpen } = useSubRail();
   const navigate = useNavigate();
   const params = useParams<{ schema: string; name: string }>();
   const {
@@ -127,7 +137,7 @@ export function TablesLayout() {
 
   return (
     <>
-      <div className="sub-rail">
+      <SubRail title="Tables">
         <div className="sub-rail-hd">
           <h2>Tables</h2>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -221,7 +231,10 @@ export function TablesLayout() {
                           type="button"
                           key={t.physical.id}
                           className={`sub-rail-row table-leaf ${isActive ? "active" : ""}${!tracked ? " untracked" : ""}`}
-                          onClick={() => navigate(`/tables/${t.physical.schema}/${t.physical.name}/enrichment`)}
+                          onClick={() => {
+                            setRailOpen(false);
+                            navigate(`/tables/${t.physical.schema}/${t.physical.name}/enrichment`);
+                          }}
                           title={!tracked ? "Untracked — excluded from LLM context" : undefined}
                         >
                           {!tracked ? <EyeOff size={10} style={{ color: "var(--amber-500)", flex: "none" }} /> : <span className={`enrich-dot ${level}`} />}
@@ -241,7 +254,7 @@ export function TablesLayout() {
             </div>
           )}
         </div>
-      </div>
+      </SubRail>
       {hasOutlet ? (
         <Outlet />
       ) : (
