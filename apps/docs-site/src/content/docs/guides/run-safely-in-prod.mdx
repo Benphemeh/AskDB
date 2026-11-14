@@ -110,9 +110,18 @@ import mysql from "mysql2/promise";
 
 const pool = mysql.createPool({ uri: process.env.DATABASE_URL, connectionLimit: 10 });
 
-// Set the timeout on the connection that runs the query, before the query.
-const conn = await pool.getConnection();
-await conn.query("SET SESSION max_execution_time = 5000"); // ms, for SELECT; adjust to your workload
+// The timeout is a session setting, so set it on the connection that runs the query.
+// mysql2's types don't take unknown[], so params is any[].
+async function runWithTimeout(sql: string, params: any[] = []) {
+  const conn = await pool.getConnection();
+  try {
+    await conn.query("SET SESSION max_execution_time = 5000"); // ms, for SELECT; adjust to your workload
+    const [rows] = await conn.execute(sql, params);
+    return rows;
+  } finally {
+    conn.release();
+  }
+}
 ```
 
 On MariaDB, the variable is `max_statement_time`, in seconds: `SET SESSION max_statement_time = 5`. [Embed in a Node app](/guides/embed-in-node/#3-run-the-sql-in-a-handler) shows a handler that sets it with the read-only transaction.
