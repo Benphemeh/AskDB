@@ -1,5 +1,5 @@
 import { useLocation } from "react-router";
-import { Search, Check } from "lucide-react";
+import { Check } from "lucide-react";
 import { useWorkspace } from "../../contexts/workspace-context";
 import { useRag } from "../../contexts/rag-context";
 
@@ -35,11 +35,6 @@ export function Topbar() {
       </div>
 
       <div className="right">
-        <div className="cmd-palette">
-          <Search size={13} />
-          <span style={{ flex: 1 }}>Search tables, concepts, queries…</span>
-          <span className="kbd">⌘K</span>
-        </div>
         {ragStatus && (
           <span className={`pill ${indexFresh ? "ok" : "warn"}`}>
             <span
