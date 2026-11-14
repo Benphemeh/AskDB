@@ -240,7 +240,8 @@ const [rows] = await pool.execute(sql);
 ```ts
 import Database from "better-sqlite3";
 
-const db = new Database(process.env.SQLITE_FILE ?? "./my-database.db");
+// Read-only, so a generated write fails.
+const db = new Database(process.env.SQLITE_FILE ?? "./my-database.db", { readonly: true, fileMustExist: true });
 
 const rows = db.prepare(sql).all();
 ```
