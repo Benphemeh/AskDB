@@ -39,6 +39,8 @@ export type StudioWorkspaceDto = {
   aiConfigured: boolean;
   model: string;
   aiProvider: string;
+  /** `modes.omitSensitiveFromPrompt`: when on, Suggest refuses sensitive columns, so Studio skips them. */
+  omitSensitiveFromPrompt: boolean;
   tables: StudioTableDto[];
   concepts: V2Concept[];
   tenantPolicy: NormalizedTenantPolicy | null;

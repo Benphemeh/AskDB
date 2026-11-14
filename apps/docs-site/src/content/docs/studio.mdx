@@ -58,7 +58,9 @@ The Tables view lists every table in your schema, grouped by schema, with a sear
 
 **Save** writes the table's markdown file, and **Revert** drops your unsaved edits.
 
-**Suggest** drafts a value with your model, for a table's description, aliases, primary entity and common query language, and for a column's description and aliases. It needs a configured model, and you confirm every draft before it lands. The [Studio reference](/reference/studio/#ai-features) says what each suggestion sends to the model.
+**Suggest** drafts a value with your model, for a table's description, aliases, primary entity and common query language, and for a column's description and aliases. It needs a configured model. The drafts appear under the field, with **Use** on each and **Dismiss** for the set, so you can review several fields at once. **Use** fills the field, and nothing reaches the artifact until **Save**. The [Studio reference](/reference/studio/#ai-features) says what each suggestion sends to the model.
+
+**Suggest all empty fields**, at the top of the Enrichment tab, drafts every empty description and alias of the open table and its columns, one model call per field. It says how many calls it will make, and waits for you to confirm. With `modes.omitSensitiveFromPrompt` on, it skips sensitive columns and says how many it skipped. Suggest sends the saved schema, so while you've marked the table or a column sensitive without saving, every **Suggest** on that table waits for **Save**.
 
 ## Concepts
 

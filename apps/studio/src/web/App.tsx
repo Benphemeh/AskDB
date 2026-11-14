@@ -7,7 +7,6 @@ import { PlaygroundProvider } from "./contexts/playground-context";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "./components/ui/sidebar";
 import { Topbar } from "./components/shell/Topbar";
 import { NavRail } from "./components/shell/NavRail";
-import { SuggestionDialog } from "./components/common/SuggestionDialog";
 import { OverviewPage } from "./views/overview/OverviewPage";
 import { TablesLayout } from "./views/tables/TablesLayout";
 import { TableDetail } from "./views/tables/TableDetail";
@@ -35,7 +34,7 @@ export function App() {
 }
 
 function AppShell() {
-  const { load, loadState, setupStatus, suggestionDialog, setSuggestionDialog, applySuggestion } = useWorkspace();
+  const { load, loadState, setupStatus } = useWorkspace();
   const { refreshRagStatus, ragAvailable } = useRag();
 
   useEffect(() => {
@@ -107,14 +106,6 @@ function AppShell() {
           </div>
         </SidebarInset>
       </SidebarProvider>
-
-      {suggestionDialog && (
-        <SuggestionDialog
-          dialog={suggestionDialog}
-          onApply={applySuggestion}
-          onClose={() => setSuggestionDialog(null)}
-        />
-      )}
     </PlaygroundProvider>
   );
 }

@@ -445,6 +445,7 @@ export function serializeWorkspace(workspace: Workspace): StudioWorkspaceDto {
     aiConfigured: Boolean(aiConfig),
     model: aiConfig?.model ?? rt.ai.language.model ?? "provider default",
     aiProvider: aiConfig?.provider ?? rt.ai.language.provider,
+    omitSensitiveFromPrompt: rt.modes.omitSensitiveFromPrompt,
     tables: workspace.tables.map((table) => {
       const draft = buildTableDraft(table.physical, table.parsed);
       return {

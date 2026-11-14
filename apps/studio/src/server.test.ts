@@ -374,6 +374,15 @@ describe("AskDB Studio server", () => {
     expect(model.requests).toHaveLength(0);
   });
 
+  // #952: "Suggest all empty fields" skips the sensitive columns the server would refuse.
+  it.each([true, false])("reports modes.omitSensitiveFromPrompt (%s) in the workspace", async (omitSensitiveFromPrompt) => {
+    const { baseUrl } = await startClinicStudio({ omitSensitiveFromPrompt, reply: "A suggestion." });
+
+    const workspace = await getJson(`${baseUrl}/api/workspace`);
+
+    expect(workspace.omitSensitiveFromPrompt).toBe(omitSensitiveFromPrompt);
+  });
+
   it("saving a table keeps another table's sensitive column entry in its file and reports it on the owning table", async () => {
     installStudioRuntime();
     const schemaDir = copyFixture();
