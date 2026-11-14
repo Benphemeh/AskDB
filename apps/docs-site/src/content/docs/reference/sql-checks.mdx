@@ -5,7 +5,15 @@ description: "The read-only, tenant and sensitive checks AskDB runs on generated
 
 <p class="doc-eyebrow">Reference · SQL checks</p>
 
-<p class="doc-lede">AskDB runs up to three checks on the SQL a model returns, before it binds any value: the read-only check, the tenant check and the sensitive check. This page says when each runs, how each reads SQL on every engine, and what each rejects. They're heuristics, not a parser: <a href="/concepts/safety-boundaries/">Safety boundaries</a> explains why your database stays the boundary.</p>
+<p class="doc-lede">AskDB runs up to three checks on the SQL a model returns: the read-only check, the tenant check and the sensitive check. This page says when each runs, how each reads SQL on every engine, and what each rejects. They're heuristics, not a parser: <a href="/concepts/safety-boundaries/">Safety boundaries</a> explains why your database stays the boundary.</p>
+
+## What the checks read
+
+The model returns its SQL in two forms. In the first, which `ask()` returns as `sql`, the model writes the values it takes from the question, such as a date or a name, into the SQL as literals. In the second, the `sql-unbound` block, it writes the same statement with a `:name` placeholder in place of each of those values. The model writes the second form only when `parameterize` is on, the default.
+
+With a tenant policy, both forms name the caller's tenant IDs by a placeholder, `:tenant_<root>_ids`, never by value: the model never sees the IDs.
+
+AskDB checks both forms with every placeholder still in place. Only then does it *bind* the values: it puts your scope's tenant IDs in place of the tenant placeholders, and turns each `:name` placeholder into a driver marker, with its value in `params`. So the SQL the checks read holds no tenant ID, and no value that AskDB binds. [Executing the result](/reference/core-api/ask/#executing-the-result) says which SQL to run with which values, and [Rerun a query with new values](/guides/rerun-a-query-with-new-values/) binds new values into the stored form.
 
 ## When each check runs
 
@@ -15,7 +23,7 @@ description: "The read-only, tenant and sensitive checks AskDB runs on generated
 | Tenant | The schema has a `tenant-policy.md`, and the scope isn't `global`. | Runs. | `enforcement: strict` refuses with `TenantGuardrailError`; `warn` returns the SQL and reports it. |
 | Sensitive | The schema marks a table or column `sensitive`, and `sensitiveGuardrailMode` isn't `"off"`. | Runs. | `"strict"` refuses with `SensitiveReferenceError`; `"warn"`, the default, returns the SQL and reports it. |
 
-`ask()` runs each check on the model's bound SQL and on its `sql-unbound` block, while the `:tenant_<root>_ids` placeholders are still in place, before it renders tenant IDs or binds values. `bindPreparedQuery()` and `askdb.bind()` run all three again on the stored template, under the schema, scope and dialect rules you pass then. `generateSelectSql()` runs the read-only and tenant checks. [Guardrail verdict](/reference/core-api/ask/#guardrail-verdict) says how the findings become an outcome, and which error a refusal throws.
+`ask()` runs each check on both forms of the model's SQL, before it binds any value. `bindPreparedQuery()` and `askdb.bind()` run all three again on the stored template, under the schema, scope and dialect rules you pass then. `generateSelectSql()` runs the read-only and tenant checks. [Guardrail verdict](/reference/core-api/ask/#guardrail-verdict) says how the findings become an outcome, and which error a refusal throws.
 
 <figure>
 
