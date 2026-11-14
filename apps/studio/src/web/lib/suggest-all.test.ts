@@ -41,13 +41,12 @@ describe("planSuggestAll", () => {
     ]);
   });
 
-  it("skips sensitive columns under omitSensitiveFromPrompt, by the saved or the unsaved marking (#639)", () => {
-    // `ssn` is marked sensitive in this unsaved draft; Suggest would read the saved schema, where it isn't
-    // yet, but the author has asked for it to stay out of prompts.
-    const draft: TableDraft = { description: "", columns: { [ssn]: { sensitive: true } } };
+  it("skips sensitive columns under omitSensitiveFromPrompt, by the saved marking (#639)", () => {
+    const savedSsn: TableDraft = { description: "", columns: { [ssn]: { sensitive: true } } };
 
-    const plan = planSuggestAll({ physical, draft: saved }, draft, { omitSensitiveFromPrompt: true });
+    const plan = planSuggestAll({ physical, draft: savedSsn }, savedSsn, { omitSensitiveFromPrompt: true });
 
+    expect(plan.blockedByUnsavedSensitivity).toBe(false);
     expect(plan.skippedSensitive).toBe(2);
     expect(plan.sources).toEqual([
       { scope: "table", tableId, field: "description" },
@@ -56,9 +55,22 @@ describe("planSuggestAll", () => {
       { scope: "column", tableId, columnId: name, field: "aliases" },
     ]);
 
-    // Saved sensitive, unmarked in the draft: the server still refuses it, so it stays skipped.
-    const savedSsn: TableDraft = { description: "", columns: { [ssn]: { sensitive: true } } };
+    // Saved sensitive, unmarked in the draft: the server still reads the saved marking, so it stays skipped.
     const unmarked: TableDraft = { description: "", columns: { [ssn]: { sensitive: false } } };
     expect(planSuggestAll({ physical, draft: savedSsn }, unmarked, { omitSensitiveFromPrompt: true }).skippedSensitive).toBe(2);
+  });
+
+  // POST /api/suggest builds every prompt from the saved artifact, so a column marked sensitive only in the
+  // unsaved draft would still be named, untagged, in any suggestion for its table.
+  it.each<{ name: string; draft: TableDraft }>([
+    { name: "a column", draft: { description: "", columns: { [ssn]: { sensitive: true } } } },
+    { name: "the table", draft: { description: "", sensitive: true, columns: {} } },
+  ])("plans nothing under omitSensitiveFromPrompt while $name is marked sensitive only in the unsaved draft", ({ draft }) => {
+    const plan = planSuggestAll({ physical, draft: saved }, draft, { omitSensitiveFromPrompt: true });
+
+    expect(plan.blockedByUnsavedSensitivity).toBe(true);
+    expect(plan.sources).toEqual([]);
+    // With omission off every column reaches the model anyway (only the (sensitive) tag differs), so nothing blocks.
+    expect(planSuggestAll({ physical, draft: saved }, draft, { omitSensitiveFromPrompt: false }).blockedByUnsavedSensitivity).toBe(false);
   });
 });

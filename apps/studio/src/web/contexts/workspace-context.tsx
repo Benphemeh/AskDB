@@ -22,7 +22,7 @@ type LoadState = { kind: "loading" | "ready" | "error" | "setup"; message?: stri
 export type StatusMessage = { kind: "neutral" | "loading" | "success" | "error"; text: string };
 /** Drafts the model returned for one field, shown inline under it until Use or Dismiss (#952). */
 export type FieldSuggestion = { source: SuggestSource; candidates: Array<{ text: string }> };
-export type SuggestAllProgress = { done: number; total: number };
+export type SuggestAllProgress = { tableId: string; done: number; total: number };
 
 interface WorkspaceContextValue {
   loadState: LoadState;
@@ -53,7 +53,7 @@ interface WorkspaceContextValue {
   updateColumnDraft: (tableId: string, columnId: string, updater: (d: ColumnDraft) => ColumnDraft) => void;
   requestSuggestion: (source: SuggestSource) => Promise<void>;
   /** Drafts each field in turn, one model call each; nothing is written until Use and Save. */
-  suggestAll: (sources: SuggestSource[]) => Promise<void>;
+  suggestAll: (tableId: string, sources: SuggestSource[]) => Promise<void>;
   applySuggestion: (source: SuggestSource, text: string) => void;
   dismissSuggestion: (source: SuggestSource) => void;
   handleSaveConcepts: (concepts: V2Concept[]) => Promise<void>;
@@ -293,10 +293,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (error) setSaveStatus({ kind: "error", text: error });
   }, [fetchSuggestion, setSaveStatus]);
 
-  const suggestAll = useCallback(async (sources: SuggestSource[]) => {
+  const suggestAll = useCallback(async (tableId: string, sources: SuggestSource[]) => {
     const errors: string[] = [];
     for (const [index, source] of sources.entries()) {
-      dispatch({ type: "set_suggestAllProgress", payload: { done: index, total: sources.length } });
+      dispatch({ type: "set_suggestAllProgress", payload: { tableId, done: index, total: sources.length } });
       const error = await fetchSuggestion(source);
       if (error) errors.push(error);
     }

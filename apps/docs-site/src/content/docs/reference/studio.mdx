@@ -77,7 +77,7 @@ Each AI feature needs a model in `askdb.config.ts` (`ai.provider` and its connec
 
 | Feature | What it sends to the model |
 | --- | --- |
-| **Suggest** (Tables) | The table's columns (names, types, nullability and primary key), and the names and column counts of up to four tracked tables it links to by foreign key. No descriptions. With omission on, **Suggest** is disabled on a sensitive column, and **Suggest all empty fields** skips it. |
+| **Suggest** (Tables) | The table's columns (names, types, nullability and primary key), and the names and column counts of up to four tracked tables it links to by foreign key. No descriptions. With omission on, **Suggest** is disabled on a sensitive column, and **Suggest all empty fields** skips it; while the table or a column is marked sensitive but not saved, **Suggest** on that table waits for **Save**. |
 | **Draft with AI** (Tenancy) | Every tracked table's columns (names, types, nullability and primary keys) and the foreign keys between them. No descriptions. With omission on, the review screen names the keys it withheld under **Withheld from the model**. |
 | **Generate SQL** (Playground) | What `ask()` sends: the question, the schema text (all of it, or what retrieval picked), and, with a tenant scope, the tenant policy and the scope's context. [Privacy model](/concepts/privacy-model/#what-the-model-sees) has the full list. |
 | **Build Index**, **Query RAG**, RAG mode | With `rag.embedder: "ai"`, the embedding model receives each chunk's text when the index is built, and the question on each retrieval. The mock embedder sends nothing. |
