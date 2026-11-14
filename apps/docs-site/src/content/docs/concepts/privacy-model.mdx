@@ -3,8 +3,6 @@ title: "Privacy model"
 description: "What AskDB sends to your model provider, what stays in your stack, and what you control."
 ---
 
-import PrivacyFlowDiagram from "../../../components/PrivacyFlowDiagram.astro";
-
 <p class="doc-eyebrow">What crosses the boundary</p>
 
 <p class="doc-lede">AskDB sends the model the question and text from your schema artifact, plus your tenant policy and the caller's scope context when you use one. It never reads your rows, your credentials or your query results, so it can't send them.</p>
@@ -14,7 +12,7 @@ import PrivacyFlowDiagram from "../../../components/PrivacyFlowDiagram.astro";
 When `ask()` calls your model provider, the request contains:
 
 - **The user's question.** As supplied to AskDB.
-- **Schema context.** From the schema artifact: table and column names, types, primary keys and nullability, plus the text you authored, such as descriptions, aliases, `enum` values and common query language notes. Since 1.0.0-beta.53, also each table's business context, each column's note, the foreign keys between tables and your concepts. For large schemas, only what retrieval selected: the tables it points to, with their columns' notes, and the business context, concepts, example questions and tenant policy text it retrieved.
+- **Schema context.** From the schema artifact: table and column names, types, primary keys and nullability, plus the text you authored, such as descriptions, aliases, `enum` values and common query language notes. Also each table's business context, each column's note, the foreign keys between tables and your concepts. For large schemas, only what retrieval selected: the tables it points to, with their columns' notes, and the business context, concepts, example questions and tenant policy text it retrieved.
 - **Your tenant policy and the caller's scope**, when the schema has a tenant policy. The prompt lists the tenant roots, the tenant-scoped tables and the columns that filter them, for the tables the prompt shows: a table marked `tracked: false`, or one retrieval left out, isn't named. Two exceptions keep a shown table filterable. A root whose table isn't shown appears by the label your policy gives it, with its placeholder. And a join path that runs through a tracked table retrieval left out is still printed, with that table's name and the columns the path uses. It names a placeholder such as `:tenant_organization_ids` where the caller's IDs go, never the IDs themselves. It also carries a `global` scope's `reason` and everything in `tenantScope.context` (role, department, region, label, description and `attributes`), marked as advisory.
 - **Hints AskDB derives from the question and the schema.** For example, when the question seems to name a table the schema doesn't have, a note says so. The hints name no table from the schema, so a table the prompt leaves out, one marked `tracked: false` or one retrieval didn't pick, stays out of them too.
 - **Dialect cues and output rules.** The SQL flavor AskDB expects back, and the format to answer in.
@@ -37,7 +35,29 @@ The model never receives:
 
 Requests go straight from your environment to the model provider you wired in. AskDB does not proxy, log, or cache the traffic:
 
-<PrivacyFlowDiagram />
+<figure>
+
+```mermaid
+flowchart TB
+  %% The two crossings: ask() sends the prompt to the provider the host wired in, and the provider
+  %% returns SQL. ask() checks it and returns it; the host runs it on its own connection. Rows and
+  %% credentials stay in the stack. Source of truth: packages/core/src/ask.ts (generateSelectSqlForAsk
+  %% builds the prompt, enforceGuardrails checks the SQL); ask() opens no database connection.
+  subgraph stack["Your stack"]
+    app["your application<br/>holds the DB credentials"]
+    core["@askdb/core<br/>ask()"]
+    db[("your database<br/>and its rows")]
+  end
+  provider["your model provider"]
+  app -- "question" --> core
+  core -- "question +<br/>schema text" --> provider
+  provider -- "SQL" --> core
+  core -- "checked SQL" --> app
+  app -- "runs the SQL,<br/>reads the rows" --> db
+```
+
+<figcaption>Two things cross the boundary: <code>ask()</code> sends the question and schema text to your model provider, and the provider sends back SQL. <code>ask()</code> checks the SQL and returns it to your application, which runs it on your database. The credentials and rows never leave your stack.</figcaption>
+</figure>
 
 The model provider sees what's in the prompt and bills you for the tokens. AskDB is in your dependency tree, not on the wire.
 

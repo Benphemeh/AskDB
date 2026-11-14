@@ -5,6 +5,9 @@
 // MDX components, the sidebar, and pagination. External links (http:, mailto:, //host) are not
 // checked. A link with a #fragment to a redirect page fails, because the redirect (a meta refresh)
 // drops the fragment and the reader lands at the top of the new page.
+//
+// /AGENTS.md isn't HTML: agents read its site paths, written in backticks (`/reference/cli/`).
+// Those are checked too, against the base the site is served under.
 import { realpathSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import { join, relative, sep } from "node:path";
@@ -73,13 +76,19 @@ function redirectTargetIn(html) {
   return undefined;
 }
 
+/** The site paths in backticks in a Markdown file such as /AGENTS.md: `/guides/x/`, `/llms.txt`. */
+export function sitePathsIn(markdown) {
+  return [...markdown.matchAll(/`(\/[^`\s]*)`/g)].map(([, path]) => path);
+}
+
 /**
  * The broken links in a built site. `files` maps each file's path in the build output, without the
  * base (`/quickstart/index.html`, `/AGENTS.md`), to its HTML, or to null for a file that isn't
  * HTML. `base` is the base path the site is served under. Returns one `{ page, href, reason }` per
- * broken link, `page` being the file it's on.
+ * broken link, `page` being the file it's on. `markdownPaths` maps a file that isn't HTML to the site
+ * paths written in it (see `sitePathsIn`), which are checked under the base like the HTML's links.
  */
-export function brokenLinks(files, base = "/") {
+export function brokenLinks(files, base = "/", markdownPaths = new Map()) {
   const basePath = base === "/" ? "" : base.replace(/\/$/, "");
   const anchorCache = new Map();
   const anchorsOf = (path) => {
@@ -97,10 +106,11 @@ export function brokenLinks(files, base = "/") {
 
   const failures = [];
   for (const [page, html] of files) {
-    if (html === null) continue;
+    if (html === null && !markdownPaths.has(page)) continue;
     // The URL the page is served at, so `#x` and `../` resolve as a browser resolves them.
     const pageUrl = new URL(`${basePath}${page.replace(/index\.html$/, "")}`, "https://site.invalid");
-    for (const href of linksIn(html)) {
+    const hrefs = html === null ? markdownPaths.get(page).map((path) => `${basePath}${path}`) : linksIn(html);
+    for (const href of hrefs) {
       if (href === "" || /^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith("//")) continue;
       const url = new URL(href, pageUrl);
       const target = fileFor(decodeURIComponent(url.pathname));
@@ -142,7 +152,8 @@ async function readSite(distDir) {
 // Compare real paths, so a run through a symbolic link (macOS's /tmp) still runs the check.
 if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
   const distDir = fileURLToPath(new URL("../dist", import.meta.url));
-  const failures = brokenLinks(await readSite(distDir), process.argv[2] ?? "/");
+  const agentsMd = await readFile(join(distDir, "AGENTS.md"), "utf8");
+  const failures = brokenLinks(await readSite(distDir), process.argv[2] ?? "/", new Map([["/AGENTS.md", sitePathsIn(agentsMd)]]));
   if (failures.length > 0) {
     console.error(`Found ${failures.length} link(s) to a missing page or anchor:`);
     for (const { page, href, reason } of failures) console.error(`- ${page}: ${href} (${reason})`);

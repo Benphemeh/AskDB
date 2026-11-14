@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useEffectEvent, useState } from "react";
 import { useNavigate } from "react-router";
-import { Loader2, Sparkles, Shield, History, Zap, RefreshCw } from "lucide-react";
+import { Loader2, Sparkles, Shield, History, Zap, RefreshCw, Table2 } from "lucide-react";
 import { useWorkspace, type StatusMessage } from "../../contexts/workspace-context";
 import { useRag } from "../../contexts/rag-context";
 import { usePlayground } from "../../contexts/playground-context";
@@ -65,7 +65,10 @@ export function OverviewPage() {
       <div className="main-hd">
         <div className="main-title">
           <h1>Overview</h1>
-          <div className="main-sub">{workspace.aiProvider || "postgres"} · {workspace.schemaId}</div>
+          <div className="main-sub">
+            {workspace.dialect ? `${workspace.dialect} · ` : ""}
+            {workspace.schemaId}
+          </div>
         </div>
         <div className="main-actions">
           <button
@@ -78,7 +81,7 @@ export function OverviewPage() {
             {resyncing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} Resync schema
           </button>
           <button type="button" className="btn primary" onClick={() => navigate("/tables")}>
-            <Sparkles size={14} /> Draft enrichment
+            <Table2 size={14} /> Enrich tables
           </button>
         </div>
       </div>
@@ -154,7 +157,7 @@ export function OverviewPage() {
                               <span className="muted tiny" style={{ marginLeft: 6 }}>{level}</span>
                             </td>
                             <td style={{ textAlign: "right" }}>
-                              <span className="suggest-link"><Sparkles size={12} /> Draft</span>
+                              <span className="suggest-link">Enrich</span>
                             </td>
                           </tr>
                         );

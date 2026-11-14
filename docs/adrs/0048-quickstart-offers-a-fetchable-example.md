@@ -1,4 +1,4 @@
-# ADR 0047 — The Quickstart offers a fetchable example, kept equal to the page
+# ADR 0048 — The Quickstart offers a fetchable example, kept equal to the page
 
 ## Status
 

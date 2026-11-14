@@ -19,11 +19,34 @@ import InstallTabs from "../../../components/InstallTabs.astro";
 
 Give Studio a role that can only read the tables you want to query. [Run safely in production](/guides/run-safely-in-prod/#database-role) shows the grants for each engine. Put that role's connection string in `.env`:
 
+<Tabs syncKey="engine">
+  <TabItem label="PostgreSQL">
+
 ```bash title=".env"
 STUDIO_READONLY_DATABASE_URL=postgres://studio_reader:<password>@localhost:5432/app
 ```
 
-For SQLite, you need no role: Studio opens the file read-only.
+  </TabItem>
+  <TabItem label="MySQL">
+
+```bash title=".env"
+STUDIO_READONLY_DATABASE_URL=mysql://studio_reader:<password>@localhost:3306/app
+```
+
+  </TabItem>
+  <TabItem label="SQLite">
+
+You need no role and no connection string: Studio opens the file read-only. In step 2, set `file` instead of `databaseUrl`.
+
+  </TabItem>
+  <TabItem label="SQL Server">
+
+```bash title=".env"
+STUDIO_READONLY_DATABASE_URL=mssql://studio_reader:<password>@localhost:1433/app
+```
+
+  </TabItem>
+</Tabs>
 
 ## 2. Turn on execute
 

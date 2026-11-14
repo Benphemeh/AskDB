@@ -62,7 +62,7 @@ const { rows, truncated } = await runCapped(rebound.sql, rebound.tenantParams);
 | `QueryParameterError` `MISSING_VALUE`: `Missing value for parameter '<name>'.` | Pass a value for each parameter whose `source` is `"question"`. |
 | `QueryParameterError` `INVALID_VALUE` | The value doesn't fit the parameter's `type` or `cardinality`. Convert it first, for example a string from a form to a number. |
 | `QueryParameterError` `TENANT_VALUE_SUPPLIED` | Remove the `tenant_*` key from the values, and pass the scope as `tenantScope`. |
-| `QueryParameterError` `DIALECT_SPEC_REQUIRED` | `ask()` ran with your own `DialectSpec`, or the template was stored before 1.0.0-beta.46. Pass the spec `ask()` ran with as `dialect`, or the built-in id, such as `"postgres"`, if it ran with the built-in rules. |
+| `QueryParameterError` `DIALECT_SPEC_REQUIRED` | `ask()` ran with your own `DialectSpec`, or the template was stored by a beta release without `dialectRules` ([upgrade note](/reference/upgrade-notes/#update-your-bindpreparedquery-and-askdbbind-calls)). Pass the spec `ask()` ran with as `dialect`, or the built-in id, such as `"postgres"`, if it ran with the built-in rules. |
 | `TenantScopeError` `MISSING_SCOPE` | Pass the caller's `tenantScope`. |
 | `TenantGuardrailError` | The template fails the tenant check under this scope or the current policy. Under `enforcement: warn`, pass `acceptWarnings: ["tenant"]` if you accept the warning. Otherwise call `ask()` again for this caller. |
 

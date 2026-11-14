@@ -32,6 +32,7 @@ AskDB is a workspace of small, layered packages — install only what your use c
 ## Decision points for common scenarios
 
 - **Just trying it out** → the `askdb` CLI alone (`npx askdb@latest init`), no code needed. See `/quickstart/`.
+- **Enriching a freshly introspected schema with the user** → follow the skill at `/skills/askdb-enrich-schema/SKILL.md`. It marks sensitive columns, asks the user what the ambiguous ones mean, writes only `tables/*.md` and `concepts.md`, and checks the result with `askdb bundle` and a few `askdb ask` questions.
 - **Embedding in a Node service** → `@askdb/client` + `@askdb/config` + the AI SDK package for your provider, e.g. `@ai-sdk/openai` (or `@askdb/core` directly if you construct the model yourself). See `/guides/embed-in-node/`.
 - **Need an HTTP boundary** (non-Node clients, or one AskDB service shared across consumers) → `@askdb/http-api` behind your own gateway/auth — it has no built-in auth of its own. See `/guides/deploy-as-http-service/`.
 - **Schema too big for one prompt** (rule of thumb: more than ~22 tables, or rendered DDL over ~8K tokens) → add `@askdb/rag` with a retriever. See `/guides/rag-for-large-schemas/`.
@@ -54,6 +55,7 @@ AskDB is a workspace of small, layered packages — install only what your use c
 | Fix an error AskDB shows | `/guides/troubleshooting/` |
 | Know what each SQL check reads and rejects | `/reference/sql-checks/` |
 | Write the schema artifact's files | `/reference/schema-artifact-format/` |
+| Enrich a schema artifact with the user, as an agent skill | `/skills/askdb-enrich-schema/SKILL.md` |
 | Write `tenant-policy.md` | `/reference/tenant-policy/` |
 | Set an `askdb.config.ts` key | `/reference/config/` |
 | Look up an `ask()` option or result field | `/reference/core-api/ask/` |

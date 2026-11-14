@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { Loader2, Sparkles, ChevronRight } from "lucide-react";
+import type { SuggestSource } from "@askdb/enrich";
 import { useWorkspace } from "../../contexts/workspace-context";
 import { Badge } from "../../components/ui/badge";
 import { Field } from "../../components/ui/field";
@@ -6,6 +8,7 @@ import { Input } from "../../components/ui/input";
 import { ListInput } from "../../components/ui/list-input";
 import { Textarea } from "../../components/ui/textarea";
 import { tableSensitivity, UNKNOWN_COLUMN_SENSITIVITY } from "../../lib/sensitivity";
+import { planSuggestAll, suggestionKey, type SuggestAllPlan } from "../../lib/suggest-all";
 import type { ReactNode } from "react";
 
 export function EnrichmentTab() {
@@ -15,8 +18,6 @@ export function EnrichmentTab() {
     selectedDraft,
     updateTableDraft,
     updateColumnDraft,
-    requestSuggestion,
-    suggestingKey,
   } = useWorkspace();
 
   if (!selectedTable || !selectedDraft || !workspace) return null;
@@ -26,9 +27,16 @@ export function EnrichmentTab() {
   const draft = selectedDraft;
   const tableId = table.physical.id;
   const sensitivity = tableSensitivity(table, draft);
+  const plan = planSuggestAll(table, draft, { omitSensitiveFromPrompt: workspace.omitSensitiveFromPrompt });
+  // Every Suggest on this table sends the saved artifact, so an unsaved sensitive mark waits for Save.
+  const tableBlock = plan.blockedByUnsavedSensitivity ? UNSAVED_SENSITIVITY : undefined;
+  const columnBlock = (columnId: string) => tableBlock ?? (plan.refusedColumns.has(columnId) ? SENSITIVE_COLUMN : undefined);
 
   return (
     <div className="stack" style={{ padding: "var(--pad-y) var(--pad-x)" }}>
+      {aiConfigured && (
+        <SuggestAllBar key={tableId} tableId={tableId} plan={plan} />
+      )}
       <section className="card">
         <div className="card-hd"><h3>Table Enrichment</h3></div>
         <div className="card-bd">
@@ -36,8 +44,8 @@ export function EnrichmentTab() {
             <FieldWithSuggest
               aiConfigured={aiConfigured}
               label="Description"
-              onSuggest={() => requestSuggestion({ scope: "table", tableId, field: "description" }, "table description")}
-              suggesting={suggestingKey === `table:${tableId}:description`}
+              disabledReason={tableBlock}
+              source={{ scope: "table", tableId, field: "description" }}
             >
               <Textarea
                 value={draft.description}
@@ -45,12 +53,12 @@ export function EnrichmentTab() {
               />
             </FieldWithSuggest>
 
-            <div style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr 1fr" }}>
+            <div style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr 1fr", alignItems: "start" }}>
               <FieldWithSuggest
                 aiConfigured={aiConfigured}
                 label="Aliases"
-                onSuggest={() => requestSuggestion({ scope: "table", tableId, field: "aliases" }, "table aliases")}
-                suggesting={suggestingKey === `table:${tableId}:aliases`}
+                disabledReason={tableBlock}
+                source={{ scope: "table", tableId, field: "aliases" }}
               >
                 <ListInput
                   value={draft.aliases}
@@ -60,8 +68,8 @@ export function EnrichmentTab() {
               <FieldWithSuggest
                 aiConfigured={aiConfigured}
                 label="Primary entity"
-                onSuggest={() => requestSuggestion({ scope: "table", tableId, field: "primaryEntity" }, "primary entity")}
-                suggesting={suggestingKey === `table:${tableId}:primaryEntity`}
+                disabledReason={tableBlock}
+                source={{ scope: "table", tableId, field: "primaryEntity" }}
               >
                 <Input
                   value={draft.primaryEntity ?? ""}
@@ -99,8 +107,8 @@ export function EnrichmentTab() {
           <FieldWithSuggest
             aiConfigured={aiConfigured}
             label="Business vocabulary"
-            onSuggest={() => requestSuggestion({ scope: "table", tableId, field: "commonQueryLanguage" }, "common query language")}
-            suggesting={suggestingKey === `table:${tableId}:commonQueryLanguage`}
+            disabledReason={tableBlock}
+            source={{ scope: "table", tableId, field: "commonQueryLanguage" }}
           >
             <Textarea
               className="min-h-36"
@@ -156,13 +164,8 @@ export function EnrichmentTab() {
                     <FieldWithSuggest
                       aiConfigured={aiConfigured}
                       label="Description"
-                      onSuggest={() =>
-                        requestSuggestion(
-                          { scope: "column", tableId, columnId: column.id, field: "description" },
-                          `${column.name} description`,
-                        )
-                      }
-                      suggesting={suggestingKey === `column:${tableId}:${column.id}:description`}
+                      source={{ scope: "column", tableId, columnId: column.id, field: "description" }}
+                      disabledReason={columnBlock(column.id)}
                     >
                       <Textarea
                         value={columnDraft.description ?? ""}
@@ -171,17 +174,12 @@ export function EnrichmentTab() {
                         }
                       />
                     </FieldWithSuggest>
-                    <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr 1fr" }}>
+                    <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr 1fr", alignItems: "start" }}>
                       <FieldWithSuggest
                         aiConfigured={aiConfigured}
                         label="Aliases"
-                        onSuggest={() =>
-                          requestSuggestion(
-                            { scope: "column", tableId, columnId: column.id, field: "aliases" },
-                            `${column.name} aliases`,
-                          )
-                        }
-                        suggesting={suggestingKey === `column:${tableId}:${column.id}:aliases`}
+                        source={{ scope: "column", tableId, columnId: column.id, field: "aliases" }}
+                        disabledReason={columnBlock(column.id)}
                       >
                         <ListInput
                           value={columnDraft.aliases}
@@ -234,35 +232,140 @@ export function EnrichmentTab() {
 function FieldWithSuggest({
   aiConfigured,
   children,
+  disabledReason,
   label,
-  onSuggest,
-  suggesting,
+  source,
 }: {
   aiConfigured: boolean;
   children: ReactNode;
+  /** Why Suggest is off here, under `modes.omitSensitiveFromPrompt` (#639). */
+  disabledReason?: string;
   label: string;
-  onSuggest: () => Promise<void>;
-  suggesting: boolean;
+  source: SuggestSource;
 }) {
+  const { suggestions, suggestingKeys, requestSuggestion, applySuggestion, dismissSuggestion } = useWorkspace();
+  const key = suggestionKey(source);
+  const suggesting = suggestingKeys.has(key);
+  const suggestion = suggestions[key];
+  const title = !aiConfigured
+    ? "Configure an AI key to enable suggestions"
+    : disabledReason ?? "Suggest with configured AI model";
   return (
-    <div style={{ display: "grid", gap: 6 }}>
+    <div style={{ display: "grid", gap: 6, alignContent: "start" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
         <span className="muted" style={{ fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</span>
         <button
           type="button"
           className="suggest-link"
-          disabled={!aiConfigured || suggesting}
-          onClick={() => void onSuggest()}
-          title={aiConfigured ? "Suggest with configured AI model" : "Configure an AI key to enable suggestions"}
+          disabled={!aiConfigured || Boolean(disabledReason) || suggesting}
+          onClick={() => void requestSuggestion(source)}
+          title={title}
         >
           {suggesting ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
           Suggest
         </button>
       </div>
       {children}
+      {suggestion && (
+        <div className="inline-drafts" role="group" aria-label={`Drafts for ${label}`}>
+          {suggestion.candidates.map((candidate) => (
+            <div key={candidate.text} className="candidate">
+              <p>{candidate.text}</p>
+              <button type="button" className="btn sm" onClick={() => applySuggestion(source, candidate.text)}>
+                Use
+              </button>
+            </div>
+          ))}
+          <div className="inline-drafts-ft">
+            <span className="muted tiny">Draft{suggestion.candidates.length === 1 ? "" : "s"} from the model. Nothing is written until Use and Save.</span>
+            <button type="button" className="btn ghost sm" onClick={() => dismissSuggestion(source)}>
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+/**
+ * "Suggest all empty fields" for the open table (#952): states the number of model calls, and
+ * the sensitive columns it skips, before it runs anything.
+ */
+function SuggestAllBar({ plan, tableId }: { plan: SuggestAllPlan; tableId: string }) {
+  const { suggestions, suggestAll, suggestAllProgress } = useWorkspace();
+  const [confirming, setConfirming] = useState(false);
+  // A field already showing drafts doesn't need another call.
+  const sources = plan.sources.filter((source) => !suggestions[suggestionKey(source)]);
+  const calls = sources.length;
+  const skipped = plan.skippedSensitive > 0
+    ? ` ${plan.skippedSensitive} sensitive column${plan.skippedSensitive === 1 ? " is" : "s are"} skipped: modes.omitSensitiveFromPrompt keeps ${plan.skippedSensitive === 1 ? "it" : "them"} out of the model's prompt.`
+    : "";
+
+  if (suggestAllProgress && suggestAllProgress.tableId !== tableId) {
+    return (
+      <div className="suggest-all-bar" role="status">
+        <Loader2 size={14} className="animate-spin" />
+        <span className="muted">Suggest all is drafting another table&apos;s fields…</span>
+      </div>
+    );
+  }
+  if (plan.blockedByUnsavedSensitivity) {
+    return (
+      <div className="suggest-all-bar">
+        <span className="muted">{UNSAVED_SENSITIVITY}</span>
+      </div>
+    );
+  }
+  if (suggestAllProgress) {
+    return (
+      <div className="suggest-all-bar" role="status">
+        <Loader2 size={14} className="animate-spin" />
+        <span>Drafting field {suggestAllProgress.done + 1} of {suggestAllProgress.total}…</span>
+      </div>
+    );
+  }
+  if (confirming && calls > 0) {
+    return (
+      <div className="suggest-all-bar">
+        <span>
+          Draft {calls} empty field{calls === 1 ? "" : "s"} with {calls} model call{calls === 1 ? "" : "s"}, one per field?{skipped}
+        </span>
+        <div className="suggest-all-actions">
+          <button type="button" className="btn ghost sm" onClick={() => setConfirming(false)}>Cancel</button>
+          <button
+            type="button"
+            className="btn primary sm"
+            onClick={() => {
+              setConfirming(false);
+              void suggestAll(tableId, sources);
+            }}
+          >
+            Run {calls} call{calls === 1 ? "" : "s"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="suggest-all-bar">
+      <span className="muted">
+        {calls > 0
+          ? `${calls} empty description and alias field${calls === 1 ? "" : "s"} on this table.`
+          : plan.sources.length > 0
+            ? "Every empty description and alias field has drafts below. Use or Dismiss them."
+            : `No empty description or alias fields to draft.${skipped}`}
+      </span>
+      <button type="button" className="btn sm" disabled={calls === 0} onClick={() => setConfirming(true)}>
+        <Sparkles size={12} /> Suggest all empty fields
+      </button>
+    </div>
+  );
+}
+
+const SENSITIVE_COLUMN = "This column is sensitive, and modes.omitSensitiveFromPrompt keeps it out of the model's prompt.";
+const UNSAVED_SENSITIVITY =
+  "Save your sensitivity changes before suggesting: Suggest sends the saved schema, so until then it would still name the columns you just marked.";
 
 function SensitiveSelect({
   forced,

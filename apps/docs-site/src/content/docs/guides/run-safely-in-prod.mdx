@@ -3,6 +3,8 @@ title: "Run safely in production"
 description: "The operator checklist for AskDB: read-only roles, statement timeouts, row limits, audit logging, and approval flows."
 ---
 
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+
 <p class="doc-eyebrow">Production checklist</p>
 
 <p class="doc-lede">AskDB runs its SQL checks on the SQL before it's returned. Those checks catch common model mistakes, but they aren't a security boundary. Your application and database own everything that depends on runtime context. This page is the checklist for that side of the boundary. For what AskDB does and doesn't check, see <a href="/concepts/safety-boundaries/">Safety boundaries</a>.</p>
@@ -10,6 +12,9 @@ description: "The operator checklist for AskDB: read-only roles, statement timeo
 ## Database role
 
 Connect under a role that <em>can't</em> write — even if AskDB's SQL checks miss something. This is the single most important defense.
+
+<Tabs syncKey="engine">
+  <TabItem label="PostgreSQL">
 
 ```sql
 CREATE ROLE askdb_reader LOGIN PASSWORD '…';
@@ -21,7 +26,49 @@ GRANT SELECT ON public.orders, public.customers TO askdb_reader;
 ALTER ROLE askdb_reader SET default_transaction_read_only = on;
 ```
 
-Table grants alone don't make a Postgres role read-only. Every role can still call some built-in functions that write, for example `lo_from_bytea`, which creates a large object. AskDB's function denylist blocks the known ones, but this role exists for SQL that gets past those checks. With `default_transaction_read_only` on, such a call fails with `cannot execute lo_from_bytea() in a read-only transaction`. The setting applies to new sessions of that role, and a session can change its own default, so also run each generated query inside a read-only transaction (`BEGIN READ ONLY` … `ROLLBACK` on Postgres, `START TRANSACTION READ ONLY` on MySQL).
+Table grants alone don't make a Postgres role read-only. Every role can still call some built-in functions that write, for example `lo_from_bytea`, which creates a large object. AskDB's function denylist blocks the known ones, but this role exists for SQL that gets past those checks. With `default_transaction_read_only` on, such a call fails with `cannot execute lo_from_bytea() in a read-only transaction`. The setting applies to new sessions of that role, and a session can change its own default, so also run each generated query inside a read-only transaction: `BEGIN READ ONLY` … `ROLLBACK`.
+
+  </TabItem>
+  <TabItem label="MySQL">
+
+```sql
+CREATE USER 'askdb_reader'@'%' IDENTIFIED BY '…';
+-- Grant only the tables AskDB is meant to query. Leave sensitive tables out.
+GRANT SELECT ON myapp.orders TO 'askdb_reader'@'%';
+GRANT SELECT ON myapp.customers TO 'askdb_reader'@'%';
+```
+
+The same statements work on MariaDB. Also run each generated query inside a read-only transaction, `START TRANSACTION READ ONLY` … `ROLLBACK`, so a write that gets past AskDB's checks and the grants fails.
+
+  </TabItem>
+  <TabItem label="SQLite">
+
+SQLite has no roles or grants. Open the database file read-only, so a generated write fails:
+
+```ts
+import Database from "better-sqlite3";
+
+const db = new Database("./app.db", { readonly: true, fileMustExist: true });
+```
+
+A read-only handle still reads every table in the file. Keep tables AskDB mustn't query in another database file.
+
+  </TabItem>
+  <TabItem label="SQL Server">
+
+```sql
+CREATE LOGIN askdb_reader WITH PASSWORD = '…';
+-- Then, in your application's database:
+CREATE USER askdb_reader FOR LOGIN askdb_reader;
+-- Grant only the tables AskDB is meant to query. Leave sensitive tables out.
+GRANT SELECT ON dbo.orders TO askdb_reader;
+GRANT SELECT ON dbo.customers TO askdb_reader;
+```
+
+SQL Server has no read-only transaction, and a driver such as `mssql` runs a whole batch. So the user's permissions are what stop a write that gets past AskDB's checks. Grant `SELECT` and nothing else: no `EXECUTE`, and no role such as `db_datawriter` or `db_owner`.
+
+  </TabItem>
+</Tabs>
 
 Use that role's credentials in the connection string AskDB's consumers use. Don't reuse your application's admin user.
 
@@ -39,6 +86,9 @@ If that metadata matters, pick one of these:
 
 Set a statement timeout and a small pool. Generated SQL should be fast — a slow query is usually a sign of a malformed question or a missing index, not a real long-running report.
 
+<Tabs syncKey="engine">
+  <TabItem label="PostgreSQL">
+
 ```ts
 import { Pool } from "pg";
 
@@ -51,6 +101,54 @@ const pool = new Pool({
 // An idle client whose connection drops emits on the pool; without a listener, the process exits.
 pool.on("error", (err) => console.error({ err }, "idle database client error"));
 ```
+
+  </TabItem>
+  <TabItem label="MySQL">
+
+```ts
+import mysql from "mysql2/promise";
+
+const pool = mysql.createPool({ uri: process.env.DATABASE_URL, connectionLimit: 10 });
+
+// The timeout is a session setting, so set it on the connection that runs the query.
+// mysql2's types don't take unknown[], so params is any[].
+async function runWithTimeout(sql: string, params: any[] = []) {
+  const conn = await pool.getConnection();
+  try {
+    await conn.query("SET SESSION max_execution_time = 5000"); // ms, for SELECT; adjust to your workload
+    const [rows] = await conn.execute(sql, params);
+    return rows;
+  } finally {
+    conn.release();
+  }
+}
+```
+
+On MariaDB, the variable is `max_statement_time`, in seconds: `SET SESSION max_statement_time = 5`. [Embed in a Node app](/guides/embed-in-node/#3-run-the-sql-in-a-handler) shows a handler that sets it with the read-only transaction.
+
+  </TabItem>
+  <TabItem label="SQLite">
+
+SQLite has no statement timeout, and `better-sqlite3` runs each query synchronously, so a slow generated query blocks the whole Node process until it finishes. Its `timeout` option only sets how long to wait for a locked database. Serve a shared service from a database server with a statement timeout.
+
+  </TabItem>
+  <TabItem label="SQL Server">
+
+```ts
+import mssql from "mssql";
+
+const pool = await mssql.connect({
+  server: process.env.DB_HOST ?? "localhost",
+  database: process.env.DB_NAME,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  requestTimeout: 5000, // 5s — adjust to your workload
+  pool: { max: 10 },
+});
+```
+
+  </TabItem>
+</Tabs>
 
 ## Row limits
 

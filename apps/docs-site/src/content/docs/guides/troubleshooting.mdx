@@ -195,7 +195,7 @@ Studio's **Execute Query** runs the generated SQL with your engine's driver pack
   <TabItem label="PostgreSQL">
     <InstallTabs pkgs="pg" />
   </TabItem>
-  <TabItem label="MySQL and MariaDB">
+  <TabItem label="MySQL">
     <InstallTabs pkgs="mysql2" />
   </TabItem>
   <TabItem label="SQLite">
@@ -277,7 +277,7 @@ The same error comes from a `tenantSqlMode` that is neither `"sql-params"` nor `
 
 ### Driver error: `there is no parameter $1` / `Too few parameter values` after upgrading
 
-`ask()` binds tenant IDs through driver markers by default (releases up to 1.0.0-beta.45 inlined them): with a `tenantScope`, `result.sql` holds `$1`, `?` or `@p0` where the IDs used to be inlined, and the IDs are in `result.tenantParams`. Running `result.sql` without them fails at the driver (on MySQL, as a syntax error); it never returns other tenants' rows. Pass `result.tenantParams` with `result.sql`, or run `result.unboundSql` with `result.params`. To keep inlined IDs, set `tenantSqlMode: "sql-only"`. See [Executing the result](/reference/core-api/ask/#executing-the-result). A rebind does the same since 1.0.0-beta.46: run `bindPreparedQuery()`'s or `askdb.bind()`'s `sql` with its `tenantParams`, or its `unboundSql` with its `params`, or pass `tenantSqlMode: "sql-only"`.
+`ask()` binds tenant IDs through driver markers by default (early beta releases inlined them: see [Run tenant-scoped SQL with its `tenantParams`](/reference/upgrade-notes/#run-tenant-scoped-sql-with-its-tenantparams)): with a `tenantScope`, `result.sql` holds `$1`, `?` or `@p0` where the IDs used to be inlined, and the IDs are in `result.tenantParams`. Running `result.sql` without them fails at the driver (on MySQL, as a syntax error); it never returns other tenants' rows. Pass `result.tenantParams` with `result.sql`, or run `result.unboundSql` with `result.params`. To keep inlined IDs, set `tenantSqlMode: "sql-only"`. See [Executing the result](/reference/core-api/ask/#executing-the-result). A rebind does the same: run `bindPreparedQuery()`'s or `askdb.bind()`'s `sql` with its `tenantParams`, or its `unboundSql` with its `params`, or pass `tenantSqlMode: "sql-only"`.
 
 ### `SchemaParseError: Invalid tenant policy: roots … both map to the placeholder …`
 
@@ -293,7 +293,7 @@ Your tenant policy uses `enforcement: strict`, and the SQL failed the tenant che
 
 ### `QueryParameterError: DIALECT_SPEC_REQUIRED`
 
-`bindPreparedQuery()` or `askdb.bind()` got a template whose dialect rules it can't recover, and no `dialect` in its `guardrails` argument. That's a template `ask()` made under your own `DialectSpec` (`preparedQuery.dialectRules: "host"`), or one stored before 1.0.0-beta.46, which has no `dialectRules`. Pass the spec you gave `ask()` as `dialect`. If `ask()` ran with the built-in rules, the built-in id is enough, such as `dialect: "postgres"`. An app that loads two copies of `@askdb/core`, such as ESM beside CJS, gets `"host"` templates from the built-in constants of the other copy, and the same fix applies. See [`bindPreparedQuery()`](/reference/core-api/rebind/#bindpreparedqueryprepared-values-guardrails).
+`bindPreparedQuery()` or `askdb.bind()` got a template whose dialect rules it can't recover, and no `dialect` in its `guardrails` argument. That's a template `ask()` made under your own `DialectSpec` (`preparedQuery.dialectRules: "host"`), or one stored by a beta release without `dialectRules` ([upgrade note](/reference/upgrade-notes/#update-your-bindpreparedquery-and-askdbbind-calls)). Pass the spec you gave `ask()` as `dialect`. If `ask()` ran with the built-in rules, the built-in id is enough, such as `dialect: "postgres"`. An app that loads two copies of `@askdb/core`, such as ESM beside CJS, gets `"host"` templates from the built-in constants of the other copy, and the same fix applies. See [`bindPreparedQuery()`](/reference/core-api/rebind/#bindpreparedqueryprepared-values-guardrails).
 
 ### `QueryParameterError: MISSING_GUARDRAIL_CONTEXT`
 

@@ -448,6 +448,29 @@ code, pre, .mono { font-family: var(--font-mono); }
   letter-spacing: 0;
 }
 
+/* Sub-rail inside its narrow-window drawer (SubRail.tsx) */
+.sub-rail-sheet {
+  gap: 0;
+  padding: 0;
+}
+
+.sub-rail-sheet .sub-rail {
+  flex: 1;
+  border-right: 0;
+}
+
+/* Leave room for the drawer's close button */
+.sub-rail-sheet .sub-rail-hd { padding-right: 44px; }
+
+/* Concepts: list beside detail */
+.concepts-grid {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
 /* ───────── Schema groups (tables sub-rail) ───────── */
 .schema-group {
   margin-bottom: 2px;
@@ -1003,6 +1026,7 @@ code, pre, .mono { font-family: var(--font-mono); }
 }
 
 .suggest-link:hover { color: var(--red-700); }
+.suggest-link:disabled { color: var(--ink-400); cursor: not-allowed; }
 
 /* ───────── Progress bar ───────── */
 .bar {
@@ -1101,80 +1125,58 @@ code, pre, .mono { font-family: var(--font-mono); }
 .inline-status.success { color: var(--green-500); }
 .inline-status.error { color: var(--red-600); }
 
-/* ───────── Dialog ───────── */
-.dialog-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(20, 18, 15, 0.35);
-  padding: 18px;
-}
-
-.dialog {
-  display: flex;
-  width: min(720px, 100%);
-  max-height: min(760px, 90vh);
-  flex-direction: column;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface);
-  box-shadow: var(--shadow-2);
-}
-
-.dialog-hd {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--border);
-}
-
-.dialog-hd h3 {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--ink-900);
-}
-
-.dialog-bd {
-  flex: 1;
-  overflow: auto;
-  padding: 16px;
+/* ───────── Inline enrichment drafts (#952) ───────── */
+.inline-drafts {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
+  padding: 8px;
+  border: 1px dashed color-mix(in oklab, var(--red-600), transparent 60%);
+  border-radius: 6px;
+  background: var(--red-50);
 }
 
 .candidate {
-  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   border: 1px solid var(--border);
   border-radius: 6px;
-  background: var(--bg);
-  padding: 12px;
-  text-align: left;
+  background: var(--surface);
+  padding: 8px 10px;
   font-size: 12px;
 }
 
 .candidate p {
+  flex: 1;
   margin: 0;
 }
 
-.candidate:hover {
-  border-color: color-mix(in oklab, var(--red-600), transparent 55%);
-  background: var(--red-50);
+.inline-drafts-ft {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
-.candidate-actions {
+.suggest-all-bar {
   display: flex;
-  justify-content: flex-end;
-  margin-top: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: 12.5px;
+}
+
+.suggest-all-actions {
+  display: flex;
+  gap: 8px;
 }
 
 /* ───────── Legacy compatibility (for existing Tailwind classes during migration) ───────── */
@@ -1580,11 +1582,16 @@ select:focus-visible {
     --sub-w: 0px;
   }
 
-  .sub-rail { display: none; }
-
+  /* The sub-rail moves into a drawer (SubRail.tsx), opened from the view header. */
   .app-content {
     grid-template-columns: 1fr;
   }
+
+  .concepts-grid { grid-template-columns: 1fr; }
+
+  /* Let a header's actions wrap under the title instead of squeezing it */
+  .main-hd { flex-wrap: wrap; }
+  .main-hd .main-title { min-width: 160px; }
 
   .grid-4 { grid-template-columns: 1fr; }
   .grid-3 { grid-template-columns: 1fr; }

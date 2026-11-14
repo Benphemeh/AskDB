@@ -7,6 +7,9 @@ export const ENRICHMENT_SYSTEM_PROMPT = `You enrich AskDB Schema v2 describable 
 
 Rules:
 - Be concise. Descriptions: one sentence, no marketing language.
+- Descriptions: don't restate the table or column name; it is printed right
+  next to the description. Start with what it holds, for example
+  "One row per order placed …" rather than "The orders table stores …".
 - Aliases: 2–4 lowercase, comma-separated, the way people *say* the thing
   in plain English. No quotes, no synonyms of synonyms.
 - Common query language: 2–4 short bullet lines mapping a colloquial term

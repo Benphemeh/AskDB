@@ -16,6 +16,8 @@ examples/**/package-lock.json
 output/**
 askdb/
 askdb-*/
+# The docs site serves agent skills named askdb-*; keep them tracked.
+!apps/docs-site/public/skills/askdb-*/
 .gstack/
 
 # The vendored /improve skill writes plans here; plans live in GitHub issues
