@@ -554,6 +554,12 @@ describe("generateSelectSql — questions it can't answer as a read (#949)", () 
     }
   });
 
+  it("declines a reply cut off inside the decline block, instead of answering the read part", async () => {
+    expect(await run("```sql\nSELECT id FROM users LIMIT 1\n```\n```askdb-decline\nIt also asks to delete")).toMatchObject({
+      reason: "It also asks to delete",
+    });
+  });
+
   it("joins a reason written over several lines into one, and names a missing one", async () => {
     expect(await run("```askdb-decline\nNo weather\ndata here.\n```")).toMatchObject({ reason: "No weather data here." });
     expect(await run("```askdb-decline\n```")).toMatchObject({ reason: "No reason given." });

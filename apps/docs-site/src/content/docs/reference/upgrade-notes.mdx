@@ -18,7 +18,7 @@ import InstallTabs from "../../../components/InstallTabs.astro";
 - **If your code handles `ask()`'s errors by type,** add a case for `QuestionDeclinedError` and show its `reason` to the user. It extends `AskDbError`, so a catch-all for `AskDbError` already catches it.
 - **If you call the HTTP API,** handle the new error code `question_declined`, with HTTP status `422` and `error.reason`.
 - **A model reply with no SQL in it** is now reported as `SqlValidationError` with rule `SQL_EMPTY` and the message `The model didn't return SQL: …`, instead of another rule such as `SQL_UNTERMINATED`. Through the HTTP API it is still `400 sql_validation_error`.
-- **`askdb ask`** prints `AskDB can't answer this as a read-only query:` and the reason on stderr, and exits `1`. Studio's Playground shows the reason in place of SQL.
+- **If a script reads `askdb ask`'s stderr,** expect `AskDB can't answer this as a read-only query:` and the reason, with exit code `1` as for every error.
 
 ## 1.0.0-rc.1
 

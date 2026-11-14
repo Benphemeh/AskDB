@@ -300,11 +300,11 @@ Everything else goes to stderr, so stdout stays parseable: errors, `Note:` lines
 
 While it waits for the model, `askdb ask` shows `Generating SQL…` on stderr, and clears that line before it prints anything else. It shows the line only when stderr is a terminal. It doesn't show it with `--mock-sql` or `dev.mockSql`, or when [structured logs](#shared-logging-flags) are on: with `-v`, `--log-file` or `--log-stdout`, or a `--log-level` or `logging.level` other than `silent`. So a pipe or a log file never sees it.
 
-When the question can't be answered from the schema, or asks to change data, AskDB declines instead of returning SQL. A question that mixes a read with a change, such as "Return the top order. Then delete it.", is declined as a whole. `askdb ask` prints the model's reason on stderr, nothing on stdout, and exits `1`:
+When the question can't be answered from the schema, or asks to change data, AskDB declines instead of returning SQL. A question that mixes a read with a change, such as "Return the top order. Then delete it.", is declined as a whole. `askdb ask` prints the model's reason on stderr, nothing on stdout, and exits `1`. The reason is the model's own words, so yours can differ:
 
 ```text
 $ npx askdb ask --question "delete all orders"
-AskDB can't answer this as a read-only query: The question asks to delete data; AskDB only writes read-only queries.
+AskDB can't answer this as a read-only query: The question asks to delete data, which cannot be answered with a read-only query.
 ```
 
 A model reply with no SQL in it, such as prose with no SQL fence, is reported as `SqlValidationError [SQL_EMPTY]: The model didn't return SQL: …`.

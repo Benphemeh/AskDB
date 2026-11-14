@@ -13,7 +13,7 @@ import {
 import type { NormalizedTenantPolicy, TenantScope } from "../schema/v2/tenant-policy.js";
 import type { DialectSpec } from "./dialect-spec.js";
 import { nonAsciiNameRule, promptIdentifierQuoter, qualifiedNameQuotingRule } from "./prompt-identifiers.js";
-import { DECLINE_FENCE_TAG } from "./model-reply.js";
+import { DECLINE_FENCE_TAG } from "./extract-sql.js";
 import { buildTenantPromptBlock } from "./tenant-prompt.js";
 
 function isV2(schema: AnyNormalizedSchema): schema is NormalizedSchemaV2 {

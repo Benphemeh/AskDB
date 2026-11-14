@@ -110,6 +110,14 @@ Replace the link with a regular file that holds the content you want, then run t
 
 ## SQL generation
 
+### `AskDB can't answer this as a read-only query: …`
+
+The model declined the question, and the rest of the message is its reason. AskDB declines when the schema has nothing that answers the question, such as "What's the weather like?". It also declines when the question asks to change data, such as "delete all orders". A question that asks for a read and a change together is declined as a whole, so ask for the read part alone. In code, `ask()` throws `QuestionDeclinedError`, with the reason in `reason`. The HTTP API answers `422 question_declined`.
+
+### `SqlValidationError: SQL_EMPTY`
+
+The model didn't return SQL: its reply had none in it, such as a sentence explaining why it can't answer. Rephrase the question so the schema can answer it.
+
 ### `SqlValidationError: SQL_NOT_SELECT_OR_WITH`
 
 The model wrote a statement that isn't a query, such as `INSERT` or `DROP`. AskDB returns only `SELECT` or `WITH … SELECT` statements. If you see this on read questions, the model may be misreading the schema: check that your table and column descriptions don't imply write operations.
@@ -184,14 +192,6 @@ The provider refused the model call. The rest of the message is the provider's o
 - **404:** the provider has no model by that name, or your account can't use it. The default OpenAI model is `gpt-4o-mini`. Set another in `ai.language.model`. The config `askdb init` writes reads it from `OPENAI_MODEL`. With `ask()`, pass another model instance.
 
 See [Bring your own model](/guides/bring-your-own-model/) for each provider's settings.
-
-### `AskDB can't answer this as a read-only query: …`
-
-The model declined the question, and the rest of the message is its reason. AskDB declines when the schema has nothing that answers the question, such as "What's the weather like?", or when the question asks to change data, such as "delete all orders". A question that asks for a read and a change together is declined as a whole. Ask for the read part alone. In code it's `QuestionDeclinedError`, with the reason in `reason`; the HTTP API answers `422 question_declined`.
-
-### `SqlValidationError [SQL_EMPTY]: The model didn't return SQL: …`
-
-The model's reply had no SQL in it, such as a sentence explaining why it can't answer. Rephrase the question so the schema can answer it.
 
 ## Studio
 
