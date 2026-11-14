@@ -1,6 +1,6 @@
 ---
 title: "Embed AskDB in a Node app"
-description: "Add natural-language SQL to a TypeScript service: get checked SQL from AskDB, then run it through your own PostgreSQL or SQLite driver."
+description: "Add natural-language SQL to a TypeScript service: get checked SQL from AskDB, then run it through your own PostgreSQL, MySQL, SQLite or SQL Server driver."
 ---
 
 import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
@@ -52,17 +52,31 @@ Then install the driver for your database. AskDB doesn't open the connection; yo
 
 <InstallTabs pkgs="pg" />
 
+For TypeScript types, add `@types/pg` as a dev dependency.
+
+  </TabItem>
+  <TabItem label="MySQL">
+
+<InstallTabs pkgs="mysql2" />
+
+`mysql2` also connects to MariaDB, and ships its own types.
+
   </TabItem>
   <TabItem label="SQLite">
 
 <InstallTabs pkgs="better-sqlite3" />
 
-If you followed the [Quickstart](/quickstart/), `askdb init` already installed `better-sqlite3`.
+If you followed the [Quickstart](/quickstart/), `askdb init` already installed `better-sqlite3`. For TypeScript types, add `@types/better-sqlite3` as a dev dependency.
+
+  </TabItem>
+  <TabItem label="SQL Server">
+
+<InstallTabs pkgs="mssql" />
+
+For TypeScript types, add `@types/mssql` as a dev dependency.
 
   </TabItem>
 </Tabs>
-
-For TypeScript types, add `@types/pg` or `@types/better-sqlite3` as a dev dependency.
 
 ### 2. Get SQL for a question
 
@@ -177,6 +191,48 @@ export async function askQuestion(question: string) {
 ```
 
   </TabItem>
+  <TabItem label="MySQL">
+
+```ts
+// ask-handler.ts
+import mysql from "mysql2/promise";
+import { generateSql } from "./generate-sql.js";
+
+// Connect as a read-only, least-privilege user.
+const pool = mysql.createPool({ uri: process.env.DATABASE_URL, connectionLimit: 10 });
+
+// Runs one generated statement in a read-only transaction, with a 5 s statement timeout.
+// mysql2's types don't take unknown[], so params is any[].
+async function runReadOnly(sql: string, params: any[] = []) {
+  const conn = await pool.getConnection();
+  try {
+    // MySQL reads max_execution_time in ms. On MariaDB, use SET SESSION max_statement_time = 5 (seconds).
+    await conn.query("SET SESSION max_execution_time = 5000");
+    await conn.query("START TRANSACTION READ ONLY");
+    // execute() prepares the statement, so a stacked second statement fails.
+    const [rows] = await conn.execute(sql, params);
+    return rows;
+  } finally {
+    await conn.query("ROLLBACK").catch(() => undefined);
+    conn.release();
+  }
+}
+
+export async function askQuestion(question: string) {
+  const { sql, tenantParams } = await generateSql(question);
+
+  // Audit hook — log every question and generated SQL.
+  console.log({ question, sql });
+
+  // `sql` runs with `tenantParams`, which is empty unless you pass a tenant scope.
+  const rows = await runReadOnly(sql, tenantParams ?? []);
+  return { sql, rows };
+}
+```
+
+On the `ask()` path, set `dialect: "mysql"` in `generate-sql.ts`, or `"mariadb"` for MariaDB. On MariaDB, also swap the timeout line for `max_statement_time`, as its comment says.
+
+  </TabItem>
   <TabItem label="SQLite">
 
 ```ts
@@ -209,6 +265,49 @@ export async function askQuestion(question: string) {
 SQLite has no statement timeout, and `better-sqlite3` runs each query synchronously. A slow generated query therefore blocks the whole Node process until it finishes, and every other request waits. Use this handler for local or single-user work, and use a database server with a statement timeout for a shared service.
 
   </TabItem>
+  <TabItem label="SQL Server">
+
+```ts
+// ask-handler.ts
+import mssql from "mssql";
+import { generateSql } from "./generate-sql.js";
+
+// Connect as a read-only, least-privilege login, with a 5 s request timeout.
+// mssql reads an ADO.NET string or a config object, not an mssql:// URL.
+const pool = await mssql.connect({
+  server: process.env.DB_HOST ?? "localhost",
+  database: process.env.DB_NAME,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  requestTimeout: 5000,
+  pool: { max: 10 },
+});
+
+// Runs one generated statement. AskDB's sqlserver dialect writes parameters as @p0, @p1, …
+async function runReadOnly(sql: string, params: unknown[] = []) {
+  const request = pool.request();
+  params.forEach((value, index) => request.input(`p${index}`, value));
+  const { recordset } = await request.query(sql);
+  return recordset;
+}
+
+export async function askQuestion(question: string) {
+  const { sql, tenantParams } = await generateSql(question);
+
+  // Audit hook — log every question and generated SQL.
+  console.log({ question, sql });
+
+  // `sql` runs with `tenantParams`, which is empty unless you pass a tenant scope.
+  const rows = await runReadOnly(sql, tenantParams ?? []);
+  return { sql, rows };
+}
+```
+
+On the `ask()` path, set `dialect: "sqlserver"` in `generate-sql.ts`. A server with a self-signed certificate also needs `options: { trustServerCertificate: true }`, in development only: see [Connect to SQL Server](/guides/connect-to-sql-server/#4-connect-your-own-pool).
+
+SQL Server has no read-only transaction, and `mssql` runs a whole batch. So the login's grants are what stop a write that AskDB's checks miss: give it `SELECT` and nothing else ([Database role](/guides/run-safely-in-prod/#database-role)).
+
+  </TabItem>
 </Tabs>
 
 ### 4. Try it
@@ -222,7 +321,7 @@ import { askQuestion } from "./ask-handler.js";
 askQuestion("How much has each customer spent in total, highest first?").then(({ rows }) => console.table(rows));
 ```
 
-Run it with [tsx](https://tsx.is/), which runs TypeScript files directly. `--env-file` loads your API key from `.env` (and `DATABASE_URL` for PostgreSQL):
+Run it with [tsx](https://tsx.is/), which runs TypeScript files directly. `--env-file` loads your API key from `.env`, and your connection variables for PostgreSQL, MySQL or SQL Server:
 
 ```bash
 npx tsx --env-file=.env try-it.ts
@@ -237,24 +336,26 @@ AskDB returns checked SQL; your handler logs it, runs it, and returns the result
 `askdb.ask()` and `ask()` both return the query in two forms, each with its own array. Run `sql` with `tenantParams`, the tenant IDs for its markers, which it has only when you pass a tenant scope. Or run `unboundSql` with `params`, which binds every value as a parameter. Never mix the two arrays. `unboundSql` comes with `parameterize` on, the default; set `parameterize: false` to save the output tokens it costs. The result also has `verdict`, what AskDB's SQL checks found, and `usage`, the token counts when your provider reports them. [Result — `AskPipelineResult`](/reference/core-api/ask/#result--askpipelineresult) lists every field.
 
 <Aside type="note">
-These examples use `pg` and `better-sqlite3` to run the SQL, but the driver is your choice — AskDB never opens a connection. If you already use an ORM or query builder (Prisma, Drizzle, Sequelize, Knex, …), skip the driver and pass the returned `sql` string and its values (`tenantParams ?? []`) to your existing client, e.g. `prisma.$queryRawUnsafe(sql, ...values)` or `db.execute(sql, values)`.
+These examples use `pg`, `mysql2`, `better-sqlite3` and `mssql` to run the SQL, but the driver is your choice — AskDB never opens a connection. If you already use an ORM or query builder (Prisma, Drizzle, Sequelize, Knex, …), skip the driver and pass the returned `sql` string and its values (`tenantParams ?? []`) to your existing client, e.g. `prisma.$queryRawUnsafe(sql, ...values)` or `db.execute(sql, values)`.
 </Aside>
 
 To run the same query again with a new value, such as another month, without a model call, see [Rerun a query with new values](/guides/rerun-a-query-with-new-values/).
 
 <Aside type="caution">
-AskDB's SQL checks catch common model mistakes but aren't a security boundary. Connect `DATABASE_URL` as a read-only, least-privilege role and keep `statement_timeout` set. On SQLite, opening the file read-only stops writes, but nothing stops a slow query. See [Run generated SQL safely](/concepts/safety-boundaries/#run-generated-sql-safely).
+AskDB's SQL checks catch common model mistakes but aren't a security boundary. Connect as a read-only, least-privilege role and keep a statement timeout set. On SQLite, opening the file read-only stops writes, but nothing stops a slow query. See [Run generated SQL safely](/concepts/safety-boundaries/#run-generated-sql-safely).
 </Aside>
 
 ## Switching engines
 
-With `createAskDb()`, the dialect follows the engine the schema artifact recorded at introspection, unless `askdb.config.ts` sets `dialect`. With `ask()`, change `dialect` to `"postgres"`, `"cockroachdb"`, `"mysql"`, `"mariadb"`, `"sqlite"` or `"sqlserver"`. For the MySQL and SQL Server drivers and the full migration matrix, see [Switch engines](/guides/switch-engines/).
+With `createAskDb()`, the dialect follows the engine the schema artifact recorded at introspection, unless `askdb.config.ts` sets `dialect`. With `ask()`, change `dialect` to `"postgres"`, `"cockroachdb"`, `"mysql"`, `"mariadb"`, `"sqlite"` or `"sqlserver"`. For the full migration matrix, see [Switch engines](/guides/switch-engines/).
 
 ## Complete example: Express server
 
 The snippet below is a copy-paste-ready Express server. Schema, model, and dialect are fully config-driven — `askdb.config.ts` sets `host.schemaPath` and the AI provider; `server.ts` only handles HTTP.
 
 The `/ask` endpoint accepts an optional `execute` flag: `false` (default) returns just the SQL; `true` also runs it and returns the rows. It runs the SQL the way [Run safely in production](/guides/run-safely-in-prod/) describes: under a read-only role with a statement timeout, inside a read-only transaction, and capped at 1,000 rows ([Cap the rows a query returns](/guides/cap-the-rows-a-query-returns/)). Errors go to the server log under a correlation ID; the caller gets that ID and a generic message, because an error can carry provider or schema details.
+
+The server runs its SQL on PostgreSQL, like the runnable example it mirrors. For another engine, replace `pg` and `runCapped` with that engine's helper from [Cap the rows a query returns](/guides/cap-the-rows-a-query-returns/). The helper opens its own connection, so also give that connection a statement timeout, as your engine's handler in step 3 does.
 
 ```ts
 // server.ts
