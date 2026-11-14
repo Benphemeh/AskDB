@@ -95,15 +95,13 @@ The physical layer is JSON with stable IDs and relationships. The current `versi
       "id": "table:public.users",
       "name": "users",
       "schema": "public",
-      "sensitive": false,
       "columns": [
         {
           "id": "table:public.users#id",
           "name": "id",
           "type": "uuid",
           "nullable": false,
-          "primaryKey": true,
-          "sensitive": false
+          "primaryKey": true
         },
         {
           "id": "table:public.users#email",
@@ -121,7 +119,7 @@ The physical layer is JSON with stable IDs and relationships. The current `versi
 }
 ```
 
-`tables` has at least one entry: `loadSchema()` rejects an empty array, and introspection refuses to write one ([ADR 0037](../adrs/0037-introspection-refuses-an-empty-artifact.md)). Required table fields are `id`, `name`, `schema`, and `columns`. Required column fields are `id`, `name`, `type`, and `nullable`. `primaryKey`, `sensitive`, and `relationships` are optional at the schema level, though AskDB's generated artifacts currently emit `sensitive: false` for tables and columns so the physical layer remains explicit. Both NL→SQL prompts print each relationship under the table that owns its `from` column, as `FK (user_id) -> public.users (id)`. A relationship is left out when either table is untracked or, in the retrieval prompt, not shown, and under omission when either column or table is sensitive ([ADR 0043](../adrs/0043-default-prompt-carries-foreign-keys-and-concepts.md)).
+`tables` has at least one entry: `loadSchema()` rejects an empty array, and introspection refuses to write one ([ADR 0037](../adrs/0037-introspection-refuses-an-empty-artifact.md)). Required table fields are `id`, `name`, `schema`, and `columns`. Required column fields are `id`, `name`, `type`, and `nullable`. `primaryKey`, `sensitive`, and `relationships` are optional at the schema level, and a missing `sensitive` means not sensitive. Introspection can't know whether a table or column is sensitive, so it writes `sensitive` only when a person set it to `true` in the `schema.json` it re-introspects over; it never writes `false` ([#956](https://github.com/Ygilany/AskDB/issues/956)). A `"sensitive": false` written by an older version, or by hand, still loads and means the same as no key. Both NL→SQL prompts print each relationship under the table that owns its `from` column, as `FK (user_id) -> public.users (id)`. A relationship is left out when either table is untracked or, in the retrieval prompt, not shown, and under omission when either column or table is sensitive ([ADR 0043](../adrs/0043-default-prompt-carries-foreign-keys-and-concepts.md)).
 
 ### Stable ID scheme
 

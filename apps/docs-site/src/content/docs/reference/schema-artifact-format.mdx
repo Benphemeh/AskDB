@@ -77,11 +77,10 @@ The physical layer: the tables and columns AskDB read from the database. Here it
       "id": "table:public.orders",
       "name": "orders",
       "schema": "public",
-      "sensitive": false,
       "columns": [
-        { "id": "table:public.orders#id", "name": "id", "type": "uuid", "nullable": false, "primaryKey": true, "sensitive": false },
-        { "id": "table:public.orders#user_id", "name": "user_id", "type": "uuid", "nullable": false, "sensitive": false },
-        { "id": "table:public.orders#status", "name": "status", "type": "text", "nullable": false, "sensitive": false }
+        { "id": "table:public.orders#id", "name": "id", "type": "uuid", "nullable": false, "primaryKey": true },
+        { "id": "table:public.orders#user_id", "name": "user_id", "type": "uuid", "nullable": false },
+        { "id": "table:public.orders#status", "name": "status", "type": "text", "nullable": false }
       ],
       "relationships": [
         { "from": "table:public.orders#user_id", "to": "table:public.users#id" }
@@ -91,9 +90,8 @@ The physical layer: the tables and columns AskDB read from the database. Here it
       "id": "table:public.users",
       "name": "users",
       "schema": "public",
-      "sensitive": false,
       "columns": [
-        { "id": "table:public.users#id", "name": "id", "type": "uuid", "nullable": false, "primaryKey": true, "sensitive": false },
+        { "id": "table:public.users#id", "name": "id", "type": "uuid", "nullable": false, "primaryKey": true },
         { "id": "table:public.users#email", "name": "email", "type": "text", "nullable": false, "sensitive": true }
       ]
     }
@@ -135,7 +133,7 @@ The physical layer: the tables and columns AskDB read from the database. Here it
 ### What introspection writes
 
 - `provider` when the engine is known, and `tables` sorted by schema, then name. Views appear as ordinary tables.
-- `"sensitive": false` on every table and column, so each one is explicit.
+- No `sensitive` key. Introspection can't know whether a table or column is sensitive, so it writes `"sensitive": true` only where the `schema.json` it re-introspects over already has it. Versions before 1.0.0-rc.2 wrote `"sensitive": false` everywhere, which still loads and means the same as no key.
 - `"primaryKey": true` on primary-key columns only, and `relationships` only on tables with foreign keys.
 - For Postgres, the short type names: `timestamptz` for `timestamp with time zone`, `varchar(…)` for `character varying(…)`. Other engines' types are written as the engine reports them.
 
@@ -153,7 +151,7 @@ AskDB ignores a key it doesn't know, and `loadSchema()` returns an `unknown_key`
 
 ### Re-introspection
 
-When `askdb introspect` writes into a folder that already has a `schema.json`, it builds a new one from the database. From the old file it keeps only each table's and column's `sensitive` value, `true` or `false`, matched by ID. Every other edit to `schema.json` is lost, and so is a `sensitive` value on an ID that no longer exists.
+When `askdb introspect` writes into a folder that already has a `schema.json`, it builds a new one from the database. From the old file it keeps only each table's and column's `"sensitive": true`, matched by ID. A `"sensitive": false` is dropped, since no key means the same. Every other edit to `schema.json` is lost, and so is a `sensitive` mark on an ID that no longer exists.
 
 `schemaId` comes from the run, not from the old file. The CLI takes it from `--schema-id`, or else from the output folder's name without `.schema`.
 
@@ -299,7 +297,7 @@ Each table and column ends up with one `sensitive` value:
 
 - **A table** is sensitive when `schema.json` or its file's front-matter says `sensitive: true`.
 - **A column** is sensitive when `schema.json` says `sensitive: true`, when any `columns[]` entry for it in any table file says `sensitive: true`, or when its table is sensitive.
-- **Escalate-only.** Front-matter can mark a table or column sensitive, but its `sensitive: false` never un-marks one. To un-mark one, set `"sensitive": false` in `schema.json` and remove any front-matter `sensitive: true` for it. Re-introspection keeps the `schema.json` value.
+- **Escalate-only.** Front-matter can mark a table or column sensitive, but its `sensitive: false` never un-marks one. To un-mark one, remove its `"sensitive": true` from `schema.json` and any front-matter `sensitive: true` for it. Re-introspection keeps a `schema.json` `true` and writes nothing for an unmarked one.
 - **Misplaced and repeated entries.** A `columns[]` entry in another table's file still applies its `sensitive: true`, and nothing else from it applies. A column listed more than once is sensitive if any entry says `sensitive: true`.
 
 [Privacy model](/concepts/privacy-model/) explains what reaches the model for a sensitive table or column.

@@ -238,25 +238,110 @@ describe("renderSchemaV2Body() — shared by --out, --print and --diff", () => {
     expect((JSON.parse(written) as { provider?: string }).provider).toBe("postgres");
   });
 
-  it("preserves human-set sensitive flags from an existing artifact", () => {
-    const existingDir = join(workDir, "existing.schema");
-    const first = renderSchemaV2Body(fakeSchema, { schemaId: "fake" });
-    const edited = JSON.parse(first.body) as {
-      tables: Array<{ sensitive: boolean; columns: Array<{ sensitive: boolean }> }>;
+  it("writes no sensitive key on tables, views or columns, since introspection can't know it (#956)", () => {
+    const withView: SqlSchema = {
+      ...fakeSchema,
+      schemas: [
+        {
+          ...fakeSchema.schemas[0]!,
+          views: [
+            {
+              schema: "public",
+              name: "active_users",
+              definition: "select id from users",
+              columns: [fakeSchema.schemas[0]!.tables[0]!.columns[0]!],
+            },
+          ],
+        },
+      ],
     };
-    edited.tables[0]!.sensitive = true;
-    edited.tables[0]!.columns[0]!.sensitive = true;
-    const editedBody = JSON.stringify(edited, null, 2) + "\n";
-    rmSync(existingDir, { recursive: true, force: true });
-    mkdirSync(existingDir, { recursive: true });
-    writeFileSync(join(existingDir, "schema.json"), editedBody, "utf8");
 
-    const merged = renderSchemaV2Body(fakeSchema, {
+    const { body } = renderSchemaV2Body(withView, { schemaId: "fake" });
+
+    expect(JSON.parse(body)).toEqual({
+      version: 2,
       schemaId: "fake",
-      existingArtifactDir: existingDir,
+      tables: [
+        {
+          id: "table:public.active_users",
+          name: "active_users",
+          schema: "public",
+          columns: [{ id: "table:public.users#id", name: "id", type: "uuid", nullable: false, primaryKey: true }],
+        },
+        {
+          id: "table:public.users",
+          name: "users",
+          schema: "public",
+          columns: [{ id: "table:public.users#id", name: "id", type: "uuid", nullable: false, primaryKey: true }],
+        },
+      ],
     });
-    expect(merged.body).toBe(editedBody);
+  });
+
+  it("keeps a human-set sensitive: true on re-introspection and drops a carried-over false (#956)", () => {
+    const existingDir = join(workDir, "existing.schema");
+    mkdirSync(existingDir, { recursive: true });
+    writeFileSync(
+      join(existingDir, "schema.json"),
+      `{
+  "version": 2,
+  "schemaId": "fake",
+  "tables": [
+    {
+      "id": "table:public.users",
+      "name": "users",
+      "schema": "public",
+      "sensitive": false,
+      "columns": [
+        { "id": "table:public.users#id", "name": "id", "type": "uuid", "nullable": false, "primaryKey": true, "sensitive": true }
+      ]
+    }
+  ]
+}
+`,
+      "utf8",
+    );
+
+    const merged = renderSchemaV2Body(fakeSchema, { schemaId: "fake", existingArtifactDir: existingDir });
+
+    expect(merged.body).toBe(`{
+  "version": 2,
+  "schemaId": "fake",
+  "tables": [
+    {
+      "id": "table:public.users",
+      "name": "users",
+      "schema": "public",
+      "columns": [
+        {
+          "id": "table:public.users#id",
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "primaryKey": true,
+          "sensitive": true
+        }
+      ]
+    }
+  ]
+}
+`);
     expect(merged.warnings).toEqual([]);
+  });
+
+  it("keeps a human-set table sensitive: true beside the table's other physical fields (#956)", () => {
+    const existingDir = join(workDir, "table-sensitive.schema");
+    const existing = JSON.parse(renderSchemaV2Body(fakeSchema, { schemaId: "fake" }).body) as {
+      tables: Array<Record<string, unknown>>;
+    };
+    existing.tables[0]!.sensitive = true;
+    mkdirSync(existingDir, { recursive: true });
+    writeFileSync(join(existingDir, "schema.json"), JSON.stringify(existing), "utf8");
+
+    const merged = renderSchemaV2Body(fakeSchema, { schemaId: "fake", existingArtifactDir: existingDir });
+
+    expect(Object.keys(merged.json.tables[0]!)).toEqual(["id", "name", "schema", "sensitive", "columns"]);
+    expect(merged.json.tables[0]!.sensitive).toBe(true);
   });
 
   it.each([
