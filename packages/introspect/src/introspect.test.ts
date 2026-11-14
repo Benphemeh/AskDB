@@ -329,19 +329,43 @@ describe("renderSchemaV2Body() — shared by --out, --print and --diff", () => {
     expect(merged.warnings).toEqual([]);
   });
 
-  it("keeps a human-set table sensitive: true beside the table's other physical fields (#956)", () => {
+  it("keeps a human-set table sensitive: true beside the table's columns and relationships (#956)", () => {
+    const users = fakeSchema.schemas[0]!.tables[0]!;
+    const withFk: SqlSchema = {
+      ...fakeSchema,
+      schemas: [
+        {
+          ...fakeSchema.schemas[0]!,
+          tables: [
+            {
+              ...users,
+              columns: [
+                ...users.columns,
+                { ...users.columns[0]!, id: "table:public.users#manager_id", name: "manager_id", ordinalPosition: 2, nullable: true, primaryKey: false },
+              ],
+              foreignKeys: [
+                { name: "users_manager_fkey", columns: ["manager_id"], references: { schema: "public", table: "users", columns: ["id"] } },
+              ],
+            },
+          ],
+        },
+      ],
+    };
     const existingDir = join(workDir, "table-sensitive.schema");
-    const existing = JSON.parse(renderSchemaV2Body(fakeSchema, { schemaId: "fake" }).body) as {
+    const existing = JSON.parse(renderSchemaV2Body(withFk, { schemaId: "fake" }).body) as {
       tables: Array<Record<string, unknown>>;
     };
     existing.tables[0]!.sensitive = true;
     mkdirSync(existingDir, { recursive: true });
     writeFileSync(join(existingDir, "schema.json"), JSON.stringify(existing), "utf8");
 
-    const merged = renderSchemaV2Body(fakeSchema, { schemaId: "fake", existingArtifactDir: existingDir });
+    const merged = renderSchemaV2Body(withFk, { schemaId: "fake", existingArtifactDir: existingDir });
 
-    expect(Object.keys(merged.json.tables[0]!)).toEqual(["id", "name", "schema", "sensitive", "columns"]);
+    expect(Object.keys(merged.json.tables[0]!)).toEqual(["id", "name", "schema", "sensitive", "columns", "relationships"]);
     expect(merged.json.tables[0]!.sensitive).toBe(true);
+    expect(merged.json.tables[0]!.relationships).toEqual([
+      { from: "table:public.users#manager_id", to: "table:public.users#id" },
+    ]);
   });
 
   it.each([

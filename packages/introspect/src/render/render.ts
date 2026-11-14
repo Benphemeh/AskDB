@@ -111,7 +111,7 @@ function mergeWithExistingArtifact(
     });
     if (existingTables.get(table.id)?.sensitive !== true) return { ...table, columns };
     // Write it where the contract's example has it: after `schema`, before `columns`.
-    const { id, name, schema, columns: _fresh, ...rest } = table;
+    const { id, name, schema, columns: _unmergedColumns, ...rest } = table;
     return { id, name, schema, sensitive: true, columns, ...rest };
   });
   const merged: V2SchemaJson = { ...fresh, tables };
