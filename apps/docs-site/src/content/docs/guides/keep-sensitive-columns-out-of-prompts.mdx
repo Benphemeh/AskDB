@@ -95,7 +95,7 @@ With `@askdb/rag`, sensitive tables and columns, and any text that names a sensi
 | Error | Fix |
 | --- | --- |
 | `SensitiveReferenceError` | With `sensitiveGuardrailMode: "strict"`, the SQL reads a sensitive table or column (`rule` is `SENSITIVE_TABLE_REFERENCED` or `SENSITIVE_COLUMN_REFERENCED`), or the check couldn't tell which tables a column belongs to (`UNRESOLVED_TABLE_SCOPE`). Ask the question another way, or review the SQL and decide whether to run it. |
-| `SensitiveEnrichmentTargetError`, or an error from Studio's **Suggest** | With omission on, AskDB won't ask the model to describe a sensitive column. Write that column's description yourself. |
+| `SensitiveEnrichmentTargetError`, or Studio's **Suggest** disabled on a column | With omission on, AskDB won't ask the model to describe a sensitive column. Write that column's description yourself. |
 
 ## Read next
 

@@ -20,8 +20,9 @@ async function handleSuggestTenantPolicy() {
 
 type LoadState = { kind: "loading" | "ready" | "error" | "setup"; message?: string };
 export type StatusMessage = { kind: "neutral" | "loading" | "success" | "error"; text: string };
-type SuggestionDialog = { source: SuggestSource; label: string; candidates: Array<{ text: string }> };
-type SuggestionCache = Record<string, SuggestionDialog>;
+/** Drafts the model returned for one field, shown inline under it until Use or Dismiss (#952). */
+export type FieldSuggestion = { source: SuggestSource; candidates: Array<{ text: string }> };
+export type SuggestAllProgress = { done: number; total: number };
 
 interface WorkspaceContextValue {
   loadState: LoadState;
@@ -40,17 +41,21 @@ interface WorkspaceContextValue {
   saveStatus: StatusMessage | null;
   setSaveStatus: (s: StatusMessage | null) => void;
   busy: Set<string>;
-  suggestionDialog: SuggestionDialog | null;
-  setSuggestionDialog: (d: SuggestionDialog | null) => void;
-  suggestingKey: string | null;
+  /** Keyed by `suggestionKey(source)`. */
+  suggestions: Record<string, FieldSuggestion>;
+  suggestingKeys: Set<string>;
+  suggestAllProgress: SuggestAllProgress | null;
 
   load: () => Promise<void>;
   saveSelectedTable: () => Promise<void>;
   resetSelectedDraft: () => void;
   updateTableDraft: (tableId: string, updater: (d: TableDraft) => TableDraft) => void;
   updateColumnDraft: (tableId: string, columnId: string, updater: (d: ColumnDraft) => ColumnDraft) => void;
-  requestSuggestion: (source: SuggestSource, label: string) => Promise<void>;
-  applySuggestion: (text: string) => void;
+  requestSuggestion: (source: SuggestSource) => Promise<void>;
+  /** Drafts each field in turn, one model call each; nothing is written until Use and Save. */
+  suggestAll: (sources: SuggestSource[]) => Promise<void>;
+  applySuggestion: (source: SuggestSource, text: string) => void;
+  dismissSuggestion: (source: SuggestSource) => void;
   handleSaveConcepts: (concepts: V2Concept[]) => Promise<void>;
   handleSaveTenantPolicy: (frontmatter: TenantPolicyFrontmatter, body?: string) => Promise<boolean>;
   handleSuggestTenantPolicy: () => Promise<SuggestTenantPolicyResponse>;
@@ -73,9 +78,9 @@ type WorkspaceState = {
   drafts: Record<string, TableDraft>;
   tableSearch: string;
   saveStatus: StatusMessage | null;
-  suggestionDialog: SuggestionDialog | null;
-  suggestionCache: SuggestionCache;
-  suggestingKey: string | null;
+  suggestions: Record<string, FieldSuggestion>;
+  suggestingKeys: Set<string>;
+  suggestAllProgress: SuggestAllProgress | null;
   busy: Set<string>;
 };
 
@@ -89,9 +94,10 @@ type WorkspaceAction =
   | { type: "set_drafts"; payload: Record<string, TableDraft> }
   | { type: "set_tableSearch"; payload: string }
   | { type: "set_saveStatus"; payload: StatusMessage | null }
-  | { type: "set_suggestionDialog"; payload: SuggestionDialog | null }
-  | { type: "set_suggestingKey"; payload: string | null }
-  | { type: "suggestion_loaded"; key: string; dialog: SuggestionDialog }
+  | { type: "suggesting"; key: string; on: boolean }
+  | { type: "suggestion_loaded"; key: string; suggestion: FieldSuggestion }
+  | { type: "suggestion_dismissed"; key: string }
+  | { type: "set_suggestAllProgress"; payload: SuggestAllProgress | null }
   | { type: "busy_add"; key: string }
   | { type: "busy_remove"; key: string }
   | { type: "reset_draft"; tableId: string; draft: TableDraft }
@@ -121,13 +127,19 @@ function workspaceReducer(state: WorkspaceState, action: WorkspaceAction): Works
     case "set_drafts": return { ...state, drafts: action.payload };
     case "set_tableSearch": return { ...state, tableSearch: action.payload };
     case "set_saveStatus": return { ...state, saveStatus: action.payload };
-    case "set_suggestionDialog": return { ...state, suggestionDialog: action.payload };
-    case "set_suggestingKey": return { ...state, suggestingKey: action.payload };
-    case "suggestion_loaded": return {
-      ...state,
-      suggestionCache: { ...state.suggestionCache, [action.key]: action.dialog },
-      suggestionDialog: action.dialog,
-    };
+    case "suggesting": {
+      const s = new Set(state.suggestingKeys);
+      if (action.on) s.add(action.key);
+      else s.delete(action.key);
+      return { ...state, suggestingKeys: s };
+    }
+    case "suggestion_loaded": return { ...state, suggestions: { ...state.suggestions, [action.key]: action.suggestion } };
+    case "suggestion_dismissed": {
+      const suggestions = { ...state.suggestions };
+      delete suggestions[action.key];
+      return { ...state, suggestions };
+    }
+    case "set_suggestAllProgress": return { ...state, suggestAllProgress: action.payload };
     case "busy_add": { const s = new Set(state.busy); s.add(action.key); return { ...state, busy: s }; }
     case "busy_remove": { const s = new Set(state.busy); s.delete(action.key); return { ...state, busy: s }; }
     case "reset_draft": return {
@@ -154,9 +166,9 @@ const initialWorkspaceState: WorkspaceState = {
   drafts: {},
   tableSearch: "",
   saveStatus: null,
-  suggestionDialog: null,
-  suggestionCache: {},
-  suggestingKey: null,
+  suggestions: {},
+  suggestingKeys: new Set(),
+  suggestAllProgress: null,
   busy: new Set(),
 };
 
@@ -164,13 +176,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(workspaceReducer, initialWorkspaceState);
   const {
     loadState, setupStatus, workspace, selectedTableId, drafts, tableSearch,
-    saveStatus, suggestionDialog, suggestionCache, suggestingKey, busy,
+    saveStatus, suggestions, suggestingKeys, suggestAllProgress, busy,
   } = state;
 
   const setSelectedTableId = useCallback((v: string | null) => dispatch({ type: "set_selectedTableId", payload: v }), []);
   const setTableSearch = useCallback((v: string) => dispatch({ type: "set_tableSearch", payload: v }), []);
   const setSaveStatus = useCallback((v: StatusMessage | null) => dispatch({ type: "set_saveStatus", payload: v }), []);
-  const setSuggestionDialog = useCallback((v: SuggestionDialog | null) => dispatch({ type: "set_suggestionDialog", payload: v }), []);
 
   const tables = useMemo(() => workspace?.tables ?? [], [workspace]);
   const selectedTable = useMemo(
@@ -262,35 +273,54 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     });
   }, [updateTableDraft]);
 
-  const requestSuggestion = useCallback(async (source: SuggestSource, label: string) => {
+  /** One model call for one field; returns the error message instead of throwing. */
+  const fetchSuggestion = useCallback(async (source: SuggestSource): Promise<string | null> => {
     const key = suggestionKey(source);
-    const cached = suggestionCache[key];
-    if (cached) {
-      setSuggestionDialog(cached);
-      return;
-    }
-
-    dispatch({ type: "set_suggestingKey", payload: key });
+    dispatch({ type: "suggesting", key, on: true });
     try {
       const result = await suggest({ source });
-      const nextDialog = { source, label, candidates: result.candidates };
-      dispatch({ type: "suggestion_loaded", key, dialog: nextDialog });
+      dispatch({ type: "suggestion_loaded", key, suggestion: { source, candidates: result.candidates } });
+      return null;
     } catch (error) {
-      setSaveStatus({ kind: "error", text: getErrorMessage(error) });
+      return getErrorMessage(error);
     } finally {
-      dispatch({ type: "set_suggestingKey", payload: null });
+      dispatch({ type: "suggesting", key, on: false });
     }
-  }, [setSaveStatus, setSuggestionDialog, suggestionCache]);
+  }, []);
 
-  const applySuggestion = useCallback((text: string) => {
-    if (!suggestionDialog) return;
-    const source = suggestionDialog.source;
+  const requestSuggestion = useCallback(async (source: SuggestSource) => {
+    const error = await fetchSuggestion(source);
+    if (error) setSaveStatus({ kind: "error", text: error });
+  }, [fetchSuggestion, setSaveStatus]);
+
+  const suggestAll = useCallback(async (sources: SuggestSource[]) => {
+    const errors: string[] = [];
+    for (const [index, source] of sources.entries()) {
+      dispatch({ type: "set_suggestAllProgress", payload: { done: index, total: sources.length } });
+      const error = await fetchSuggestion(source);
+      if (error) errors.push(error);
+    }
+    dispatch({ type: "set_suggestAllProgress", payload: null });
+    const drafted = sources.length - errors.length;
+    setSaveStatus(
+      errors.length === 0
+        ? { kind: "success", text: `Drafted ${drafted} field${drafted === 1 ? "" : "s"}. Review each draft, then Use or Dismiss it.` }
+        : { kind: "error", text: `Drafted ${drafted} of ${sources.length} fields. ${errors.length} failed: ${errors[0]}` },
+    );
+  }, [fetchSuggestion, setSaveStatus]);
+
+  const dismissSuggestion = useCallback((source: SuggestSource) => {
+    dispatch({ type: "suggestion_dismissed", key: suggestionKey(source) });
+  }, []);
+
+  const applySuggestion = useCallback((source: SuggestSource, text: string) => {
     if (source.scope === "table") {
       updateTableDraft(source.tableId, (draft) => applyTableSuggestion(draft, source.field, text));
     } else {
       updateColumnDraft(source.tableId, source.columnId, (draft) => applyColumnSuggestion(draft, source.field, text));
     }
-  }, [suggestionDialog, updateColumnDraft, updateTableDraft]);
+    dismissSuggestion(source);
+  }, [dismissSuggestion, updateColumnDraft, updateTableDraft]);
 
   const handleSaveConcepts = useCallback(async (concepts: V2Concept[]) => {
     setSaveStatus({ kind: "loading", text: "Saving concepts..." });
@@ -324,16 +354,16 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const value = useMemo<WorkspaceContextValue>(() => ({
     loadState, setupStatus, workspace, tables, filteredTables, selectedTable, selectedTableId, setSelectedTableId,
     drafts, selectedDraft, dirty, tableSearch, setTableSearch, saveStatus, setSaveStatus, busy,
-    suggestionDialog, setSuggestionDialog, suggestingKey,
+    suggestions, suggestingKeys, suggestAllProgress,
     load, saveSelectedTable, resetSelectedDraft, updateTableDraft, updateColumnDraft,
-    requestSuggestion, applySuggestion, handleSaveConcepts, handleSaveTenantPolicy, handleSuggestTenantPolicy,
+    requestSuggestion, suggestAll, applySuggestion, dismissSuggestion, handleSaveConcepts, handleSaveTenantPolicy, handleSuggestTenantPolicy,
     withBusy,
   }), [
-    applySuggestion, busy, dirty, drafts, filteredTables, handleSaveConcepts,
+    applySuggestion, busy, dirty, dismissSuggestion, drafts, filteredTables, handleSaveConcepts,
     handleSaveTenantPolicy, load, loadState, requestSuggestion, resetSelectedDraft,
     saveSelectedTable, saveStatus, selectedDraft, selectedTable, selectedTableId,
-    setSaveStatus, setSelectedTableId, setSuggestionDialog, setTableSearch,
-    setupStatus, suggestingKey, suggestionDialog, tableSearch, tables, updateColumnDraft,
+    setSaveStatus, setSelectedTableId, setTableSearch,
+    setupStatus, suggestAll, suggestAllProgress, suggestingKeys, suggestions, tableSearch, tables, updateColumnDraft,
     updateTableDraft, withBusy, workspace,
   ]);
 
@@ -365,7 +395,7 @@ function applyColumnSuggestion(draft: ColumnDraft, field: string, text: string):
   return { ...draft, [field]: text };
 }
 
-function suggestionKey(source: SuggestSource): string {
+export function suggestionKey(source: SuggestSource): string {
   if (source.scope === "table") return `table:${source.tableId}:${source.field}`;
   return `column:${source.tableId}:${source.columnId}:${source.field}`;
 }
