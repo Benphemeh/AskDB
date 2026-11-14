@@ -48,7 +48,7 @@ Read the database's structure:
 npx askdb introspect
 ```
 
-It prints nothing when it succeeds, and writes `askdb/schema.json`. To try a connection string without editing `.env`, pass it for one run: `npx askdb introspect --url "<connection string>"`.
+It writes `askdb/schema.json`, and prints one line that names it, with the number of tables and the engine (`sqlserver`). To try a connection string without editing `.env`, pass it for one run: `npx askdb introspect --url "<connection string>"`.
 
 Each table is listed under its SQL Server schema, such as `dbo.orders`. By default AskDB reads every schema except the system ones (`sys`, `INFORMATION_SCHEMA`, `guest` and the `db_*` role schemas). To read only some, set `introspection.schemas`, such as `schemas: ["dbo", "sales"]`.
 

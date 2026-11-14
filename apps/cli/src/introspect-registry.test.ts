@@ -305,6 +305,32 @@ describe("askdb introspect — CLI-owned errors with the built-in registry", () 
   });
 });
 
+// `--out` is silent in its structured logs unless asked, so a first run needs one line that
+// says it worked and where the artifact is (#946). Stdout stays free for --print and --diff.
+describe("askdb introspect --out — success line", () => {
+  const prevCwd = process.cwd();
+  let project: string;
+  afterEach(() => {
+    process.chdir(prevCwd);
+    rmSync(project, { recursive: true, force: true });
+  });
+
+  it("names the schema.json it wrote, relative to the working directory, with the table count and engine, on stderr", async () => {
+    installRuntime();
+    project = mkdtempSync(join(tmpdir(), "askdb-introspect-wrote-"));
+    process.chdir(project);
+
+    const code = await runIntrospectCli(["--engine", "acme", "--url", "acme://flag", "--out", "askdb"], {
+      connectorRegistry: createConnectorRegistry([acmeAdapter().adapter]),
+    });
+
+    expect(code).toBe(0);
+    expect(existsSync(join(project, "askdb", "schema.json"))).toBe(true);
+    expect(stderr).toBe("Wrote askdb/schema.json: 1 table (acme).\n");
+    expect(stdout).toBe("");
+  });
+});
+
 // Re-introspecting can drop a column the tenant policy names. `--out` checks the
 // policy against the new schema.json and says so, under either enforcement (#332).
 describe("askdb introspect --out — tenant policy check", () => {

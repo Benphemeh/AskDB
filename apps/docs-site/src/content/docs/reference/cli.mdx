@@ -117,7 +117,7 @@ npx askdb@latest init --yes    # non-interactive, Postgres + OpenAI defaults
 
 | Flag | Description |
 | --- | --- |
-| `--database <db>` | `postgres` \| `mysql` \| `sqlite` \| `sqlserver` \| `prisma` (default `postgres`) |
+| `--database <engine>` | The database engine: `postgres` \| `mysql` \| `sqlite` \| `sqlserver` \| `prisma` (default `postgres`). It doesn't say where the database is: see the next three flags. |
 | `--connection-env <name>` | Env var name for the connection URL (default `DATABASE_URL`; not used with `sqlite`, which reads `--sqlite-file`). |
 | `--sqlite-file <path-or-env>` | SQLite file path, or an env var name (`UPPER_SNAKE_CASE`, e.g. `SQLITE_FILE`) to read the path from. Anything else, such as `data.db` or `../db/app.db`, is written as a literal path. |
 | `--prisma-schema <path>` | Path to `schema.prisma`. |
@@ -151,6 +151,10 @@ Experimental, like the `studio` block they write: a minor release of `askdb` may
 
 `init` generates only the config branches you selected — SQL Server users won't see a `pg` import, SQLite users get a `file:` field instead of `DATABASE_URL`, and Prisma users don't get a live DB driver unless they explicitly enable Studio execute. It does not create a `.env`; it writes an `.env.example` (unless one exists) listing every variable the config reads, database variables first. Each variable is an empty `NAME=` line under a `#` comment that says what it's for, and for a connection URL, its format. The SQL Server format leaves out `TrustServerCertificate`, so the server's certificate is checked by default. A second comment line says to add `TrustServerCertificate=True;` for a development server with a self-signed certificate, such as the SQL Server Docker image (see [Fix the self-signed certificate error](/guides/connect-to-sql-server/#3-fix-the-self-signed-certificate-error)). For `azure` and `foundry` the list includes `AZURE_RESOURCE_NAME`, the subdomain of your `https://<name>.openai.azure.com` endpoint. Studio's [guided setup](/studio/#guided-setup) writes the same files for the same answers.
 
+`--database` names the engine only. Where the database is comes from `--connection-env` for `postgres`, `mysql` and `sqlserver`, `--sqlite-file` for `sqlite`, and `--prisma-schema` for `prisma`. `askdb introspect` calls the same choice `--engine`, and the config calls it `introspection.provider`.
+
+When it's done, `init` prints the next steps. Each command in them runs the CLI through the package manager it picked. When the project's `package.json` lists `askdb`, that's the project's copy (`npx askdb`, `pnpm exec askdb`, `yarn askdb` or `bunx askdb`), because a local install puts no `askdb` command on your `PATH`. Otherwise it's a one-off copy (`npx askdb`, `pnpm dlx askdb`, `yarn dlx askdb` or `bunx askdb`). The first step gives the command that copies `.env.example` to `.env` in the current directory (`cp`, or `copy` on Windows). When a `.env` is already there, it says to add the variables to it instead, so a copy doesn't replace your values.
+
 `init` checks the env var names and paths you pass before it writes anything. A name for `--connection-env`, `--ai-key-env`, `--ai-model-env` or `--pgvector-env` must use uppercase letters, digits and underscores, and not start with a digit (`DATABASE_URL`, `_PRIVATE_URL`). A path for `--sqlite-file`, `--prisma-schema` or `--schema-out` must not contain control characters, such as a newline. Otherwise `init` exits 1 with an error that names the flag, for example `--connection-env must be an environment variable name like DATABASE_URL: …`.
 
 ### `askdb introspect`
@@ -179,6 +183,12 @@ askdb introspect \
 | `--diff <existing>` | Diff against an existing schema artifact. |
 
 Pass exactly one of `--out`, `--print` and `--diff`. With none of them, `--out` falls back to `introspection.outputDir`.
+
+After `--out` writes the artifact, `askdb introspect` prints one line on stderr: the path of `schema.json`, relative to the current directory when it's inside it, the number of tables (and views, if any), and the engine. The line never includes the connection string. `--print` and `--diff` don't print it.
+
+```text
+Wrote askdb/schema.json: 3 tables (sqlite).
+```
 
 When the source has no tables or views to write, after `--schemas`, `--exclude-schemas` and `--tables`, `askdb introspect` exits `1` and writes nothing, with `--out`, `--print` and `--diff` alike. An artifact with no tables can't be loaded, so an existing `schema.json` and `tables/*.md` stay as they were. The message names the schema id, the engine and the filters you passed, and lists the likely causes. See [the troubleshooting entry](/guides/troubleshooting/#introspection-found-no-tables-or-views-for-schema-).
 
@@ -287,6 +297,8 @@ SELECT customer_id, SUM(total) AS lifetime_value FROM orders GROUP BY customer_i
 ```
 
 Everything else goes to stderr, so stdout stays parseable: errors, `Note:` lines (a dialect note, or a sensitive-scope note), a `Warning:` line for each [loader warning](/reference/schema-artifact-format/#loader-warnings) the schema has (a tenant policy's included), and the sensitive warning. Execution is not part of the CLI.
+
+While it waits for the model, `askdb ask` shows `Generating SQL…` on stderr, and clears that line before it prints anything else. It shows the line only when stderr is a terminal. It doesn't show it with `--mock-sql` or `dev.mockSql`, or when [structured logs](#shared-logging-flags) are on: with `-v`, `--log-file` or `--log-stdout`, or a `--log-level` or `logging.level` other than `silent`. So a pipe or a log file never sees it.
 
 If the generated SQL references identifiers your schema marks `sensitive`, `askdb ask` prints a `Warning:` line to stderr listing them and still prints the SQL. The check is [`validateSensitiveReferences`](/reference/core-api/checks/#validatesensitivereferencessql-schema-options) from `@askdb/core`, run by `ask()` in warn mode; embedding hosts can switch it to `strict`, rely on `bindPreparedQuery()` re-running it on a rebind, or call it directly on cached SQL.
 

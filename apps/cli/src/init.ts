@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getBuiltinAiProviderSetup, listBuiltinAiProviderSetups } from "@askdb/ai";
 import { ASKDB_AI_PROVIDERS, ASKDB_RAG_STORES, type AskDbAiProviderId, type AskDbRagStore } from "@askdb/config";
@@ -303,9 +303,10 @@ const INIT_FLAGS: readonly Flag<InitOptions>[] = [
   },
   {
     names: ["--database"],
-    value: "<db>",
+    value: "<engine>",
     group: "Database options",
-    help: `${VALID_DATABASES.join("|")} (default: postgres)`,
+    // #945: it names the engine. Where the database is comes from the flags below.
+    help: `Database engine: ${VALID_DATABASES.join("|")} (default: postgres). Its location comes from --connection-env, --sqlite-file or --prisma-schema.`,
     apply: (opts, value) => (opts.database = oneOf("--database", VALID_DATABASES, value)),
   },
   {
@@ -579,21 +580,52 @@ async function buildInquirerPrompter(): Promise<InitPrompter> {
   };
 }
 
-function printNextSteps(answers: InitAnswers): void {
+/**
+ * How to run the CLI in the next steps (#937). A project that lists `askdb` runs its own copy,
+ * since a local install puts no bare `askdb` on PATH. Otherwise, as after `pnpm dlx askdb init`,
+ * it runs a one-off copy: `pnpm exec askdb` would fail there.
+ */
+const RUN_ASKDB: Record<PackageManager, { local: string; oneOff: string }> = {
+  npm: { local: "npx askdb", oneOff: "npx askdb" },
+  pnpm: { local: "pnpm exec askdb", oneOff: "pnpm dlx askdb" },
+  yarn: { local: "yarn askdb", oneOff: "yarn dlx askdb" },
+  bun: { local: "bunx askdb", oneOff: "bunx askdb" },
+};
+
+type NextStepsContext = {
+  pm: PackageManager;
+  /** The project's `package.json` lists `askdb`. */
+  askdbListed: boolean;
+  /** The `.env.example` init wrote, or found, next to the config. */
+  envExamplePath: string;
+};
+
+function printNextSteps(answers: InitAnswers, { pm, askdbListed, envExamplePath }: NextStepsContext): void {
+  const askdb = askdbListed ? RUN_ASKDB[pm].local : RUN_ASKDB[pm].oneOff;
+  // AskDB reads `.env` from the directory it runs in. Never print a copy over an existing one:
+  // it would replace the app's real secrets with the blank template.
   const lines = ["\nNext steps:"];
-  lines.push("  1. Copy .env.example → .env and fill in your credentials.");
+  if (existsSync(resolve(process.cwd(), ".env"))) {
+    lines.push("  1. Add the variables in .env.example to your .env, then fill in your credentials.");
+  } else {
+    const copy = process.platform === "win32" ? "copy" : "cp";
+    const example = relative(process.cwd(), envExamplePath) || ".env.example";
+    lines.push(`  1. Create .env from the example, then fill in your credentials:  ${copy} ${example} .env`);
+  }
   lines.push(
     "     (Rename any `env(\"...\")` call in askdb.config.ts if you prefer different variable names.)",
   );
   if (answers.database !== "prisma") {
-    lines.push("  2. Introspect your database:  askdb introspect");
+    lines.push(`  2. Introspect your database:  ${askdb} introspect`);
   } else {
-    lines.push("  2. Introspect your Prisma schema:  askdb introspect");
+    lines.push(`  2. Introspect your Prisma schema:  ${askdb} introspect`);
   }
   if (answers.studioExecute.enabled) {
-    lines.push("  3. Open Studio:  askdb studio");
+    lines.push(`  3. Open Studio:  ${askdb} studio`);
   }
-  lines.push(`  ${answers.studioExecute.enabled ? "4" : "3"}. Ask a question:  askdb ask --question "Which customers signed up last week?"`);
+  lines.push(
+    `  ${answers.studioExecute.enabled ? "4" : "3"}. Ask a question:  ${askdb} ask --question "Which customers signed up last week?"`,
+  );
   process.stdout.write(lines.join("\n") + "\n");
 }
 
@@ -756,15 +788,15 @@ async function finishInit(
     }
   }
 
+  // The manager comes from the project's lockfile or package.json, else from whoever
+  // ran init (`pnpm dlx`, `npx`, …); with no package.json, from the current directory.
+  const pkgRoot = findNearestPackageJsonDir(process.cwd());
+  const pmDir = pkgRoot ?? process.cwd();
+  const pm = detectPackageManager(pmDir);
+
   if (!opts.skipInstall) {
-    const pkgRoot = findNearestPackageJsonDir(process.cwd());
     const packages = packagesToInstall(plan, pkgRoot);
     const { allowBuilds } = plan.install;
-
-    // The manager comes from the project's lockfile or package.json, else from whoever
-    // ran init (`pnpm dlx`, `npx`, …); with no package.json, from the current directory.
-    const pmDir = pkgRoot ?? process.cwd();
-    const pm = detectPackageManager(pmDir);
     const approvedBuilds = supportedBuildApprovals(pm, pmDir, allowBuilds);
     const installCommand = formatInstallCommand(pm, packages, approvedBuilds);
 
@@ -795,6 +827,10 @@ async function finishInit(
     }
   }
 
-  printNextSteps(answers);
+  printNextSteps(answers, {
+    pm,
+    askdbListed: pkgRoot !== undefined && listedDependencies(pkgRoot).has("askdb"),
+    envExamplePath,
+  });
   return 0;
 }

@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { basename, join } from "node:path";
+import { basename, isAbsolute, join, relative } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { getAskDbRuntimeConfig } from "@askdb/config";
 import { formatTenantPolicyWarning, loadSchema, type TenantPolicyWarning } from "@askdb/core";
@@ -208,7 +208,10 @@ async function runIntrospectCommand(opts: CliOptions, registry: ConnectorRegistr
       },
       "askdb introspection completed",
     );
-    if (opts.out) reportTenantPolicy(opts.out);
+    if (opts.out) {
+      if (result.render) process.stderr.write(wroteLine(result, engine));
+      reportTenantPolicy(opts.out);
+    }
     return 0;
   } catch (error) {
     logger.error(
@@ -274,6 +277,27 @@ async function runWithOutput(
     },
     { connector },
   );
+}
+
+/**
+ * `Wrote askdb/schema.json: 3 tables (sqlite).`: the one line `--out` prints when it succeeds,
+ * so a first run shows that it worked and where the artifact is (#946). It names the output
+ * path only, never the connection. On stderr, because `--log-stdout` may share stdout.
+ */
+function wroteLine(result: IntrospectResult, engine: string): string {
+  const path = result.render!.schemaJsonPath;
+  const fromCwd = relative(process.cwd(), path);
+  const shown = fromCwd && !fromCwd.startsWith("..") && !isAbsolute(fromCwd) ? fromCwd : path;
+  const count = (of: "tables" | "views") => result.schema.schemas.reduce((n, ns) => n + ns[of].length, 0);
+  const tables = count("tables");
+  const views = count("views");
+  const counts = [plural(tables, "table")];
+  if (views > 0) counts.push(plural(views, "view"));
+  return `Wrote ${shown}: ${counts.join(", ")} (${engine}).\n`;
+}
+
+function plural(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? "" : "s"}`;
 }
 
 /**
