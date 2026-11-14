@@ -402,12 +402,12 @@ You are AskDB SQL generator—correct, deterministic SQLite for analytics. Produ
 … rules: write one read-only SQLite SELECT, in one sql code block, with notes on SQLite syntax
 Database schema:
 TABLE customers
-  - id INTEGER (PK NULL)
+  - id INTEGER (PK NOT NULL)
   - name TEXT (NOT NULL)
   - country TEXT (NOT NULL)
 
 TABLE orders
-  - id INTEGER (PK NULL)
+  - id INTEGER (PK NOT NULL)
   - customer_id INTEGER (NOT NULL)
   - product_id INTEGER (NOT NULL)
   - quantity INTEGER (NOT NULL)
@@ -416,7 +416,7 @@ TABLE orders
   FK (product_id) -> products (id)
 
 TABLE products
-  - id INTEGER (PK NULL)
+  - id INTEGER (PK NOT NULL)
   - name TEXT (NOT NULL)
   - category TEXT (NOT NULL)
   - price NUMERIC(10, 2) (NOT NULL)
