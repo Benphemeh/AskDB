@@ -217,12 +217,12 @@ function foldSqliteResult(input: FoldInput): IntrospectionResult {
     // backs with no `origin = 'pk'` index. PRAGMA table_info still says notnull = 0 for it, but
     // it can never hold NULL. Every other rowid-table key does accept NULL, an old SQLite bug it
     // keeps for compatibility, and a WITHOUT ROWID table's key already reports notnull = 1 (#962).
-    const rowidAlias =
+    const rowidAliasColumn =
       obj.type === "table" && pkColumns.length === 1 && !indexList.some((il) => il.origin === "pk")
         ? pkColumns[0]
         : undefined;
 
-    const columns: SqlColumn[] = cols.map((c) => buildColumn(obj.name, c, pkSet, rowidAlias));
+    const columns: SqlColumn[] = cols.map((c) => buildColumn(obj.name, c, pkSet, rowidAliasColumn));
 
     if (obj.type === "view") {
       const def = obj.sql ?? "";
@@ -287,7 +287,7 @@ function buildColumn(
   table: string,
   c: ColumnRow,
   pkSet: Set<string>,
-  rowidAlias: string | undefined,
+  rowidAliasColumn: string | undefined,
 ): SqlColumn {
   // SQLite stores the raw declared type string (may be empty for typeless cols).
   const dataType = c.type && c.type.length > 0 ? c.type : "BLOB";
@@ -297,7 +297,7 @@ function buildColumn(
     ordinalPosition: c.cid + 1, // pragma_table_info.cid is 0-based
     dataType,
     udtName: dataType,
-    nullable: c.notnull === 0 && c.column_name !== rowidAlias,
+    nullable: c.notnull === 0 && c.column_name !== rowidAliasColumn,
     primaryKey: pkSet.has(c.column_name) || c.pk > 0,
     defaultExpression: c.dflt_value ?? undefined,
     comment: undefined,
