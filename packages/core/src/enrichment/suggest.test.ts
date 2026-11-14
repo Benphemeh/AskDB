@@ -159,6 +159,25 @@ describe("enrichment suggestions", () => {
     expect("instructions" in call).toBe(false);
   });
 
+  it("tells the model not to restate the name a description sits next to, and keeps the sensitive-column rule (#953)", async () => {
+    const generateText = vi.fn(async () => ({ text: "A description." }));
+    const targets: EnrichmentTarget[] = [
+      { kind: "table-description", table: usersTable },
+      { kind: "column-description", table: usersTable, columnId: "column:public.users.id" },
+    ];
+
+    for (const target of targets) {
+      await suggestEnrichment(target, { schemaId: "orders-users" }, fakeModel, { generateText });
+    }
+
+    for (const call of generateText.mock.calls) {
+      const { system } = (call as unknown as [{ system: string }])[0];
+      // ask()'s prompt prints a table description right under `TABLE <name>`, and a column's on its line.
+      expect(system).toContain("don't restate the table or column name");
+      expect(system).toContain("Never suggest values for a column tagged (sensitive)");
+    }
+  });
+
   it("does not send providerOptions to generateText when unset (preserves current behavior)", async () => {
     const generateText = vi.fn(async () => ({ text: "A description." }));
     const target: EnrichmentTarget = { kind: "table-description", table: usersTable };
