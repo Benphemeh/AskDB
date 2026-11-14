@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { Loader2, Sparkles, ChevronRight } from "lucide-react";
 import type { SuggestSource } from "@askdb/enrich";
-import { suggestionKey, useWorkspace } from "../../contexts/workspace-context";
+import { useWorkspace } from "../../contexts/workspace-context";
 import { Badge } from "../../components/ui/badge";
 import { Field } from "../../components/ui/field";
 import { Input } from "../../components/ui/input";
 import { ListInput } from "../../components/ui/list-input";
 import { Textarea } from "../../components/ui/textarea";
 import { tableSensitivity, UNKNOWN_COLUMN_SENSITIVITY } from "../../lib/sensitivity";
-import { planSuggestAll, type SuggestAllPlan } from "../../lib/suggest-all";
+import { planSuggestAll, suggestionKey, type SuggestAllPlan } from "../../lib/suggest-all";
 import type { ReactNode } from "react";
 
 export function EnrichmentTab() {

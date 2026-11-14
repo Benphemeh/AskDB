@@ -59,6 +59,12 @@ export function planSuggestAll(
   return { sources, refusedColumns, skippedSensitive: refusedColumns.size, blockedByUnsavedSensitivity };
 }
 
+/** One field's key in Studio's suggestion state. */
+export function suggestionKey(source: SuggestSource): string {
+  if (source.scope === "table") return `table:${source.tableId}:${source.field}`;
+  return `column:${source.tableId}:${source.columnId}:${source.field}`;
+}
+
 function isBlank(text: string | undefined): boolean {
   return !text?.trim();
 }

@@ -13,6 +13,7 @@ import {
   suggestTenantPolicy,
 } from "../api";
 import { parseList } from "../lib/format";
+import { suggestionKey } from "../lib/suggest-all";
 
 async function handleSuggestTenantPolicy() {
   return suggestTenantPolicy();
@@ -295,6 +296,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const suggestAll = useCallback(async (tableId: string, sources: SuggestSource[]) => {
     const errors: string[] = [];
+    // One call at a time on purpose (ADR 0047): the progress count stays true and a wide table
+    // doesn't fire every call at the provider at once.
     for (const [index, source] of sources.entries()) {
       dispatch({ type: "set_suggestAllProgress", payload: { tableId, done: index, total: sources.length } });
       const error = await fetchSuggestion(source);
@@ -393,11 +396,6 @@ function applyColumnSuggestion(draft: ColumnDraft, field: string, text: string):
   if (field === "aliases" || field === "enum")
     return { ...draft, [field]: mergeList(draft[field], parseList(text)) };
   return { ...draft, [field]: text };
-}
-
-export function suggestionKey(source: SuggestSource): string {
-  if (source.scope === "table") return `table:${source.tableId}:${source.field}`;
-  return `column:${source.tableId}:${source.columnId}:${source.field}`;
 }
 
 function getErrorMessage(error: unknown): string {
