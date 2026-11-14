@@ -105,6 +105,28 @@ suite("describeSqlite (live in-memory database)", () => {
     expect(names).toEqual(["SqliteUsers", "counters", "sqliteXlog"].sort());
   });
 
+  // PRAGMA table_info reports notnull = 0 for every case below except WITHOUT ROWID. An INTEGER
+  // PRIMARY KEY that aliases rowid can't hold NULL (inserting one assigns the next rowid); any
+  // other primary key on a rowid table stores NULL, an old SQLite bug kept for compatibility (#962).
+  it.each([
+    ["INTEGER PRIMARY KEY", "(id INTEGER PRIMARY KEY, x TEXT)", { id: false }],
+    ["lower-case integer primary key", "(id integer primary key, x TEXT)", { id: false }],
+    ["AUTOINCREMENT", "(id INTEGER PRIMARY KEY AUTOINCREMENT, x TEXT)", { id: false }],
+    ["a table-constraint PRIMARY KEY (id)", "(id INTEGER, x TEXT, PRIMARY KEY (id))", { id: false }],
+    ["INTEGER PRIMARY KEY DESC, which isn't a rowid alias", "(id INTEGER PRIMARY KEY DESC, x TEXT)", { id: true }],
+    ["INT PRIMARY KEY, which isn't a rowid alias", "(id INT PRIMARY KEY, x TEXT)", { id: true }],
+    ["TEXT PRIMARY KEY", "(id TEXT PRIMARY KEY, x TEXT)", { id: true }],
+    ["a composite INTEGER key", "(a INTEGER, b INTEGER, PRIMARY KEY (a, b))", { a: true, b: true }],
+    ["WITHOUT ROWID", "(id INTEGER PRIMARY KEY, x TEXT) WITHOUT ROWID", { id: false }],
+  ])("reports primary-key nullability as SQLite enforces it: %s", async (_case, definition, expected) => {
+    db.exec(`CREATE TABLE t ${definition}`);
+    const [t] = await tables();
+    const pkNullability = Object.fromEntries(
+      t!.columns.filter((c) => c.primaryKey).map((c) => [c.name, c.nullable]),
+    );
+    expect(pkNullability).toEqual(expected);
+  });
+
   it("classifies UNIQUE constraints (origin 'u') vs CREATE UNIQUE INDEX (origin 'c')", async () => {
     db.exec(`
       CREATE TABLE people (id INTEGER PRIMARY KEY, email TEXT UNIQUE, city TEXT);
