@@ -288,8 +288,9 @@ function wroteLine(result: IntrospectResult, engine: string): string {
   const path = result.render!.schemaJsonPath;
   const fromCwd = relative(process.cwd(), path);
   const shown = fromCwd && !fromCwd.startsWith("..") && !isAbsolute(fromCwd) ? fromCwd : path;
-  const tables = result.schema.schemas.reduce((n, ns) => n + ns.tables.length, 0);
-  const views = result.schema.schemas.reduce((n, ns) => n + ns.views.length, 0);
+  const count = (of: "tables" | "views") => result.schema.schemas.reduce((n, ns) => n + ns[of].length, 0);
+  const tables = count("tables");
+  const views = count("views");
   const counts = [plural(tables, "table")];
   if (views > 0) counts.push(plural(views, "view"));
   return `Wrote ${shown}: ${counts.join(", ")} (${engine}).\n`;

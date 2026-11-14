@@ -187,10 +187,7 @@ describe("askdb ask shows progress while the model runs", () => {
     Object.defineProperty(process.stderr, "isTTY", { value: tty, configurable: true });
   }
 
-  beforeEach(() => vi.stubEnv("CI", ""));
-
   afterEach(async () => {
-    vi.unstubAllEnvs();
     if (stderrTTY) Object.defineProperty(process.stderr, "isTTY", stderrTTY);
     else delete (process.stderr as { isTTY?: boolean }).isTTY;
     await model.close();
@@ -214,14 +211,35 @@ describe("askdb ask shows progress while the model runs", () => {
     expect(stdout).toBe("");
   });
 
+  it("on a terminal, prints a loader warning above the progress line and draws it again", async () => {
+    await useModel("SELECT id FROM users", { tty: true });
+    const dir = join(project, "orders-users.schema");
+    cpSync(FIXTURE_DIR, dir, { recursive: true });
+    const orders = join(dir, "tables/orders.md");
+    writeFileSync(
+      orders,
+      readFileSync(orders, "utf8").replace(
+        "  - id: table:public.orders#id\n    aliases: [order_id]\n",
+        "  - id: table:public.orders#id\n    aliases: [order_id]\n  - id: table:public.orders#id\n    aliases: [again]\n",
+      ),
+    );
+
+    expect(await runAskCli(["-q", "Which users?", "--schema", dir])).toBe(0);
+
+    expect(stderr).toBe(
+      `${PROGRESS}${CLEAR}Warning: tables/orders.md lists column table:public.orders#id more than once; only the first entry's description, aliases and enum apply\n${PROGRESS}${CLEAR}`,
+    );
+  });
+
+  // Structured logs share stderr, and mock SQL has no model call to wait for.
   it.each([
-    ["stderr is not a terminal", { tty: false, ci: "" }],
-    ["CI is set", { tty: true, ci: "true" }],
-  ])("shows nothing when %s", async (_, { tty, ci }) => {
-    vi.stubEnv("CI", ci);
+    ["stderr is not a terminal", false, []],
+    ["--mock-sql is passed", true, ["--mock-sql", "SELECT id FROM users"]],
+    ["structured logs are on", true, ["--log-level", "warn"]],
+  ])("shows nothing when %s", async (_, tty, flags) => {
     await useModel("SELECT id FROM users", { tty });
 
-    expect(await runAskCli(["-q", "Which users?"])).toBe(0);
+    expect(await runAskCli(["-q", "Which users?", ...flags])).toBe(0);
 
     expect(stderr).toBe("");
     expect(stdout).toBe("-- sql --\nSELECT id FROM users\n");

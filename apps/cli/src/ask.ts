@@ -120,10 +120,8 @@ async function runAsk(opts: AskOptions): Promise<number> {
   }
   logger.info({ event: AskDbLogEvent.RunStart }, "askdb run start");
 
-  // Only for a person at a terminal: structured logs, CI and mock SQL keep stderr as it was.
-  const progress = startProgress(
-    logLevel === "silent" && !mockSql && Boolean(process.stderr.isTTY) && !process.env.CI,
-  );
+  // Only for a person at a terminal: structured logs and mock SQL keep stderr as it was.
+  const progress = startProgress(logLevel === "silent" && !mockSql && Boolean(process.stderr.isTTY));
   try {
     const schema = loadSchemaFromPath(opts.schema ?? runtime.introspection.outputDir);
     for (const line of schemaWarningLines(schema)) progress.write(line);

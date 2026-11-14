@@ -523,27 +523,34 @@ describe("runInitCli install", () => {
 
   // #937: a local install puts no bare `askdb` on PATH, so each command the Next steps print
   // runs the CLI through the project's package manager, and the copy step is a command too.
-  it.each([
-    ["package-lock.json", "linux", "cp", "npx askdb"],
-    ["pnpm-lock.yaml", "linux", "cp", "pnpm exec askdb"],
-    ["yarn.lock", "linux", "cp", "yarn askdb"],
-    ["bun.lock", "linux", "cp", "bunx askdb"],
-    ["package-lock.json", "win32", "copy", "npx askdb"],
-  ])("with %s on %s, the Next steps copy with `%s` and run `%s`", async (lockfile, os, copy, askdb) => {
-    enterProject({ "package.json": '{ "name": "app", "private": true }\n', [lockfile]: "" });
+  /** Run `init --yes` for SQLite in the current project, with `os` as the platform; returns its stdout. */
+  async function initNextSteps(os = "linux", extraArgs: string[] = []): Promise<string> {
     const platform = Object.getOwnPropertyDescriptor(process, "platform")!;
     Object.defineProperty(process, "platform", { ...platform, value: os });
     try {
       const code = await runInitCli(
-        ["--yes", "--database", "sqlite", "--sqlite-file", "./shop.db", "--path", join(project, "askdb.config.ts")],
+        ["--yes", "--database", "sqlite", "--sqlite-file", "./shop.db", "--path", join(project, "askdb.config.ts"), ...extraArgs],
         vi.fn().mockReturnValue(true),
       );
       expect(code).toBe(0);
     } finally {
       Object.defineProperty(process, "platform", platform);
     }
+    return stdout.join("");
+  }
 
-    expect(stdout.join("")).toContain(
+  const WITH_ASKDB = '{ "name": "app", "private": true, "devDependencies": { "askdb": "1.0.0" } }\n';
+
+  it.each([
+    ["package-lock.json", "linux", "cp", "npx askdb"],
+    ["pnpm-lock.yaml", "linux", "cp", "pnpm exec askdb"],
+    ["yarn.lock", "linux", "cp", "yarn askdb"],
+    ["bun.lock", "linux", "cp", "bunx askdb"],
+    ["package-lock.json", "win32", "copy", "npx askdb"],
+  ])("in a project that lists askdb, with %s on %s, the Next steps copy with `%s` and run `%s`", async (lockfile, os, copy, askdb) => {
+    enterProject({ "package.json": WITH_ASKDB, [lockfile]: "" });
+
+    expect(await initNextSteps(os)).toContain(
       [
         "\nNext steps:",
         `  1. Create .env from the example, then fill in your credentials:  ${copy} .env.example .env`,
@@ -553,6 +560,38 @@ describe("runInitCli install", () => {
         "",
       ].join("\n"),
     );
+  });
+
+  // After `pnpm dlx askdb init`, askdb isn't a dependency, so `pnpm exec askdb` would fail.
+  it.each([
+    ["package-lock.json", "npx askdb"],
+    ["pnpm-lock.yaml", "pnpm dlx askdb"],
+    ["yarn.lock", "yarn dlx askdb"],
+    ["bun.lock", "bunx askdb"],
+  ])("in a project that doesn't list askdb, with %s, the Next steps run `%s`", async (lockfile, askdb) => {
+    enterProject({ "package.json": '{ "name": "app", "private": true }\n', [lockfile]: "" });
+
+    expect(await initNextSteps()).toContain(`  2. Introspect your database:  ${askdb} introspect\n`);
+  });
+
+  // A copy over an existing .env would replace the app's real secrets with the blank template.
+  it("when .env already exists, step 1 says to add the variables instead of printing a copy command", async () => {
+    enterProject({ "package.json": WITH_ASKDB, "package-lock.json": "", ".env": "DATABASE_URL=postgres://real\n" });
+
+    const out = await initNextSteps();
+
+    expect(out).toContain("  1. Add the variables in .env.example to your .env, then fill in your credentials.\n");
+    expect(out).not.toContain("cp .env.example");
+    expect(readFileSync(join(project, ".env"), "utf8")).toBe("DATABASE_URL=postgres://real\n");
+  });
+
+  it("with --path in another directory, the copy names the .env.example init wrote there", async () => {
+    enterProject({ "package.json": WITH_ASKDB, "package-lock.json": "" });
+    mkdirSync(join(project, ".config"));
+
+    const out = await initNextSteps("linux", ["--path", join(project, ".config", "askdb.ts")]);
+
+    expect(out).toContain("then fill in your credentials:  cp .config/.env.example .env\n");
   });
 
   // #863: pnpm also keeps settings such as minimumReleaseAgeExclude in pnpm-workspace.yaml,
