@@ -208,6 +208,19 @@ figure:has(> svg.pele) figcaption {
   max-width: 48rem;
 }
 
+/*
+ * Code-block copy button. With a mouse, Expressive Code hides it until the pointer is over the
+ * block (`@media (hover: hover) { .copy button { opacity: 0 } }` in @expressive-code/plugin-frames),
+ * and it has no option to change that. Show it at the opacity Expressive Code gives it on touch
+ * screens. Its own hover and focus rules still take it to full opacity, and Expressive Code pads the
+ * first line so the button doesn't cover a one-line command.
+ */
+@media (hover: hover) {
+  .expressive-code .frame .copy button:not(:hover, :focus-visible) {
+    opacity: 0.75;
+  }
+}
+
 @media (max-width: 50rem) {
   .feature-grid,
   .link-cards,
