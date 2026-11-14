@@ -1,19 +1,10 @@
-import { createContext, useContext, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import { PanelLeftOpen } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "../ui/sheet";
+import { useMediaQuery } from "../../hooks/use-mobile";
 
 /** Below this width the sub-rail (a view's table or concept list) moves into a drawer. Matches styles.css. */
 const NARROW_QUERY = "(max-width: 960px)";
-
-function subscribeNarrow(onChange: () => void): () => void {
-  const mql = window.matchMedia(NARROW_QUERY);
-  mql.addEventListener("change", onChange);
-  return () => mql.removeEventListener("change", onChange);
-}
-
-function isNarrow(): boolean {
-  return window.matchMedia(NARROW_QUERY).matches;
-}
 
 type SubRailState = {
   narrow: boolean;
@@ -25,9 +16,11 @@ const SubRailContext = createContext<SubRailState | null>(null);
 
 /** Holds whether the window is narrow and whether the list's drawer is open, for `SubRail` and `SubRailTrigger`. */
 export function SubRailProvider({ children }: { children: ReactNode }) {
-  const narrow = useSyncExternalStore(subscribeNarrow, isNarrow, () => false);
+  const narrow = useMediaQuery(NARROW_QUERY);
   const [open, setOpen] = useState(false);
-  const value = useMemo(() => ({ narrow, open: narrow && open, setOpen }), [narrow, open]);
+  // Widening past the breakpoint closes the drawer, so narrowing again doesn't reopen it.
+  if (!narrow && open) setOpen(false);
+  const value = useMemo(() => ({ narrow, open, setOpen }), [narrow, open]);
   return <SubRailContext.Provider value={value}>{children}</SubRailContext.Provider>;
 }
 
