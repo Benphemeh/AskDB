@@ -185,6 +185,14 @@ The provider refused the model call. The rest of the message is the provider's o
 
 See [Bring your own model](/guides/bring-your-own-model/) for each provider's settings.
 
+### `AskDB can't answer this as a read-only query: …`
+
+The model declined the question, and the rest of the message is its reason. AskDB declines when the schema has nothing that answers the question, such as "What's the weather like?", or when the question asks to change data, such as "delete all orders". A question that asks for a read and a change together is declined as a whole. Ask for the read part alone. In code it's `QuestionDeclinedError`, with the reason in `reason`; the HTTP API answers `422 question_declined`.
+
+### `SqlValidationError [SQL_EMPTY]: The model didn't return SQL: …`
+
+The model's reply had no SQL in it, such as a sentence explaining why it can't answer. Rephrase the question so the schema can answer it.
+
 ## Studio
 
 ### Studio shows `pg missing` and an **Install pg** button

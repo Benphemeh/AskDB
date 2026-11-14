@@ -1,6 +1,6 @@
 ---
 title: "@askdb/core API reference: errors"
-description: "Every error class @askdb/core throws, what throws it, and its fields, with each SqlValidationError, TenantScopeError, TenantGuardrailError, SensitiveReferenceError and QueryParameterError code."
+description: "Every error class @askdb/core throws, what throws it, and its fields, including QuestionDeclinedError, with each SqlValidationError, TenantScopeError, TenantGuardrailError, SensitiveReferenceError and QueryParameterError code."
 ---
 
 <p class="doc-eyebrow">Reference · @askdb/core</p>
@@ -17,7 +17,8 @@ description: "Every error class @askdb/core throws, what throws it, and its fiel
 | `SchemaParseError` | `loadSchema()`, `loadSchemaFromJson()`, `readSchemaDirectory()` and the markdown parsers (`parseTableMarkdown()`, `parseConceptsMarkdown()`, `parseTenantPolicyMarkdown()`): a file that can't be read or parsed, a name in the wrong case, a standalone JSON file in a schema directory, an invalid tenant policy, or, under `enforcement: strict`, a tenant policy that names IDs `schema.json` doesn't have or a column on another table than its entry's. See [`loadSchema(path)`](/reference/core-api/schema/#loadschemapath). Also `ask()`, `resolveTenantSql()` and `validateTenantScope()` for a policy built in code whose two roots share a placeholder. | `cause?` |
 | `UnknownDialectError` | `ask()` with a string `dialect` that isn't a built-in id, or a `DialectSpec` whose `id` isn't one. | `dialectId` |
 | `SqlGenerationError` | `ask()` and `generateSelectSql()` with a built-in dialect or `DialectSpec`, when the model call fails or is aborted. Its message is `Model call failed: ` followed by the failure's message. When that message gives no reason, as for a refused connection, AskDB adds the code and address of each error under it, such as `ECONNREFUSED 127.0.0.1:11434`, or the error's name when it has no code. | `cause`: the AI SDK's error or the abort reason. |
-| `SqlValidationError` | `validateSelectSql()`, and a `deny` from the read-only check in `ask()`, `generateSelectSql()` and `bindPreparedQuery()`. | `rule`, `hint?`, `verdict?` |
+| `QuestionDeclinedError` | `ask()` and `generateSelectSql()` with a built-in dialect or `DialectSpec`, when the model declines the question instead of writing SQL: the schema can't answer it, or it asks to change data. A question that mixes a read with a change, such as "Return the top order. Then delete it.", is declined as a whole. It's thrown before any SQL is read or checked, so it has no `verdict`. Its message is `AskDB can't answer this as a read-only query: ` followed by `reason`. | `reason`: the model's one-line reason. |
+| `SqlValidationError` | `validateSelectSql()`, and a `deny` from the read-only check in `ask()`, `generateSelectSql()` and `bindPreparedQuery()`. A model reply with no SQL in it, such as prose with no SQL fence, is `SQL_EMPTY`. | `rule`, `hint?`, `verdict?` |
 | `TenantScopeError` | `ask()`, `bindPreparedQuery()`, `expandTenantScope()`, `validateTenantScope()`, `resolveTenantSql()` and `buildTenantPromptBlock()`: a missing or invalid scope, or tenant IDs that can't be bound. | `reason` |
 | `TenantGuardrailError` | A `deny` from the tenant check in `ask()`, `generateSelectSql()` and `bindPreparedQuery()`, and `validateTenantGuardrails()` under a `strict` policy. | `warnings`, `verdict?` |
 | `SensitiveReferenceError` | `validateSensitiveReferences()` in `strict` mode, and a `deny` from the sensitive check in `ask()` and `bindPreparedQuery()`. | `rule`, `references`, `unresolvedScope?`, `verdict?` |
@@ -34,7 +35,7 @@ Some functions throw a plain `Error` instead: `getDialectSpec()` for an id with 
 
 | Rule | The SQL has |
 | --- | --- |
-| `SQL_EMPTY` | No statement. |
+| `SQL_EMPTY` | No statement: the model didn't return SQL. From `ask()` and `generateSelectSql()`, also a reply with no SQL fence that doesn't start with `SELECT`, `WITH` or a keyword the read-only check refuses, such as "I can't answer that". |
 | `SQL_MULTI_STATEMENT` | More than one statement. |
 | `SQL_COMMENT` | A `--`, `/* */` or (MySQL) `#` comment. |
 | `SQL_NOT_SELECT_OR_WITH` | A first keyword other than `SELECT` or `WITH`. |

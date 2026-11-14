@@ -471,6 +471,8 @@ ORDER BY total_spent DESC;
 
 The model writes the SQL, so yours can differ: other aliases, another layout, or other columns. Notice what AskDB did and didn't do. It checked the SQL before printing it: for example, it returns only read-only SQL. It didn't run the SQL. Running it is our job.
 
+Ask something the shop database can't answer, such as "What's the weather like?", or ask it to change data, such as "delete all orders", and AskDB prints `AskDB can't answer this as a read-only query:` with the model's reason instead of SQL.
+
 If you see `no AI API key configured`, check that `.env` has your key (step 3).
 
 ## 6. Run the SQL

@@ -9,6 +9,17 @@ import InstallTabs from "../../../components/InstallTabs.astro";
 
 <p class="doc-lede">What each AskDB release asks of your app, newest first. Each section lists only the changes that need something from you, and the package CHANGELOGs list everything else. <a href="/guides/upgrading/">Upgrade AskDB</a> says how to apply them.</p>
 
+## 1.0.0-rc.2
+
+### Handle a declined question
+
+`ask()` and `generateSelectSql()` now decline a question the schema can't answer, or one that asks to change data, instead of returning unrelated or rewritten SQL ([#949](https://github.com/Ygilany/AskDB/issues/949)). They throw a new error, `QuestionDeclinedError` from `@askdb/core`, with `reason`, the model's one-line reason. A question that mixes a read with a change, such as "Return the top order. Then delete it.", is declined as a whole. Questions that produce SQL return the same result as before.
+
+- **If your code handles `ask()`'s errors by type,** add a case for `QuestionDeclinedError` and show its `reason` to the user. It extends `AskDbError`, so a catch-all for `AskDbError` already catches it.
+- **If you call the HTTP API,** handle the new error code `question_declined`, with HTTP status `422` and `error.reason`.
+- **A model reply with no SQL in it** is now reported as `SqlValidationError` with rule `SQL_EMPTY` and the message `The model didn't return SQL: …`, instead of another rule such as `SQL_UNTERMINATED`. Through the HTTP API it is still `400 sql_validation_error`.
+- **`askdb ask`** prints `AskDB can't answer this as a read-only query:` and the reason on stderr, and exits `1`. Studio's Playground shows the reason in place of SQL.
+
 ## 1.0.0-rc.1
 
 Released with `askdb`, `@askdb/ai`, `@askdb/client`, `@askdb/config`, `@askdb/core`, `@askdb/http-api`, `@askdb/introspect`, `@askdb/mysql`, `@askdb/postgres`, `@askdb/prisma`, `@askdb/sqlite` and `@askdb/sqlserver` 1.0.0-rc.1, the first release candidate for 1.0, and `@askdb/studio`, `@askdb/enrich` and `@askdb/rag` 0.2.0-rc.1. The package CHANGELOGs list everything else that changed.

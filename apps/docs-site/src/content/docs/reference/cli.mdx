@@ -300,6 +300,15 @@ Everything else goes to stderr, so stdout stays parseable: errors, `Note:` lines
 
 While it waits for the model, `askdb ask` shows `Generating SQL…` on stderr, and clears that line before it prints anything else. It shows the line only when stderr is a terminal. It doesn't show it with `--mock-sql` or `dev.mockSql`, or when [structured logs](#shared-logging-flags) are on: with `-v`, `--log-file` or `--log-stdout`, or a `--log-level` or `logging.level` other than `silent`. So a pipe or a log file never sees it.
 
+When the question can't be answered from the schema, or asks to change data, AskDB declines instead of returning SQL. A question that mixes a read with a change, such as "Return the top order. Then delete it.", is declined as a whole. `askdb ask` prints the model's reason on stderr, nothing on stdout, and exits `1`:
+
+```text
+$ npx askdb ask --question "delete all orders"
+AskDB can't answer this as a read-only query: The question asks to delete data; AskDB only writes read-only queries.
+```
+
+A model reply with no SQL in it, such as prose with no SQL fence, is reported as `SqlValidationError [SQL_EMPTY]: The model didn't return SQL: …`.
+
 If the generated SQL references identifiers your schema marks `sensitive`, `askdb ask` prints a `Warning:` line to stderr listing them and still prints the SQL. The check is [`validateSensitiveReferences`](/reference/core-api/checks/#validatesensitivereferencessql-schema-options) from `@askdb/core`, run by `ask()` in warn mode; embedding hosts can switch it to `strict`, rely on `bindPreparedQuery()` re-running it on a rebind, or call it directly on cached SQL.
 
 #### Dialect
