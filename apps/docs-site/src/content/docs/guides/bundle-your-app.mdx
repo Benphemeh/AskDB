@@ -19,7 +19,7 @@ import InstallTabs from "../../../components/InstallTabs.astro";
 
 `@askdb/config` loads `askdb.config.*` from disk when your service starts. It loads a JavaScript config (`.js`, `.cjs` or `.mjs`) with Node's own loader, which works from inside a bundle. A TypeScript config needs jiti, which `@askdb/config` uses to compile it, and jiti can't run from inside a bundle. Three setups work:
 
-- **A JavaScript config, `createAskDb()`:** bundle `@askdb/config` with the rest of your service, and deploy `askdb.config.mjs` (or `.js`, `.cjs`) next to the bundle. Nothing is installed beside the bundle, so the file can't import anything, `@askdb/config` included: write a plain `export default { … }` and read each variable from `process.env`. This needs `@askdb/config` 1.0.0-beta.20 or later.
+- **A JavaScript config, `createAskDb()`:** bundle `@askdb/config` with the rest of your service, and deploy `askdb.config.mjs` (or `.js`, `.cjs`) next to the bundle. Nothing is installed beside the bundle, so the file can't import anything, `@askdb/config` included: write a plain `export default { … }` and read each variable from `process.env`.
 - **A TypeScript config, `createAskDb()`:** leave `@askdb/config` out of the bundle and install it next to the bundle when you deploy. `askdb.config.ts` then loads as it does without a bundler.
 - **No config, `ask()`:** build the model with the AI SDK in your own code, and load the schema from one JSON file. The bundle then needs nothing installed beside it.
 
@@ -157,7 +157,7 @@ It brings `jiti` and `dotenv`, which load the config. Start the service from tha
 
 | Error | Fix |
 | --- | --- |
-| `createRequire is not a function` (webpack); `The argument 'filename' must be a file URL object, file URL string, or absolute path string. Received undefined` or `Cannot find module '../dist/babel.cjs'` (esbuild) | A TypeScript config, with `@askdb/config` inside the bundle. Mark it external and install it next to the bundle, or write the config in JavaScript. On `@askdb/config` older than 1.0.0-beta.20, a JavaScript config fails this way too. |
+| `createRequire is not a function` (webpack); `The argument 'filename' must be a file URL object, file URL string, or absolute path string. Received undefined` or `Cannot find module '../dist/babel.cjs'` (esbuild) | A TypeScript config, with `@askdb/config` inside the bundle. Mark it external and install it next to the bundle, or write the config in JavaScript. |
 | `Cannot find module '@askdb/config'`, or `Cannot find package '@askdb/config'` | `@askdb/config` is external but not installed where the bundle runs: install it there. Or your JavaScript config imports it: remove the import, and read variables from `process.env`. |
 | `SyntaxError: Unexpected token 'export'`, or `Cannot use import statement outside a module` | Node reads your `askdb.config.js` as CommonJS. Rename it to `askdb.config.mjs`, or write it with `module.exports = { … }`. |
 | `Module not found: Error: Can't resolve '@ai-sdk/<name>'` (webpack) | Install that SDK, or add it to `externals`. |
