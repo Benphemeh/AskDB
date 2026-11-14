@@ -11,6 +11,7 @@ import { InlineStatus } from "../../components/common/StatusBanner";
 import { EmptyText } from "../../components/common/EmptyText";
 import { GetTheCodePanel } from "./GetTheCodePanel";
 import { UsageSummary } from "../../components/common/UsageSummary";
+import type { AskResponse } from "@/shared/api";
 
 const selectClassName = "h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring";
 const fieldsetResetStyle = { border: 0, padding: 0, margin: 0 };
@@ -395,6 +396,7 @@ export function PlaygroundPage() {
                     <h3 style={{ fontSize: 13, fontWeight: 600 }}>Generated SQL</h3>
                     {askResult.sql && <CopyButton value={askResult.sql} />}
                   </div>
+                  <SensitiveWarning guardrail={askResult.sensitiveGuardrail} />
                   {askResult.sql ? (
                     <pre className="sql-block">{askResult.sql}</pre>
                   ) : (
@@ -565,6 +567,22 @@ function isGuardrailExplain(value: unknown): value is GuardrailExplain {
 
 function formatCheckLabel(check: string): string {
   return check.replace(/_/g, " ");
+}
+
+/** The sensitive-column warning `askdb ask` prints for the same SQL, worded the same way. */
+function SensitiveWarning({ guardrail }: { guardrail: AskResponse["sensitiveGuardrail"] | undefined }) {
+  if (!guardrail || (guardrail.references.length === 0 && !guardrail.unresolvedScope)) return null;
+  return (
+    <div role="alert" style={{ display: "grid", gap: 6, marginBottom: 8 }}>
+      {guardrail.references.length > 0 && (
+        <p className="warning-block">
+          Generated SQL references sensitive columns: {guardrail.references.join(", ")}.
+          {" "}Review carefully before sharing or running this SQL outside AskDB.
+        </p>
+      )}
+      {guardrail.unresolvedScope && <p className="warning-block">Note: {guardrail.unresolvedScope}</p>}
+    </div>
+  );
 }
 
 function ExplainSection({ explain }: { explain: unknown }) {

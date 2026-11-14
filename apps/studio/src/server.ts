@@ -999,6 +999,13 @@ async function askSampleQuestion(
     sql: result.sql,
     explain: result.explain ?? null,
     warnings: schema.warnings,
+    // `ask()` runs the sensitive-column check in warn mode; `askdb ask` prints the same result.
+    sensitiveGuardrail: result.sensitiveGuardrail
+      ? {
+          references: result.sensitiveGuardrail.references.map(formatSensitiveReference),
+          unresolvedScope: result.sensitiveGuardrail.unresolvedScope?.message ?? null,
+        }
+      : null,
     rag: {
       enabled: options.useRag,
       chunks: options.useRag ? retrievedChunks.map(serializeRagResult) : [],
