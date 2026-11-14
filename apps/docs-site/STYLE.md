@@ -97,7 +97,7 @@ The `starlight-llms-txt` `details` string in `astro.config.mjs` summarises the s
 ## Components
 
 - `InstallTabs` (`<InstallTabs pkgs="…" />`) for every package install. The Quickstart is the exception: it uses hand-written `Tabs` (`syncKey="pkg"`) for npm, pnpm and Yarn, since its install is a dev dependency, which `InstallTabs` can't express.
-- `Tabs` with a `syncKey` so choices persist site-wide: `pkg` (labels exactly npm / pnpm / yarn), `engine` (database engines), `wiring` (config-driven vs direct model).
+- `Tabs` with a `syncKey` so choices persist site-wide: `pkg` (labels exactly npm / pnpm / yarn), `engine` (labels exactly PostgreSQL / MySQL / SQLite / SQL Server, in that order; a tab covers MariaDB under MySQL; add engine tabs wherever a page shows code that differs by engine), `wiring` (config-driven vs direct model).
 - `Aside` for prerequisites and real hazards — `note`, `tip`, `caution`; keep them rare.
 - `ExampleLink` to point at a runnable example in the repo.
 - Diagrams are [Mermaid](https://mermaid.js.org/), written in a `mermaid` fence and rendered to inline SVG at build time by [pele](https://pele.run). Pages ship no diagram JavaScript, and CI and the Pages deploy need no binary or browser. See "Diagrams" below.
