@@ -328,8 +328,8 @@ export default defineConfig({
 The config has three blocks:
 
 - `introspection` says where our database is. For SQLite, that's a file path. A path isn't a secret, so `askdb init` wrote it here, not in `.env`.
-- `ai` says which model provider to call and how to reach it. `providerConfig` reads the API key from the `OPENAI_API_KEY` environment variable. `language` is the language model, the one that writes the SQL. Its `model` reads `OPENAI_MODEL`, and when that's empty, AskDB uses OpenAI's default model. A config can also have `ai.embedding`, a second model used only for retrieval in large schemas.
-- `rag` sets up that retrieval for large schemas. It's experimental, and this tutorial doesn't use it.
+- `ai` says which model provider to call. `providerConfig` reads the API key from the `OPENAI_API_KEY` environment variable. `language` is the language model, the one that writes the SQL. When `OPENAI_MODEL` is empty, AskDB uses OpenAI's default model.
+- `rag` sets up retrieval for large schemas. It's experimental, and this tutorial doesn't use it.
 
 [Configuration](/reference/config/) describes every field.
 
@@ -527,7 +527,12 @@ The output should look something like this:
 
 That's the answer to our question: Grace bought two monitors, so she has spent the most. The model wrote the SQL again, so it can differ from step 5's, but the answer should be the same.
 
-To read the SQL before you run it, save it to a file first, and then run the file: `npx askdb ask --question "…" > query.sql`, then `node run-query.mjs < query.sql`.
+To read the SQL before you run it, save it to a file first, and then run the file:
+
+```bash
+npx askdb ask --question "How much has each customer spent in total, highest first?" > query.sql
+node run-query.mjs < query.sql
+```
 
 <Aside type="caution">AskDB's SQL checks are heuristics, not a security boundary. Before your application runs generated SQL against real data, read [Run generated SQL safely](/concepts/safety-boundaries/#run-generated-sql-safely): use a read-only, least-privilege database role, set timeouts, and enforce tenant isolation in the database.</Aside>
 
