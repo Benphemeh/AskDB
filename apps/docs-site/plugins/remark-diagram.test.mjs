@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { DiagramError, parseDiagram } from "./diagram/parse.mjs";
 import { layouts, renderDiagram, textAlternative } from "./diagram/render.mjs";
 import { lineWidth, plain, wrap } from "./diagram/text.mjs";
@@ -81,6 +82,10 @@ test("a diagram that can't be drawn says why, with the line", () => {
     ["flow\ntitle: T\nlane app: A\nlane askdb: B\nlane model: C\nlane database: D\nlane files: E", /a flow has 4 lanes at most/, 7],
     ["sequence\ntitle: T\nlane app: A\nlane askdb: B\nlane model: C\nlane database: D\nlane files: E\nlane person: F", /a sequence has 5 lanes at most/, 8],
     ["flow\ntitle: T\nlane app: A\ndecide ok @app: right?\nstep b @app: y\nok -> b", /the decision "ok" needs two or more links out, each labelled/, 6],
+    ["flow\ntitle: T\ntitle: U\nlane app: A\nstep a @app: x", /has two "title:" lines/, 3],
+    ["flow\ntitle: T\nlane app: A | \nstep a @app: x", /lane "app" needs a label, and a note after its " \| "/, 3],
+    ["flow\ntitle: T\nlane askdb: A\nstep a @askdb: x\nstep b @askdb: y\nstep c @askdb: z\ngroup Inside: a c", /group "Inside" skips the step "b"/, 7],
+    ["flow\ntitle: T\nlane app: A\nlane askdb: B\nlane model: C\nstep a @app: x\n+ step b @askdb: y\n+ step c @model: z\na -> c: direct", /the link "a -> c" runs along a row through the step "b"/, 9],
   ];
   for (const [source, message, line] of cases) {
     assert.throws(() => parseDiagram(source), (error) => error instanceof DiagramError && message.test(error.message) && error.line === line, source);
@@ -108,8 +113,8 @@ test("the wide flow puts each step in its owner's lane, and the narrow one stack
   assert.equal((wide.body.match(/class="dg-lane /g) ?? []).length, 4);
   assert.equal((wide.body.match(/class="dg-node dg-node-askdb"/g) ?? []).length, 2);
   assert.equal((narrow.body.match(/class="dg-node /g) ?? []).length, 6);
-  // Six links in each: every one has an arrow.
-  assert.equal((wide.body.match(/class="dg-link/g) ?? []).length, 5 + 0);
+  // Five links in each: every one has an arrow.
+  assert.equal((wide.body.match(/class="dg-link/g) ?? []).length, 5);
   assert.equal((narrow.body.match(/class="dg-link/g) ?? []).length, 5);
 });
 
@@ -212,4 +217,47 @@ test("a sequence of five actors fits a phone's width without shrinking", () => {
   const { narrow } = layouts(parseDiagram(five), "t");
   assert.ok(narrow.width <= 336, String(narrow.width));
   assert.deepEqual(overflowing(five), []);
+});
+
+test("a lane's note starts at the first \" | \" outside backticks, and keeps any later one", () => {
+  const lanes = parseDiagram("sequence\ntitle: T\nlane db database: Your database | read-only role | Postgres 16\nlane app: The `a | b` service\napp -> db: runs it").lanes;
+  assert.deepEqual(lanes.map((lane) => [lane.label, lane.note]), [
+    ["Your database", "read-only role | Postgres 16"],
+    ["The `a | b` service", undefined],
+  ]);
+});
+
+test("a group's label and a phone card's tag keep every word, however narrow the frame", () => {
+  const source = `flow
+title: Indexing, then each call.
+lane files: A schema artifact with a long name for its lane | kept in version control beside the application's code
+lane askdb: AskDB
+lane db database: Vector store
+step artifact @files: schema artifact
++ step chunks @askdb: chunks
++ step store @db: vector store
+group Once per schema change, and never on a call: chunks
+artifact -> chunks
+chunks -> store
+`;
+  const { wide, narrow } = layouts(parseDiagram(source), "t");
+  /** The words of every <text> of one class, in order. */
+  const words = (body, className) => [...body.matchAll(new RegExp(`<text class="${className}"[^>]*>(.*?)</text>`, "g"))].map((match) => match[1].replace(/<[^>]+>/g, "")).join(" ").replace(/\s+/g, " ").trim();
+  for (const layout of [wide, narrow]) assert.equal(words(layout.body, "dg-group-label"), "Once per schema change, and never on a call");
+  // The wide frame is one step wide, so the label takes more than one line there, and the tab grows.
+  assert.ok((wide.body.match(/<text class="dg-group-label"/g) ?? []).length > 1);
+  assert.equal(words(narrow.body, "dg-chip"), "A schema artifact with a long name for its lane AskDB Vector store");
+  assert.equal(words(narrow.body, "dg-note"), "kept in version control beside the application's code");
+  assert.deepEqual(overflowing(source), []);
+  // The grown tab stays clear of the steps.
+  for (const layout of [wide, narrow]) for (const tab of rects(layout.body, "dg-group-tab")) assert.ok(!rects(layout.body, "dg-node").some((step) => hit(tab, step)));
+});
+
+test("the kit measures labels with Inter and JetBrains Mono, the first families of --sl-font and --sl-font-mono in tokens.css", () => {
+  // plugins/diagram/text.mjs holds those two fonts' advance widths. Change a token's first family
+  // and the widths there are wrong, with every other test still green.
+  const css = readFileSync(new URL("../src/styles/tokens.css", import.meta.url), "utf8");
+  const first = (name) => new RegExp(`${name}:\\s*"([^"]+)"`).exec(css)?.[1];
+  assert.equal(first("--sl-font"), "Inter Variable");
+  assert.equal(first("--sl-font-mono"), "JetBrains Mono Variable");
 });

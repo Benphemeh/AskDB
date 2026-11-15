@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { htmlToMarkdown, mermaidSources, pageMarkdown } from "./html-to-markdown.ts";
+import { renderDiagram } from "../../plugins/diagram/render.mjs";
 
 const pageUrl = "https://askdb.tools/guides/multi-tenancy/";
 const convert = (html, options = {}) => htmlToMarkdown(html, { pageUrl, ...options });
@@ -33,13 +34,23 @@ test("a code block with inserted and deleted lines becomes a diff", async () => 
 });
 
 test("an AskDB diagram is written as its text alternative, then its caption", async () => {
-  const html =
-    `<figure><div class="askdb-diagram" data-diagram="sequence">` +
-    `<svg class="dg dg-wide" role="img" aria-label="One request."><text class="dg-text">Your handler</text><svg class="dg-icon" aria-hidden="true"><path d="M0 0"></path></svg></svg>` +
-    `<svg class="dg dg-narrow" role="img" aria-label="One request."><text class="dg-text">Your handler</text></svg>` +
-    `<ol class="dg-text-alt"><li><strong>Your handler → AskDB:</strong> <code>ask(question)</code></li><li><strong>AskDB:</strong> run the SQL checks</li></ol>` +
-    `</div><figcaption>One request.</figcaption></figure>`;
-  assert.equal(await convert(html), "1. **Your handler → AskDB:** `ask(question)`\n2. **AskDB:** run the SQL checks\n\n*Figure: One request.*");
+  // The kit's real output, so a change to the text alternative's markup shows up here.
+  const sequence = renderDiagram(
+    "sequence\ntitle: One request.\nlane handler app: Your handler\nlane askdb: AskDB | never opens a connection\nboundary Your stack: handler askdb\nhandler -> askdb: `ask(question)`\naskdb -> askdb: run the SQL checks\naskdb ..> handler: `sql`",
+    "diagram-0",
+  );
+  assert.equal(
+    await convert(`<figure>${sequence}<figcaption>One request.</figcaption></figure>`),
+    "- **Your stack** holds: Your handler, AskDB\n- **AskDB:** never opens a connection\n\n1. **Your handler → AskDB:** `ask(question)`\n2. **AskDB:** run the SQL checks\n3. **AskDB → Your handler (reply):** `sql`\n\n*Figure: One request.*",
+  );
+  const flow = renderDiagram(
+    "flow\ntitle: A loop.\nlane askdb: AskDB\nlane you person: You\nstep ask @askdb: `askdb ask`\ndecide check @you: is the SQL right?\nstep commit @you: commit\ngroup Each try: ask\nask -> check\ncheck -> ask: no\ncheck -> commit: yes",
+    "diagram-1",
+  );
+  assert.equal(
+    await convert(`<figure>${flow}<figcaption>A loop.</figcaption></figure>`),
+    "- **AskDB (Each try):** `askdb ask`\n  - → is the SQL right?\n\n- **You:** Decision: is the SQL right?\n\n  - no → `askdb ask`\n  - yes → commit\n\n- **You:** commit\n\n*Figure: A loop.*",
+  );
 });
 
 test("a file tree becomes a text fence, one entry per line with its comment", async () => {

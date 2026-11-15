@@ -16,6 +16,8 @@
 // sequence:
 //   a -> b: message                      between lanes; `..>` is a reply; a -> a is the actor's own step
 //
+// A lane's note follows the first " | " outside backticks. A group's steps are next to each other
+// in their lane, and a link along a row has no step between its ends.
 // Labels take `code` in backticks, and `\n` where a line must break. Authors never write a
 // coordinate or a color. A flow has four lanes at most, a sequence five.
 
@@ -36,6 +38,18 @@ const STEP = new RegExp(`^(\\+\\s*)?(step|decide)\\s+(${ID})\\s+@(${ID})\\s*:\\s
 const MAX_LANES = { flow: 4, sequence: 5 };
 const LINK = new RegExp(`^(${ID})\\s*(->|\\.\\.>)\\s*(${ID})(?:\\s*:\\s*(.+))?$`);
 
+/** A lane's text to its label and its note: the note follows the first " | " that isn't inside backticks. */
+function labelAndNote(text) {
+  let code = false;
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === "`") code = !code;
+    if (!code && text[i] === "|" && /\s/.test(text[i - 1] ?? " ") && /\s/.test(text[i + 1] ?? " ")) {
+      return [text.slice(0, i).trim(), text.slice(i + 1).trim()];
+    }
+  }
+  return [text.trim(), undefined];
+}
+
 export function parseDiagram(source) {
   const diagram = { kind: undefined, title: undefined, lanes: [], boundaries: [], steps: [], groups: [], links: [] };
   const lanes = new Map();
@@ -55,6 +69,7 @@ export function parseDiagram(source) {
     }
     let match;
     if ((match = line.match(/^title\s*:\s*(.+)$/))) {
+      if (diagram.title) fail('the diagram has two "title:" lines: keep one');
       diagram.title = match[1];
     } else if ((match = line.match(LANE))) {
       const [, id, kind = id, text] = match;
@@ -62,8 +77,9 @@ export function parseDiagram(source) {
       if (lanes.has(id)) fail(`lane "${id}" is declared twice`);
       if (steps.has(id)) fail(`"${id}" is already a step: a lane and a step can't share an id`);
       if (diagram.lanes.length === MAX_LANES[diagram.kind]) fail(`a ${diagram.kind} has ${MAX_LANES[diagram.kind]} lanes at most: merge two owners, or split the diagram`);
-      const [label, note] = text.split(/\s+\|\s+/);
-      const lane = { id, kind, label: label.trim(), note: note?.trim() };
+      const [label, note] = labelAndNote(text);
+      if (label === "" || note === "") fail(`lane "${id}" needs a label${note === "" ? ', and a note after its " | "' : ""}`);
+      const lane = { id, kind, label, note };
       lanes.set(id, lane);
       diagram.lanes.push(lane);
     } else if ((match = line.match(/^boundary\s+(.+?)\s*:\s*(.+)$/))) {
@@ -80,6 +96,11 @@ export function parseDiagram(source) {
         steps.get(id).group = diagram.groups.length;
       }
       if (new Set(ids.map((id) => steps.get(id).lane)).size > 1) fail(`group "${match[1]}" holds steps of more than one lane: a group frames steps of one lane (use "boundary" to frame lanes)`);
+      // The frame is drawn around the group's steps, so a step of the same lane between them would
+      // sit inside it without being in the group.
+      const rows = ids.map((id) => steps.get(id).row);
+      const between = diagram.steps.find((step) => step.lane === steps.get(ids[0]).lane && !ids.includes(step.id) && step.row > Math.min(...rows) && step.row < Math.max(...rows));
+      if (between) fail(`group "${match[1]}" skips the step "${between.id}", which sits between its steps in the same lane: add it to the group, or move it`);
       diagram.groups.push({ label: match[1], steps: ids });
     } else if (diagram.kind === "flow" && (match = line.match(STEP))) {
       const [, sameRow, form, id, laneId, label] = match;
@@ -115,6 +136,15 @@ export function parseDiagram(source) {
     const used = new Set(diagram.steps.map((step) => step.lane));
     const empty = diagram.lanes.find((_, index) => !used.has(index));
     if (empty) throw new DiagramError(`lane "${empty.id}" holds no step`, end);
+    // A link along a row is one straight line, so a step between its ends would look like a stop on the way.
+    const stepOf = new Map(diagram.steps.map((step) => [step.id, step]));
+    for (const link of diagram.links) {
+      const a = stepOf.get(link.from);
+      const b = stepOf.get(link.to);
+      if (a.row !== b.row) continue;
+      const passed = diagram.steps.find((step) => step.row === a.row && step.lane > Math.min(a.lane, b.lane) && step.lane < Math.max(a.lane, b.lane));
+      if (passed) throw new DiagramError(`the link "${link.from} ${link.dashed ? "..>" : "->"} ${link.to}" runs along a row through the step "${passed.id}": put one of the three steps on another row`, end);
+    }
     for (const step of diagram.steps.filter((step) => step.decision)) {
       const answers = diagram.links.filter((link) => link.from === step.id);
       if (answers.length < 2 || answers.some((link) => !link.label)) throw new DiagramError(`the decision "${step.id}" needs two or more links out, each labelled with its answer`, end);

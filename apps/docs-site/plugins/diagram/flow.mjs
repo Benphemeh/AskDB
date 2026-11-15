@@ -1,8 +1,8 @@
 // The two layouts of a flow. Wide: each actor is a lane, a column, and a step sits in its owner's
 // lane, on its row. Narrow (a phone): the steps are one stack of cards, each tagged with its owner.
 // Both come from the same parsed diagram, and the stylesheet shows one of them by container width.
-import { icon, round } from "./icons.mjs";
-import { arrowMarker, groupTab, labelSize, linkLabel, nodeShape, roundedPath, textBlock } from "./svg.mjs";
+import { icon } from "./icons.mjs";
+import { arrowMarker, groupTab, groupTabHeight, labelSize, linkLabel, nodeShape, roundedPath, round, textBlock } from "./svg.mjs";
 import { blockWidth, lineWidth, runs, unbroken, wrap } from "./text.mjs";
 
 const FONT = 13;
@@ -115,8 +115,17 @@ export function flowWide(diagram, id, maxWidth = 700) {
   const laneTop = PADY + (bounded ? 24 : 0);
   const groupFirstRow = groups.map((group) => Math.min(...group.steps.map((s) => byId.get(s).row)));
   const groupLastRow = groups.map((group) => Math.max(...group.steps.map((s) => byId.get(s).row)));
+  // A group's label wraps to the width of its frame, which is its lane's step width, and keeps
+  // every line: the tab grows upward, and the gap above the group grows with it.
+  const groupLines = groups.map((group) => {
+    const room = nodeWs[byId.get(group.steps[0]).lane] - 20;
+    const lines = wrap(unbroken(group.label), room, 11);
+    boxes.push({ lines, size: 11, room });
+    return lines;
+  });
+  const tabExtra = (row) => Math.max(0, ...groups.map((_, index) => (groupFirstRow[index] === row ? groupTabHeight(groupLines[index]) - 18 : 0)));
   // A group that opens on the first row needs room for its label under the lane header.
-  const bodyTop = laneTop + headerH + 8 + (groupFirstRow.includes(0) ? 24 : 0);
+  const bodyTop = laneTop + headerH + 8 + (groupFirstRow.includes(0) ? 24 + tabExtra(0) : 0);
 
   // Steps and rows.
   const nodes = new Map();
@@ -209,7 +218,7 @@ export function flowWide(diagram, id, maxWidth = 700) {
     const tracks = gapRuns[row].length ? Math.max(...gapRuns[row].map((run) => run.track)) + 1 : 0;
     const spacing = Math.max(22, gapLabelH[row] + 6);
     const closes = groupLastRow.includes(row) ? 10 : 0;
-    const opens = groupFirstRow.includes(row + 1) ? 22 : 0;
+    const opens = groupFirstRow.includes(row + 1) ? 22 + tabExtra(row + 1) : 0;
     const inner = Math.max(40, 18 + tracks * spacing + 14, gapLabelH[row] + 32);
     gapH[row] = closes + inner + opens;
     const top = rowTop[row] + rowH[row] + closes;
@@ -245,16 +254,14 @@ export function flowWide(diagram, id, maxWidth = 700) {
     if (note.length) out += textBlock(note, x + laneW / 2, laneTop + 12 + label.length * 16 + 13, 11, 14, "middle", "dg-note");
     obstacles.push({ x0: x, y0: laneTop, x1: x + laneW, y1: laneTop + headers[index].height });
   });
-  groups.forEach((group) => {
+  groups.forEach((group, groupIndex) => {
     const members = group.steps.map((s) => nodes.get(s));
     const x0 = Math.min(...members.map((m) => m.x)) - 8;
     const x1 = Math.max(...members.map((m) => m.x + m.w)) + 8;
     const y0 = Math.min(...members.map((m) => m.y)) - 18;
     const y1 = Math.max(...members.map((m) => m.y + m.h)) + 10;
     out += `<rect class="dg-group" x="${round(x0)}" y="${round(y0)}" width="${round(x1 - x0)}" height="${round(y1 - y0)}" rx="12"/>`;
-    const label = wrap(unbroken(group.label), x1 - x0 - 36, 11).slice(0, 1);
-    boxes.push({ lines: label, size: 11, room: x1 - x0 - 36 });
-    const tab = groupTab(label, x0 + 10, y0, x1 - x0 - 20);
+    const tab = groupTab(groupLines[groupIndex], x0 + 10, y0, x1 - x0 - 20);
     tabs += tab.svg;
     obstacles.push(tab.rect);
   });
@@ -335,13 +342,38 @@ export function flowNarrow(diagram, id, width = 336) {
   const railRoom = right + 4 - leaveX - 16;
 
   const groupOf = (step) => step.group;
+  const TAG_LINE = 14;
   const cards = steps.map((step) => {
     const inset = groupOf(step) === undefined ? 0 : 8;
     const w = fullW - 2 * inset;
-    const room = w - 24 - (step.decision ? 2 * POINT : 0);
+    const pad = step.decision ? POINT : 0;
+    const room = w - 24 - 2 * pad;
     const lines = wrap(step.label, room, FONT);
     boxes.push({ lines, size: FONT, room });
-    return { step, lines, x: PAD + inset, w, h: 12 + 16 + 6 + lines.length * LINE + 10 };
+    // The card's tag: its owner, then what the wide layout shows around the lane (its note, its
+    // boundary). The rest sits beside the owner when it fits on that line, and under it when not.
+    const lane = lanes[step.lane];
+    const boundary = diagram.boundaries.find((entry) => step.lane >= entry.from && step.lane <= entry.to);
+    const around = [lane.note, boundary?.label].filter(Boolean).map(unbroken).join(" · ");
+    const tagRoom = w - 44 - 2 * pad;
+    const tag = wrap(unbroken(lane.label), tagRoom, 11);
+    boxes.push({ lines: tag, size: 11, room: tagRoom });
+    let beside = [];
+    let under = [];
+    if (around) {
+      const besideRoom = tagRoom - lineWidth(tag[tag.length - 1], 11) - 8;
+      const fits = besideRoom > 40 ? wrap(around, besideRoom, 11) : [];
+      if (fits.length === 1) beside = fits;
+      else under = wrap(around, tagRoom, 11);
+      boxes.push({ lines: beside.length ? beside : under, size: 11, room: beside.length ? besideRoom : tagRoom });
+    }
+    const tagH = 16 + (tag.length - 1 + under.length) * TAG_LINE;
+    return { step, lines, tag, beside, under, tagH, pad, x: PAD + inset, w, h: 12 + tagH + 6 + lines.length * LINE + 10 };
+  });
+  const groupLines = groups.map((group) => {
+    const lines = wrap(unbroken(group.label), fullW - 40, 11);
+    boxes.push({ lines, size: 11, room: fullW - 40 });
+    return lines;
   });
 
   // Each gap holds a band for the spine link's label, then one for each rail link that leaves through it.
@@ -364,7 +396,7 @@ export function flowNarrow(diagram, id, width = 336) {
   let y = PAD;
   cards.forEach((card, i) => {
     const previous = cards[i - 1];
-    if (groupOf(card.step) !== undefined && (!previous || groupOf(previous.step) !== groupOf(card.step))) y += 24;
+    if (groupOf(card.step) !== undefined && (!previous || groupOf(previous.step) !== groupOf(card.step))) y += 6 + groupTabHeight(groupLines[groupOf(card.step)]);
     card.y = y;
     card.cy = y + card.h / 2;
     y += card.h;
@@ -394,7 +426,7 @@ export function flowNarrow(diagram, id, width = 336) {
     const y0 = run[0].y - 16;
     const y1 = run[run.length - 1].y + run[run.length - 1].h + 10;
     out += `<rect class="dg-group" x="${PAD}" y="${round(y0)}" width="${fullW}" height="${round(y1 - y0)}" rx="12"/>`;
-    tabs += groupTab(wrap(unbroken(groups[groupOf(run[0].step)].label), fullW - 40, 11).slice(0, 1), PAD + 10, y0, fullW - 20).svg;
+    tabs += groupTab(groupLines[groupOf(run[0].step)], PAD + 10, y0, fullW - 20).svg;
     run = [];
   };
   for (const card of cards) {
@@ -425,17 +457,14 @@ export function flowNarrow(diagram, id, width = 336) {
   out += tabs;
   for (const card of cards) {
     const lane = lanes[card.step.lane];
-    const pad = card.step.decision ? POINT : 0;
+    const { pad, tag, beside, under } = card;
     out += nodeShape(lane.kind, card.step.decision, card.x, card.y, card.w, card.h);
-    // The card's tag: its owner, then what the wide layout shows around the lane (its note, its boundary).
-    const boundary = diagram.boundaries.find((entry) => card.step.lane >= entry.from && card.step.lane <= entry.to);
-    const around = [lane.note, boundary?.label].filter(Boolean).map(unbroken).join(" · ");
-    const tagRoom = card.w - 44 - 2 * pad;
-    const tag = wrap(unbroken(lane.label), tagRoom, 11).slice(0, 1);
-    const rest = around ? wrap(around, tagRoom - blockWidth(tag, 11) - 14, 11).slice(0, 1) : [];
-    out += `<g class="dg-header dg-header-${lane.kind}">${icon(lane.kind, card.x + 11 + pad, card.y + 10, 15)}${textBlock(tag, card.x + 32 + pad, card.y + 21.5, 11, 14, "start", "dg-chip")}</g>`;
-    if (rest.length && rest[0].some((run) => run.text !== "")) out += textBlock(rest, card.x + 32 + pad + blockWidth(tag, 11) + 8, card.y + 21.5, 11, 14, "start", "dg-note");
-    out += textBlock(card.lines, card.x + 12 + pad, card.y + 12 + 16 + 6 + LINE * 0.72, FONT, LINE, "start");
+    const tagX = card.x + 32 + pad;
+    const lastTagY = card.y + 21.5 + (tag.length - 1) * TAG_LINE;
+    out += `<g class="dg-header dg-header-${lane.kind}">${icon(lane.kind, card.x + 11 + pad, card.y + 10, 15)}${textBlock(tag, tagX, card.y + 21.5, 11, TAG_LINE, "start", "dg-chip")}</g>`;
+    if (beside.length) out += textBlock(beside, tagX + lineWidth(tag[tag.length - 1], 11) + 8, lastTagY, 11, TAG_LINE, "start", "dg-note");
+    if (under.length) out += textBlock(under, tagX, lastTagY + TAG_LINE, 11, TAG_LINE, "start", "dg-note");
+    out += textBlock(card.lines, card.x + 12 + pad, card.y + 12 + card.tagH + 6 + LINE * 0.72, FONT, LINE, "start");
   }
   return { width, height: round(height), body: out + labels, boxes };
 }

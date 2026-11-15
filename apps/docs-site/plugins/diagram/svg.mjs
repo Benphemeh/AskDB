@@ -1,6 +1,8 @@
 // Small SVG builders shared by the layouts.
 import { lineWidth } from "./text.mjs";
-import { round } from "./icons.mjs";
+
+/** A coordinate to one decimal place. */
+export const round = (value) => Math.round(value * 10) / 10;
 
 export const escape = (text) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
@@ -56,11 +58,17 @@ export function linkLabel(lines, cx, cy, size, minX, maxX) {
 /** A group's label, as a tab on the top edge of its frame. A link that enters the group passes behind it. */
 export function groupTab(lines, x, y, maxWidth) {
   const width = Math.min(maxWidth, Math.max(...lines.map((line) => lineWidth(line, 11))) + 16);
+  // A label of more than one line grows the tab upward, so it never covers the group's first step.
+  const height = groupTabHeight(lines);
+  const top = y + 9 - height;
   return {
-    rect: { x0: x, y0: y - 9, x1: x + width, y1: y + 9 },
-    svg: `<rect class="dg-group-tab" x="${round(x)}" y="${round(y - 9)}" width="${round(width)}" height="18" rx="9"/>` + textBlock(lines, x + 8, y + 3.8, 11, 14, "start", "dg-group-label"),
+    rect: { x0: x, y0: top, x1: x + width, y1: y + 9 },
+    svg: `<rect class="dg-group-tab" x="${round(x)}" y="${round(top)}" width="${round(width)}" height="${height}" rx="9"/>` + textBlock(lines, x + 8, top + 12.8, 11, 14, "start", "dg-group-label"),
   };
 }
+
+/** How tall a group's tab is for its wrapped label: 18 px for one line, 14 more for each further line. */
+export const groupTabHeight = (lines) => 18 + (lines.length - 1) * 14;
 
 /** A step's outline: a rounded card, or for a decision a card with pointed sides. */
 export function nodeShape(kind, decision, x, y, w, h) {

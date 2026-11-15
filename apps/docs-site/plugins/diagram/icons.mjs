@@ -2,6 +2,8 @@
 // icon is the inside of an <svg>: `icon(kind, x, y, size)` places it. Strokes take `currentColor`;
 // the mark's bubble and sparkles take the accent through the `dg-mark-accent` class.
 
+import { round } from "./svg.mjs";
+
 /** A four-point sparkle centered on (cx, cy). */
 const sparkle = (cx, cy, r) => {
   const k = r * 0.3;
@@ -43,4 +45,3 @@ export function icon(kind, x, y, size) {
   return `<svg class="dg-icon" x="${round(x)}" y="${round(y)}" width="${size}" height="${size}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[kind]}</svg>`;
 }
 
-export const round = (value) => Math.round(value * 10) / 10;

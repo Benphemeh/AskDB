@@ -7,7 +7,7 @@ Machine-readable docs indexes:
 - `/llms.txt` — what AskDB is, the facts not to get wrong, common tasks, and the documentation sets
 - `/llms-full.txt` — full docs content in one file; `/llms-small.txt` — the same, abridged, without the upgrade notes
 - `/_llms-txt/start.txt`, `/_llms-txt/guides.txt`, `/_llms-txt/concepts.txt`, `/_llms-txt/reference.txt` — one section each
-- Every page as Markdown — replace the page URL's trailing slash with `.md`: `/guides/embed-in-node/` is also `/guides/embed-in-node.md`, and the home page is `/index.md`. A diagram comes as its Mermaid source. Each page's `<head>` names its Markdown in a `<link rel="alternate" type="text/markdown">`.
+- Every page as Markdown — replace the page URL's trailing slash with `.md`: `/guides/embed-in-node/` is also `/guides/embed-in-node.md`, and the home page is `/index.md`. A diagram comes as its text: each step with its owner and where it leads, or each message with its sender, then its caption. A Mermaid diagram comes as its source. Each page's `<head>` names its Markdown in a `<link rel="alternate" type="text/markdown">`.
 
 ## What AskDB is
 

@@ -175,11 +175,11 @@ A diagram shows who owns what: each actor (your application, AskDB, your model p
 - Write the diagram in a ```` ```diagram ```` fence in the page, inside a `<figure>`, and end the figure with a `<figcaption>` that says what the diagram shows. Leave a blank line before and after the fence, or MDX doesn't render it.
 - The first line is the kind. `flow` is steps in order, each owned by an actor. `sequence` is messages between actors.
 - `title:` is the diagram's accessible name: one sentence. It is required.
-- `lane <id> [<kind>]: Label | note` declares an actor, left to right. The kind picks the icon and defaults to the id: `app`, `askdb`, `model`, `database`, `files`, `person`, `agent`, `service`. A flow has four lanes at most, and a sequence five. Keep one actor in one lane across a page's diagrams. A lane and a step can't share an id.
+- `lane <id> [<kind>]: Label | note` declares an actor, left to right. The kind picks the icon and defaults to the id: `app`, `askdb`, `model`, `database`, `files`, `person`, `agent`, `service`. A flow has four lanes at most, and a sequence five. Keep one actor in one lane across a page's diagrams. A lane and a step can't share an id. The note is what follows the first ` | ` outside backticks.
 - `boundary Label: <lane> <lane>` frames neighbouring lanes, for "Your stack" and what is outside it.
-- In a flow, `step <id> @<lane>: Label` puts a step on a new row. Start the line with `+` to put it on the previous step's row, for two inputs or for a call across two lanes. `group Label: <step> <step>` frames steps of one lane, such as the ones inside `ask()`; to frame whole lanes, use `boundary`.
+- In a flow, `step <id> @<lane>: Label` puts a step on a new row. Start the line with `+` to put it on the previous step's row, for two inputs or for a call across two lanes. `group Label: <step> <step>` frames steps of one lane that are next to each other in it, such as the ones inside `ask()`; to frame whole lanes, use `boundary`. A long group label wraps and keeps every word.
 - `decide <id> @<lane>: Question?` is a step that asks a question. Each link out of it is an answer, so each needs a label (`check -> commit: yes`).
-- `a -> b: data` links two steps (or, in a sequence, sends a message between two lanes). `..>` draws it dashed: a reply, or an optional path. In a sequence, `a -> a: Label` is the actor's own step.
+- `a -> b: data` links two steps (or, in a sequence, sends a message between two lanes). `..>` draws it dashed: a reply, or an optional path. In a sequence, `a -> a: Label` is the actor's own step. In a flow, a link between two steps on one row can't have a third step between them: put one of the three on another row.
 - Labels take `code` in backticks. Use the same words as the page: command names, package names and terms from "Terminology". Keep a step label under about 40 characters: the kit wraps it to its lane, and a long label makes a tall box. Write `\n` where a line must break, such as between two code names.
 - A link's label sits on its own link, clear of every step and every other label, and wraps when it is long. Give each of two links out of one step its own label.
 - Never write a coordinate, a size or a color. The kit lays the diagram out, and `src/styles/content.css` colors it from the design tokens, so it follows the light and dark toggle.
@@ -201,7 +201,7 @@ question -> sql
 sql -> run: checked SQL
 ```
 
-Two kinds of diagram have no actors, and stay [Mermaid](https://mermaid.js.org/) in a `mermaid` fence, rendered at build time by [pele](https://pele.run) (`plugins/remark-mermaid.mjs`): an entity-relationship diagram (the Quickstart's) and a dependency graph (the package reference's). For those, leave colors to the theme, keep the built SVG at 720 px wide or less, and put maintainer notes on `%%` lines. The home page's hero art (`src/components/HomeHeroDiagram.astro`) is a hand-drawn inline SVG.
+Two kinds of diagram have no actors, and stay [Mermaid](https://mermaid.js.org/) in a `mermaid` fence, rendered at build time by [pele](https://pele.run) (`plugins/remark-mermaid.mjs`): an entity-relationship diagram (the Quickstart's) and a dependency graph (the package reference's). A third Mermaid diagram is left for now: the flowchart in `guides/plan-a-chart.mdx`, which that guide's rewrite (#1008) replaces, and which becomes a `diagram` fence when the rewrite lands. For those, leave colors to the theme, keep the built SVG at 720 px wide or less, and put maintainer notes on `%%` lines. The home page's hero art (`src/components/HomeHeroDiagram.astro`) is a hand-drawn inline SVG.
 
 ## Code samples
 

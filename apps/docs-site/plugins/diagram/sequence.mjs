@@ -1,8 +1,8 @@
 // The layout of a sequence: each actor is a column with a lifeline, and each message is a row.
 // A message from an actor to itself is that actor's own step, drawn as a card on its lifeline.
 // The same function draws the wide and the narrow copy, from different widths.
-import { icon, round } from "./icons.mjs";
-import { arrowMarker, linkLabel, textBlock } from "./svg.mjs";
+import { icon } from "./icons.mjs";
+import { arrowMarker, linkLabel, round, textBlock } from "./svg.mjs";
 import { blockWidth, runs, unbroken, wrap } from "./text.mjs";
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
