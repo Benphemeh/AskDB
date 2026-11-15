@@ -1864,6 +1864,29 @@ describe("ask — tenant guardrail covers custom AskDialect implementations", ()
     expect(warnings[0]!.message).toContain("pg_stats");
   });
 
+  // Under `enforcement: warn` the same SQL comes back, with the finding on the result and in the verdict.
+  it("warn: returns a read of pg_stats beside a scoped query with an UNCHECKABLE_RELATION warning on the result", async () => {
+    const strict = loadSchema(multiTenantDir);
+    const sql =
+      "SELECT v.*, s.m FROM (SELECT count(*) AS n FROM orders WHERE agency_id = :tenant_agency_ids) AS v " +
+      "CROSS JOIN (SELECT string_agg(CAST(most_common_vals AS TEXT), '|' ORDER BY attname) AS m " +
+      "FROM pg_catalog.pg_stats WHERE schemaname = 'public' AND tablename = 'orders') AS s";
+    const result = await ask({
+      question: "q",
+      schema: { ...strict, tenantPolicy: { ...strict.tenantPolicy!, enforcement: "warn" as const } },
+      model: fakeModel,
+      dialect: "postgres",
+      tenantScope: agencyScope,
+      deps: { generateText: vi.fn(async () => ({ text: "```sql\n" + sql + "\n```" })) },
+    });
+
+    expect(result.tenantGuardrail?.passed).toBe(false);
+    expect(result.tenantGuardrail?.warnings.map((w) => [w.rule, w.tableId])).toEqual([["UNCHECKABLE_RELATION", ""]]);
+    expect(result.tenantGuardrail?.warnings[0]!.message).toContain("pg_stats");
+    expect(result.verdict?.outcome).toBe("warn");
+    expect(result.verdict?.findings.map((f) => [f.check, f.rule])).toEqual([["tenant", "UNCHECKABLE_RELATION"]]);
+  });
+
   it("without a tenant policy, custom dialect output is unchanged", async () => {
     const dialect: AskDialect = { generate: async () => ({ sql: "DELETE FROM orders" }) };
     const result = await ask({ question: "q", schema: minimalSchema, model: fakeModel, dialect });

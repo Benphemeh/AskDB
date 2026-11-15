@@ -688,6 +688,11 @@ describe("validateTenantGuardrails — a Postgres statistics relation is refused
     ["in upper case", stats("PG_STATS")],
     ["in mixed case, qualified", stats("PG_Catalog.Pg_Stats")],
     ["with a comment before it", stats("/* x */ pg_stats")],
+    // Postgres skips a comment on either side of the dot, so this is still `pg_catalog.pg_stats`.
+    ["with a comment between the schema's dot and the name", stats("pg_catalog./* x */pg_stats")],
+    ["with comments and spaces around the schema's dot", stats("pg_catalog /* x */ . -- y\n pg_stats")],
+    // The lexer reads `:pg_stats` as a placeholder; Postgres reads `:` and then the name.
+    ["after the colon of an array slice", "SELECT (ARRAY[1, 2])[1:pg_stats] AS v FROM orders WHERE agency_id = :tenant_agency_ids"],
     ["as TABLE pg_stats", "TABLE pg_stats"],
   ])("refuses pg_stats written %s", (_label, sql) => {
     const expected = sql.startsWith("TABLE") ? ["NOT_SELECT_OR_WITH", "UNCHECKABLE_RELATION"] : ["UNCHECKABLE_RELATION"];
@@ -741,10 +746,35 @@ describe("validateTenantGuardrails — a Postgres statistics relation is refused
     ["a column", `SELECT pg_stats FROM orders WHERE agency_id = :tenant_agency_ids`],
     ["an alias", `SELECT note AS pg_statistic FROM orders WHERE agency_id = :tenant_agency_ids`],
     ["a table alias", `SELECT pg_stats.id FROM orders AS pg_stats WHERE pg_stats.agency_id = :tenant_agency_ids`],
+    // The lexer reads `:pg_stats` as one placeholder token, and a listed name in one counts.
+    ["a placeholder", `${scoped} AND note = :pg_stats`],
   ])("refuses a listed name used as %s", (_label, sql) => {
     for (const dialect of everyDialect) {
       expect(rules(sql, dialect), dialect?.id ?? "custom").toEqual(["UNCHECKABLE_RELATION"]);
     }
+  });
+
+  // MySQL reads `"…"` as a string, and with ANSI_QUOTES as a name, so a listed name in one counts.
+  it.each([
+    ["in a table's place", `SELECT * FROM "pg_stats"`],
+    ["as a string value", `${scoped} AND note = "pg_stats"`],
+  ])("refuses a listed name in double quotes under MySQL, %s", (_label, sql) => {
+    expect(rules(sql, MYSQL_DIALECT)).toEqual(["UNCHECKABLE_RELATION"]);
+  });
+
+  // Postgres decodes U&"\0070g_stats" to pg_stats. This rule matches names as written and doesn't
+  // decode it; the Unicode-escape rule refuses the statement instead, under every reading that
+  // includes Postgres.
+  it.each([
+    ["bare", `SELECT * FROM U&"\\0070g_stats"`],
+    ["qualified", `SELECT * FROM pg_catalog.U&"\\0070g_stats"`],
+    ["with UESCAPE", `SELECT * FROM U&"!0070g_stats" UESCAPE '!'`],
+    ["beside a scoped query", `SELECT v.id, s.tablename FROM (${scoped}) AS v CROSS JOIN U&"\\0070g_stats" AS s`],
+  ])("a Unicode-escaped spelling of pg_stats, %s, is refused by the Unicode-escape rule", (_label, sql) => {
+    for (const dialect of [POSTGRES_DIALECT, COCKROACHDB_DIALECT, undefined, customEngine()]) {
+      expect(rules(sql, dialect), String(dialect?.id)).toEqual(["UNICODE_ESCAPED_IDENTIFIER"]);
+    }
+    expect(() => validateTenantGuardrails(sql, policy, agencyScope, { dialect: POSTGRES_DIALECT })).toThrow(TenantGuardrailError);
   });
 
   // Text inside a string literal isn't code, and a longer name isn't a listed one.
