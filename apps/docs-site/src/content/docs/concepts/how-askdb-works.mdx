@@ -7,22 +7,31 @@ AskDB is a function that turns a question and a schema artifact into checked SQL
 
 <figure>
 
-```mermaid
-flowchart TB
-  %% ask()'s steps, and where AskDB stops. Your code (loadSchema()) or the CLI, the HTTP API or
-  %% @askdb/client loads the artifact; ask() takes it loaded. Source of truth:
-  %% packages/core/src/ask.ts (maybeRetrieveDdl, generateSelectSqlForAsk, which builds the
-  %% prompt, then enforceGuardrails).
-  load["1. load the schema artifact"]
-  subgraph askdb["ask()"]
-    retrieve["2. retrieve relevant<br/>chunks (optional)"]
-    prompt["3. build the prompt"]
-    generate["4. generate, with<br/>your model provider"]
-    check["5. check"]
-  end
-  run["your application: review,<br/>approve and run it<br/>under a read-only role"]
-  load --> retrieve --> prompt --> generate --> check
-  check -- "checked SQL" --> run
+```diagram
+flow
+title: The five steps of ask(), and where AskDB stops.
+# ask()'s steps, and where AskDB stops. Your code (loadSchema()) or the CLI, the HTTP API or
+# @askdb/client loads the artifact; ask() takes it loaded. Source of truth:
+# packages/core/src/ask.ts (maybeRetrieveDdl, generateSelectSqlForAsk, which builds the
+# prompt, then enforceGuardrails).
+lane app: Your application
+lane askdb: AskDB
+lane model: Your model provider
+step load @app: 1. load the schema artifact
+step retrieve @askdb: 2. retrieve relevant chunks (optional)
+step prompt @askdb: 3. build the prompt
+step generate @askdb: 4. generate
++ step provider @model: writes the SQL
+step check @askdb: 5. check
+step run @app: review, approve and run it under a read-only role
+group `ask()`: retrieve prompt generate check
+load -> retrieve
+retrieve -> prompt
+prompt -> generate
+generate -> provider: prompt
+provider ..> generate: SQL
+generate -> check
+check -> run: checked SQL
 ```
 
 <figcaption>Your code or the CLI loads the schema artifact, and <code>ask()</code> runs the other four steps, calling your model provider in step 4. It stops at checked SQL: your application reviews, approves and runs it.</figcaption>

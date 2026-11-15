@@ -14,20 +14,21 @@ When a user asks the same question with a new value, such as another month, rebi
 
 <figure>
 
-```mermaid
-sequenceDiagram
-  %% Source of truth: steps 1 and 2 below; AskDbClient.bind in packages/client/src/client.ts and
-  %% bindPreparedQuery in packages/core.
-  participant app as Your app
-  participant askdb as AskDB
-  participant store as Store
-  app->>askdb: ask(question)
-  askdb-->>app: sql, preparedQuery
-  app->>store: save
-  store-->>app: load later
-  app->>askdb: bind(values, tenantScope)
-  askdb->>askdb: re-check
-  askdb-->>app: rebound.sql
+```diagram
+sequence
+title: Prepare once, store the preparedQuery, and bind it with new values later.
+# Source of truth: steps 1 and 2 below; AskDbClient.bind in packages/client/src/client.ts and
+# bindPreparedQuery in packages/core.
+lane askdb: AskDB
+lane app: Your application
+lane store database: Your store
+app -> askdb: `ask(question)`
+askdb ..> app: `sql`, `preparedQuery`
+app -> store: save
+store ..> app: load later
+app -> askdb: `bind(values, tenantScope)`
+askdb -> askdb: re-check
+askdb ..> app: `rebound.sql`
 ```
 
 <figcaption>Prepare once, store the <code>preparedQuery</code>, and bind it with new values later. <code>bind()</code> makes no model call, runs the SQL checks again, and takes tenant IDs from the scope you pass.</figcaption>

@@ -21,16 +21,23 @@ Each layer holds when the one before it misses.
 
 <figure>
 
-```mermaid
-flowchart TB
-  %% Source of truth: packages/core/src/ask.ts and packages/core/src/sql/generate.ts (ask() checks the SQL and returns it, never runs it).
-  %% The layers after ask() are this page's sections.
-  ask["ask() returns SQL<br/>its SQL checks are heuristics"]
-  approval["approval<br/>a person reviews high-stakes SQL"]
-  app["your application runs it<br/>read-only transaction,<br/>row cap, audit log"]
-  role["read-only database role<br/>SELECT grants, statement timeout"]
-  rls["row-level security<br/>keeps rows to the tenant"]
-  ask --> approval --> app --> role --> rls
+```diagram
+flow
+title: The layers around generated SQL, from ask() to row-level security.
+# Source of truth: packages/core/src/ask.ts and packages/core/src/sql/generate.ts (ask() checks the SQL and returns it, never runs it).
+# The layers after ask() are this page's sections.
+lane askdb: AskDB
+lane app: Your application
+lane database: Your database
+step ask @askdb: `ask()` returns SQL; its SQL checks are heuristics
+step approval @app: approval: a person reviews high-stakes SQL
+step run @app: runs it: read-only transaction, row cap, audit log
+step role @database: read-only role: `SELECT` grants, statement timeout
+step rls @database: row-level security keeps rows to the tenant
+ask -> approval
+approval -> run
+run -> role
+role -> rls
 ```
 
 <figcaption>The layers around generated SQL. Only <code>ask()</code> belongs to AskDB. The rest are your application and your database, and the database role is the boundary.</figcaption>

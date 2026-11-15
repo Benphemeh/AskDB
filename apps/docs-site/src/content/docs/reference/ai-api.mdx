@@ -11,24 +11,28 @@ import InstallTabs from "../../../components/InstallTabs.astro";
 
 <figure>
 
-```mermaid
-flowchart TB
-  %% @askdb/ai: how a registry turns settings into a model. A host passes a config section
-  %% (askdb.config) or an env map (no config file); the registry picks the adapter registered for
-  %% the provider name or alias, which resolves an AiConfig and builds the model ask() takes.
-  %% Source of truth: packages/ai/src/registry.ts (createAiRegistry, the *FromSection and *FromEnv
-  %% methods) and provider.ts (AiProviderAdapter).
-  section["config section<br/>rt.ai.language"]
-  env["env map<br/>(no config file)"]
-  registry["registry<br/>createAiRegistry()"]
-  adapter["the provider's adapter<br/>(built in, or yours)"]
-  model["AI SDK LanguageModel"]
-  ask["ask({ model })"]
-  section -- "*FromSection()" --> registry
-  env -- "*FromEnv()" --> registry
-  registry -- "by provider name<br/>or alias" --> adapter
-  adapter -- "resolveConfig…()<br/>createLanguageModel()" --> model
-  model --> ask
+```diagram
+flow
+title: How a registry turns a config section or an env map into the model ask() takes.
+# @askdb/ai: how a registry turns settings into a model. A host passes a config section
+# (askdb.config) or an env map (no config file); the registry picks the adapter registered for
+# the provider name or alias, which resolves an AiConfig and builds the model ask() takes.
+# Source of truth: packages/ai/src/registry.ts (createAiRegistry, the *FromSection and *FromEnv
+# methods) and provider.ts (AiProviderAdapter).
+lane config files: Your config | `askdb.config`
+lane askdb: AskDB
+lane app: Your application
+step section @config: config section `rt.ai.language`
++ step env @app: env map (no config file)
+step registry @askdb: registry: `createAiRegistry()`
+step adapter @askdb: the provider's adapter (built in, or yours)
+step model @askdb: AI SDK `LanguageModel`
+step ask @askdb: `ask({ model })`
+section -> registry: `*FromSection()`
+env -> registry: `*FromEnv()`
+registry -> adapter: by provider name or alias
+adapter -> model: `resolveConfig…()`, `createLanguageModel()`
+model -> ask
 ```
 
 <figcaption>A host passes the registry a config section, or an env map when it has no config file. The registry hands the settings to the adapter registered for the provider, which builds the AI SDK model that <code>ask()</code> takes.</figcaption>

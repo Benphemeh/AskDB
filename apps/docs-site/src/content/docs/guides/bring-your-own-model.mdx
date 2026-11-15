@@ -31,20 +31,28 @@ Same providers, same keys — pick per surface. You can use both in one project 
 
 <figure>
 
-```mermaid
-flowchart TB
-  %% Source of truth: ask() takes model: LanguageModel (packages/core/src/ask.ts, AskPipelineOptions);
-  %% createAskDb builds it with createAiRegistry (packages/client/src/client.ts).
-  owner{"Who owns provider config?"}
-  config["askdb.config.ts<br/>ai.provider"]
-  registry["@askdb/ai registry<br/>(createAskDb or createAiRegistry)"]
-  app["Your app<br/>env vars, secrets manager, flags"]
-  sdk["An AI SDK provider package<br/>such as @ai-sdk/openai"]
-  model["A plain AI SDK LanguageModel"]
-  ask["ask()"]
-  owner -- "askdb.config.ts" --> config --> registry --> model
-  owner -- "your app" --> app --> sdk --> model
-  model --> ask
+```diagram
+flow
+title: Two paths to the plain AI SDK LanguageModel that ask() takes, picked by who owns provider config.
+# Source of truth: ask() takes model: LanguageModel (packages/core/src/ask.ts, AskPipelineOptions);
+# createAskDb builds it with createAiRegistry (packages/client/src/client.ts).
+lane app: Your application
+lane cfg files: Config file
+lane askdb: AskDB
+decide owner @app: who owns provider config?
+step env @app: env vars, secrets manager, flags
++ step provider @cfg: `askdb.config.ts`: `ai.provider`
+step sdk @app: an AI SDK provider package, such as `@ai-sdk/openai`
++ step registry @askdb: `@askdb/ai` registry: `createAskDb` or `createAiRegistry`
+step model @app: a plain AI SDK `LanguageModel`
+step ask @askdb: `ask()`
+owner -> provider: `askdb.config.ts`
+owner -> env: your app
+provider -> registry
+registry -> model
+env -> sdk
+sdk -> model
+model -> ask
 ```
 
 <figcaption>Both paths end in the same object. The config path builds a plain AI SDK <code>LanguageModel</code> with <code>@askdb/ai</code>'s registry; the code path builds it with the provider's AI SDK package. <code>ask()</code> takes that model either way.</figcaption>

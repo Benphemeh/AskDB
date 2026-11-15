@@ -9,16 +9,19 @@ A `subtree` scope says "these IDs and everything beneath them". An agency admini
 
 <figure>
 
-```mermaid
-flowchart TB
-  %% Source of truth: packages/core/src/sql/tenant-hierarchy.ts (the subtree expands to a multi_root scope, one entry per root).
-  scope["subtree scope<br/>tenantRoot: agencies<br/>rootIds: 1"]
-  a["agencies<br/>:tenant_agency_ids = 1"]
-  s["sub_agencies<br/>:tenant_sub_agency_ids = 5"]
-  c["clients<br/>:tenant_client_ids = 5"]
-  scope -- "seed" --> a
-  a -- "sub_agencies.agency_id" --> s
-  s -- "clients.sub_agency_id" --> c
+```diagram
+flow
+title: What a subtree scope covers: the seed agency, its sub-agencies and their clients.
+# Source of truth: packages/core/src/sql/tenant-hierarchy.ts (the subtree expands to a multi_root scope, one entry per root).
+lane app: Your application
+lane database: Your database
+step scope @app: `subtree` scope, `tenantRoot: agencies`, `rootIds: 1`
+step agencies @database: `agencies`,\n`:tenant_agency_ids` = 1
+step sub @database: `sub_agencies`,\n`:tenant_sub_agency_ids` = 5
+step clients @database: `clients`,\n`:tenant_client_ids` = 5
+scope -> agencies: seed
+agencies -> sub: `sub_agencies.agency_id`
+sub -> clients: `clients.sub_agency_id`
 ```
 
 <figcaption>What a <code>subtree</code> scope covers. The seed agency, its sub-agencies and their clients each get their own placeholder and their own IDs.</figcaption>

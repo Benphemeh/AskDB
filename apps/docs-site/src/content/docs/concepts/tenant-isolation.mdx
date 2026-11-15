@@ -9,24 +9,31 @@ With a tenant policy, AskDB helps the model write the tenant filter, checks that
 
 <figure>
 
-```mermaid
-flowchart TB
-  %% AskDB's three tenant steps, then the database as the boundary. Source of truth:
-  %% packages/core/src/ask.ts (the tenant policy and scope go to the generator; enforceGuardrails
-  %% checks the model's forms with the :tenant_<root>_ids placeholders still in place; the tenant
-  %% rendering then binds the IDs), packages/core/src/sql/tenant-guardrail.ts.
-  policy["tenant-policy.md,<br/>in the schema artifact"]
-  scope["your application:<br/>authorizes the caller,<br/>passes tenantScope"]
-  subgraph askdb["ask()"]
-    prompt["1. prompt: filter with<br/>:tenant_organization_ids"]
-    check["2. check: a tenant predicate<br/>on each scoped table"]
-    bind["3. bind: the caller's<br/>tenant IDs"]
-  end
-  db[("the database: row-level<br/>security returns only<br/>the caller's rows")]
-  policy --> prompt
-  scope --> prompt
-  prompt --> check --> bind
-  bind -- "your application<br/>runs the SQL" --> db
+```diagram
+flow
+title: AskDB's three tenant steps, then the database as the boundary.
+# AskDB's three tenant steps, then the database as the boundary. Source of truth:
+# packages/core/src/ask.ts (the tenant policy and scope go to the generator; enforceGuardrails
+# checks the model's forms with the :tenant_<root>_ids placeholders still in place; the tenant
+# rendering then binds the IDs), packages/core/src/sql/tenant-guardrail.ts.
+lane files: Schema artifact
+lane askdb: AskDB
+lane app: Your application
+lane database: Your database
+step policy @files: `tenant-policy.md`
++ step scope @app: authorizes the caller, passes `tenantScope`
+step prompt @askdb: 1. prompt: filter with `:tenant_organization_ids`
+step check @askdb: 2. check: a tenant predicate on each scoped table
+step bind @askdb: 3. bind: the caller's tenant IDs
+step run @app: runs the SQL
++ step db @database: row-level security returns only the caller's rows
+group `ask()`: prompt check bind
+policy -> prompt
+scope -> prompt
+prompt -> check
+check -> bind
+bind -> run
+run -> db
 ```
 
 <figcaption>AskDB prompts for the tenant filter, checks the SQL while the placeholder is in place, and binds the caller's tenant IDs. The database, with row-level security or per-tenant views, is what keeps the rows to the caller's tenants.</figcaption>

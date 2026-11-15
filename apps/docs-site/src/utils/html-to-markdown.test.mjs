@@ -32,6 +32,16 @@ test("a code block with inserted and deleted lines becomes a diff", async () => 
   assert.equal(await convert(html), "```diff\n const a = 1;\n-const b = 2;\n+const b = 3;\n```");
 });
 
+test("an AskDB diagram is written as its text alternative, then its caption", async () => {
+  const html =
+    `<figure><div class="askdb-diagram" data-diagram="sequence">` +
+    `<svg class="dg dg-wide" role="img" aria-label="One request."><text class="dg-text">Your handler</text><svg class="dg-icon" aria-hidden="true"><path d="M0 0"></path></svg></svg>` +
+    `<svg class="dg dg-narrow" role="img" aria-label="One request."><text class="dg-text">Your handler</text></svg>` +
+    `<ol class="dg-text-alt"><li><strong>Your handler → AskDB:</strong> <code>ask(question)</code></li><li><strong>AskDB:</strong> run the SQL checks</li></ol>` +
+    `</div><figcaption>One request.</figcaption></figure>`;
+  assert.equal(await convert(html), "1. **Your handler → AskDB:** `ask(question)`\n2. **AskDB:** run the SQL checks\n\n*Figure: One request.*");
+});
+
 test("a file tree becomes a text fence, one entry per line with its comment", async () => {
   const icon = `<span><svg viewBox="0 0 24 24"><path d="M0 0"></path></svg></span>`;
   const directory = `<span><span class="sr-only">Directory</span><svg viewBox="0 0 24 24"><path d="M0 0"></path></svg></span>`;

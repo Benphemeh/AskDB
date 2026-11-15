@@ -15,7 +15,7 @@ Pick your branch: a **page** (content under `src/content/docs/`) or the **look**
 2. **Name the page's Diátaxis type and its reader's goal in one sentence.** A page is one type. Content of another type moves to that type's page and leaves a link.
 3. **Trace every fact to source.** Each API, option, default, flag, path and error on the page matches `packages/*` or `apps/*` today. When you restructure a page, every fact, caveat and link that was on it is still on it or on the page you moved it to: diff the old and new text to check.
 4. **Shape the page to "Page anatomy" in STYLE.md.** Lede first, then the body for its type, then "Use with your agent" on a task guide, then "Read next".
-5. **Give each section its form from the "Visuals" table in STYLE.md.** Walk the page section by section and ask what the content is: a flow or boundary gets a diagram, files get a `FileTree`, a lookup gets a table, a file's contents get a titled code block. Prose that already reads well stays prose.
+5. **Give each section its form from the "Visuals" table in STYLE.md.** Walk the page section by section and ask what the content is: a flow, a boundary or an ownership split gets a diagram (a `diagram` fence: STYLE.md, "Diagrams"), files get a `FileTree`, a lookup gets a table, a file's contents get a titled code block. Prose that already reads well stays prose.
 6. **Look at it.** Start the dev server (`pnpm docs:dev`, port 4310) and screenshot the page in both themes and at phone width, then read the images:
 
    ```bash
@@ -25,7 +25,7 @@ Pick your branch: a **page** (content under `src/content/docs/`) or the **look**
    ```
 
    `--selector "<css>"` scrolls to one element instead of capturing the whole page. Fix what you see: a diagram wider than the column, a table that scrolls sideways at 1440, a wall of text with nothing to anchor the eye, an aside stack.
-7. **Read it as an agent.** `curl -s http://127.0.0.1:4310/guides/<page>.md` and read the Markdown top to bottom. Every tab label, code title, caption and diagram label must make sense there, with no fact left behind in layout.
+7. **Read it as an agent.** `curl -s http://127.0.0.1:4310/guides/<page>.md` and read the Markdown top to bottom. Every tab label, code title, caption and diagram step must make sense there, with no fact left behind in layout.
 8. **Run the checks** from `apps/docs-site`: `pnpm test` (builds, then checks links, anchors, exports, the error reference and the Markdown twins) and `pnpm lint`. Add a patch changeset for `@askdb/docs-site`.
 
 Done when the screenshots look deliberate in both themes and at 390 px, the twin reads cleanly, every fact from step 3 is accounted for, and both checks pass.

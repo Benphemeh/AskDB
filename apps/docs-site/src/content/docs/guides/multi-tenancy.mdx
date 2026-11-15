@@ -9,18 +9,24 @@ In a multi-tenant schema, each user should see only their own tenants' rows. Dec
 
 <figure>
 
-```mermaid
-flowchart TB
-  %% Source of truth: packages/core/src/ask.ts (expandTenantScope, enforceGuardrails, then binding) and packages/core/src/sql/tenant-guardrail.ts.
-  app["your application<br/>authorizes the tenant IDs"]
-  policy["tenant policy<br/>in the schema artifact"]
-  ask["ask() with tenantScope<br/>the model writes tenant placeholders"]
-  check["tenant check<br/>looks for a predicate on each scoped table"]
-  bind["binds your tenant IDs<br/>result.sql, result.tenantParams"]
-  run["your application runs it<br/>the database is the<br/>boundary"]
-  app --> ask
-  policy --> ask
-  ask --> check --> bind --> run
+```diagram
+flow
+title: The path of one tenant-scoped request.
+# Source of truth: packages/core/src/ask.ts (expandTenantScope, enforceGuardrails, then binding) and packages/core/src/sql/tenant-guardrail.ts.
+lane files: Schema artifact
+lane askdb: AskDB
+lane app: Your application
+step policy @files: the tenant policy
++ step authorize @app: authorizes the tenant IDs
+step ask @askdb: `ask()` with `tenantScope`: the model writes tenant placeholders
+step check @askdb: tenant check: a predicate on each scoped table
+step bind @askdb: binds your tenant IDs: `result.sql`, `result.tenantParams`
+step run @app: runs it; the database is the boundary
+policy -> ask
+authorize -> ask
+ask -> check
+check -> bind
+bind -> run
 ```
 
 <figcaption>The path of one request. Your application decides the tenant IDs and runs the SQL. AskDB prompts, checks and binds in between.</figcaption>

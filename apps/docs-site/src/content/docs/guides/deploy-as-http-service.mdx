@@ -108,20 +108,22 @@ A typical production shape:
 
 <figure>
 
-```mermaid
-flowchart TB
-  %% The server generates SQL and never connects to the database: the gateway runs the SQL.
-  %% Source of truth: apps/http-api/src/server.ts (POST /ask returns SQL only).
-  client["client"]
-  gateway["your API gateway<br/>auth, rate limits, TLS"]
-  http["@askdb/http-api"]
-  model["your model provider"]
-  db["read-only database role"]
-  client --> gateway
-  gateway -- "question" --> http
-  http -- "checked SQL" --> gateway
-  http -- "prompt" --> model
-  gateway -- "runs the SQL" --> db
+```diagram
+sequence
+title: Your gateway asks the HTTP server for SQL and runs it itself.
+# The server generates SQL and never connects to the database: the gateway runs the SQL.
+# Source of truth: apps/http-api/src/server.ts (POST /ask returns SQL only).
+lane client service: Client
+lane gateway app: Your API gateway
+lane http askdb: `@askdb/http-api`
+lane model: Your model provider
+lane db database: Your database
+client -> gateway: request
+gateway -> gateway: auth, rate limits, TLS
+gateway -> http: question
+http -> model: prompt
+http ..> gateway: checked SQL
+gateway -> db: runs the SQL under a read-only role
 ```
 
 <figcaption>Your gateway authenticates the caller, asks <code>@askdb/http-api</code> for SQL, and runs it under a read-only role. The server never connects to your database.</figcaption>

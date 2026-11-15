@@ -144,8 +144,10 @@ function quoteAsides(tree: Root) {
 }
 
 /**
- * A figure to its content, then its caption as a paragraph that starts "Figure:". A diagram's SVG
- * becomes its Mermaid source when the page's sources are known, and is dropped otherwise.
+ * A figure to its content, then its caption as a paragraph that starts "Figure:". A Mermaid
+ * diagram's SVG becomes its Mermaid source when the page's sources are known, and is dropped
+ * otherwise. One of AskDB's own diagrams (plugins/remark-diagram.mjs) carries its text alternative
+ * as a list beside its two SVGs: the SVGs are dropped here, and the list is what the twin prints.
  */
 function describeFigures(tree: Root, diagrams: string[] | undefined) {
   const svgs = selectAll("svg.pele", tree);

@@ -23,30 +23,33 @@ When you pass a retriever, `ask()` retrieves on every call, unless you also pass
 
 <figure>
 
-```mermaid
-flowchart TB
-  %% @askdb/rag: indexing writes the vector store once per schema change; each ask() with a
-  %% retriever reads it. Indexing embeds only the chunks the store doesn't already hold with the
-  %% same content hash. A question is embedded on every call.
-  %% Source of truth: buildSchemaIndex and createRetriever (default k 8) in packages/rag, and
-  %% synthesizeRetrievedDdl in packages/core/src/retrieval/synthesize-ddl.ts.
-  subgraph index["Indexing: once per schema change"]
-    artifact["schema artifact"]
-    chunks["chunks"]
-    artifact -- "buildSchemaIndex" --> chunks
-  end
-  store[("vector store")]
-  chunks -- "embedding model:<br/>new or changed chunks" --> store
-  subgraph query["Each ask() call"]
-    question["your question"]
-    retrieved["retrieved chunks<br/>(top k, 8 by default)"]
-    prompt["ask()'s prompt:<br/>each table a chunk<br/>points to, in full"]
-    sql["checked SQL"]
-    retrieved --> prompt
-    prompt -- "language model" --> sql
-  end
-  question -- "embedding model" --> store
-  store -- "nearest chunks" --> retrieved
+```diagram
+flow
+title: Indexing stores the schema's chunk embeddings once; each ask() call retrieves the nearest chunks.
+# @askdb/rag: indexing writes the vector store once per schema change; each ask() with a
+# retriever reads it. Indexing embeds only the chunks the store doesn't already hold with the
+# same content hash. A question is embedded on every call.
+# Source of truth: buildSchemaIndex and createRetriever (default k 8) in packages/rag, and
+# synthesizeRetrievedDdl in packages/core/src/retrieval/synthesize-ddl.ts.
+lane files: Schema artifact
+lane app: Your application
+lane askdb: AskDB
+lane store database: Vector store
+step artifact @files: schema artifact
+step chunks @askdb: chunks
+step question @app: your question
++ step vectors @store: vector store
+step retrieved @askdb: retrieved chunks (top k, 8 by default)
+step prompt @askdb: `ask()`'s prompt: each table a chunk points to, in full
+step sql @askdb: checked SQL
+group Once per schema change: chunks
+group Each `ask()` call: retrieved prompt sql
+artifact -> chunks: `buildSchemaIndex`
+chunks -> vectors: embedding model: new or changed chunks
+question -> vectors: embedding model
+vectors -> retrieved: nearest chunks
+retrieved -> prompt
+prompt -> sql: language model
 ```
 
 <figcaption>Indexing chunks the schema artifact and stores the chunks' embeddings, once per schema change. Each <code>ask()</code> call embeds only the question, retrieves the nearest chunks, and lists in the prompt each table they point to.</figcaption>

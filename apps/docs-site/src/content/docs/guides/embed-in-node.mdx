@@ -16,21 +16,22 @@ A handler has two parts. The first gets SQL for a question from AskDB, and the s
 
 <figure>
 
-```mermaid
-sequenceDiagram
-  %% Source of truth: ask() in packages/core/src/ask.ts. dialect.generate() calls the model,
-  %% then enforceGuardrails() runs the SQL checks; a deny throws. AskDB opens no connection.
-  participant handler as Your handler
-  participant askdb as AskDB
-  participant model as Model provider
-  participant driver as Your driver
-  handler->>askdb: ask(question)
-  askdb->>model: question, schema
-  model-->>askdb: SQL
-  askdb->>askdb: run the SQL checks
-  askdb-->>handler: sql, tenantParams
-  handler->>driver: run sql (read-only)
-  driver-->>handler: rows
+```diagram
+sequence
+title: One request, from your handler through ask() to your own database driver.
+# Source of truth: ask() in packages/core/src/ask.ts. dialect.generate() calls the model,
+# then enforceGuardrails() runs the SQL checks; a deny throws. AskDB opens no connection.
+lane handler app: Your handler
+lane askdb: AskDB
+lane model: Model provider
+lane driver database: Your driver
+handler -> askdb: `ask(question)`
+askdb -> model: question, schema
+model ..> askdb: SQL
+askdb -> askdb: run the SQL checks
+askdb ..> handler: `sql`, `tenantParams`
+handler -> driver: run `sql` (read-only)
+driver ..> handler: rows
 ```
 
 <figcaption>One request. Your handler calls AskDB's <code>ask()</code>, AskDB calls your model provider and runs the SQL checks on what comes back, and your handler runs the checked SQL through its own database driver. AskDB never opens a database connection.</figcaption>
