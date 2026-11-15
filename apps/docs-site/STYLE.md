@@ -135,7 +135,7 @@ Agents are the site's second reader, so each page must read well as plain Markdo
 
 ## Components
 
-- `InstallTabs` (`<InstallTabs pkgs="…" />`) for every package install. The Quickstart is the exception: it uses hand-written `Tabs` (`syncKey="pkg"`) for npm, pnpm and Yarn, since its install is a dev dependency, which `InstallTabs` can't express.
+- `InstallTabs` (`<InstallTabs pkgs="…" />`) for every package install. Two pages use hand-written `Tabs` (`syncKey="pkg"`) for npm, pnpm and Yarn instead: the Quickstart, since its install is a dev dependency, and "Chart your first answer", since its Yarn tab adds `zod` and runs the script with `yarn node`. `InstallTabs` can't express either.
 - `Tabs` with a `syncKey` so choices persist site-wide: `pkg` (labels exactly npm / pnpm / yarn), `engine` (labels exactly PostgreSQL / MySQL / SQLite / SQL Server, in that order; a tab covers MariaDB under MySQL; add engine tabs wherever a page shows code that differs by engine), `wiring` (config-driven vs direct model).
 - `Aside` for a real hazard or a fact the reader must not miss: `note`, `tip`, `caution`, `danger`. At most two on a page. A prerequisite goes in "Before you start", not an aside.
 - `Steps` (from `@astrojs/starlight/components`) for a short procedure inside a section. A guide's main procedure uses numbered `##` headings instead, so each step is in the table of contents.

@@ -89,7 +89,15 @@ test("the tutorial's first-chart.mjs blocks build up to the example's file, step
       at = fileLines.indexOf(line, at) + 1;
       assert.notEqual(at, 0, `step ${index + 1} has a line that isn't in first-chart.mjs, or is out of order: ${line}`);
     }
-    if (index > 0) assert.ok(block.length > blocks[index - 1].length, `step ${index + 1} adds lines to step ${index}`);
+    if (index === 0) continue;
+    assert.ok(block.length > blocks[index - 1].length, `step ${index + 1} adds lines to step ${index}`);
+    // And it drops none: every line of the step before is still there, in order.
+    const lines = block.split("\n");
+    let kept = 0;
+    for (const line of blocks[index - 1].split("\n")) {
+      kept = lines.indexOf(line, kept) + 1;
+      assert.notEqual(kept, 0, `step ${index + 1} lost a line that step ${index} had: ${line}`);
+    }
   }
 });
 

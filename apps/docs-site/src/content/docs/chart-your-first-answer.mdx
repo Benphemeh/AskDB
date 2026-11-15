@@ -25,7 +25,7 @@ You need:
 
 The two files we'll write, `first-chart.mjs` and `to-echarts.mjs`, are in <ExampleLink path="examples/chart-a-result" />. Compare yours with them if a step doesn't work.
 
-The output on this page is from one recorded run of that example, with gpt-4o-mini on 2026-11-15. The model writes the SQL and the chart's title, so yours can differ.
+The output on this page is from one recorded run of that example's `chart.mjs`, with gpt-4o-mini on 2026-11-15. The model writes the SQL and the chart's title, so yours can differ.
 
 ## 1. Ask the question from a script
 
@@ -321,7 +321,7 @@ That's our chart. ECharts drew it from the four rows our own code read from `sho
 
 We asked a question from a script and ran the SQL ourselves. `classifyResult()` described the columns in our own process, `planChart()` had the model pick a chart from that description, and ECharts drew the chart from our rows. AskDB returned the SQL and the chart spec. Our code did the running and the drawing.
 
-Try another question: change `question` to "How many orders did each product get?", run the script, and open `chart.svg` again. The script draws any answer that has rows to group and a number to plot. [Chart a query result](/guides/plan-a-chart/) handles the others, such as an answer that is one number.
+Try another question: change `question` to "How many units of each product were sold?", run the script, and open `chart.svg` again. The script draws any answer that has rows to group and a number to plot. For any other answer, such as one number or one with no chart, it stops with an error at the drawing step. [Chart a query result](/guides/plan-a-chart/) handles those.
 
 ## Use with your agent
 
