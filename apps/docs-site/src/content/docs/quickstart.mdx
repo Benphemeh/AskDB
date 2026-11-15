@@ -547,13 +547,13 @@ We made a database, and AskDB read its schema. Then we asked a question in plain
 
 ## Use your own database
 
-Your own database works the same way. In your project, run `askdb init` for its engine. Then fill in `.env` as in step 3, with the database's location in `DATABASE_URL`, and run `askdb introspect` and `askdb ask` as in steps 4 and 5.
+Your own database works the same way. In your project, run `askdb init` for its engine, with `--ai-provider` if you don't use OpenAI, as in step 2. Then fill in `.env` as in step 3, with the database's location in `DATABASE_URL`. Run `askdb introspect` and `askdb ask` as in steps 4 and 5.
 
 <Tabs syncKey="engine">
   <TabItem label="PostgreSQL">
 
 ```bash
-npx askdb init --database postgres
+npx askdb init --yes --database postgres
 ```
 
 ```bash title=".env"
@@ -564,7 +564,7 @@ DATABASE_URL=postgres://user:password@localhost:5432/app
   <TabItem label="MySQL">
 
 ```bash
-npx askdb init --database mysql
+npx askdb init --yes --database mysql
 ```
 
 ```bash title=".env"
@@ -575,7 +575,7 @@ DATABASE_URL=mysql://user:password@localhost:3306/app
   <TabItem label="SQLite">
 
 ```bash
-npx askdb init --database sqlite --sqlite-file ./app.db
+npx askdb init --yes --database sqlite --sqlite-file ./app.db
 ```
 
 SQLite needs no `DATABASE_URL`: the config reads the file you name with `--sqlite-file`.
@@ -584,7 +584,7 @@ SQLite needs no `DATABASE_URL`: the config reads the file you name with `--sqlit
   <TabItem label="SQL Server">
 
 ```bash
-npx askdb init --database sqlserver
+npx askdb init --yes --database sqlserver
 ```
 
 ```bash title=".env"
@@ -631,8 +631,9 @@ The SQLite driver, `better-sqlite3`, has prebuilt binaries only for the systems 
 
 ## Read next
 
+The files this tutorial had you type are in <ExampleLink path="examples/quickstart-shop" />. The "Skip the typing" tip at the top of this page has the command that fetches them.
+
 <div class="home-path-grid">
-  <a href="https://github.com/Ygilany/AskDB/tree/main/examples/quickstart-shop"><strong>The finished example</strong><span>This tutorial's files, ready to fetch with gitpick, from the "Skip the typing" tip.</span></a>
   <a href="/studio/"><strong>Studio</strong><span>Describe tables and columns, and test questions in your browser, to improve the SQL the model writes.</span></a>
   <a href="/guides/embed-in-node/"><strong>Embed in a Node app</strong><span>Call AskDB from a TypeScript service and run the SQL through your own database driver.</span></a>
   <a href="/guides/deploy-as-http-service/"><strong>Deploy as an HTTP service</strong><span>Let Python, browsers or agents ask questions over HTTP.</span></a>
