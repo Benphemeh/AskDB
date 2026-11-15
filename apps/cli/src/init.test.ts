@@ -23,6 +23,20 @@ vi.mock("@inquirer/prompts", () => ({
 
 const FAKE_SPECS: InitDepSpecs = { configSpec: "1.0.0", prismaSpec: "0.2.0" };
 
+/** Make stdin and stdout look like a terminal; returns the function that puts them back. */
+function fakeTty(): () => void {
+  const stdinTTY = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
+  const stdoutTTY = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");
+  Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true });
+  Object.defineProperty(process.stdout, "isTTY", { value: true, configurable: true });
+  return () => {
+    if (stdinTTY) Object.defineProperty(process.stdin, "isTTY", stdinTTY);
+    else delete (process.stdin as { isTTY?: boolean }).isTTY;
+    if (stdoutTTY) Object.defineProperty(process.stdout, "isTTY", stdoutTTY);
+    else delete (process.stdout as { isTTY?: boolean }).isTTY;
+  };
+}
+
 /** A prompter that always accepts the default (like pressing Enter), recording every message asked. */
 function createRecordingPrompter(): { prompter: InitPrompter; messages: string[] } {
   const messages: string[] = [];
@@ -210,10 +224,7 @@ describe("runInitCli --yes --skip-install", () => {
 
   it.each(["--no-interactive", "--yes"])("%s never prompts, even in a TTY", async (flag) => {
     const tmp = mkdtempSync(join(tmpdir(), "askdb-init-test-"));
-    const stdinTTY = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
-    const stdoutTTY = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");
-    Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true });
-    Object.defineProperty(process.stdout, "isTTY", { value: true, configurable: true });
+    const restoreTty = fakeTty();
     try {
       const outPath = join(tmp, "askdb.config.ts");
       const code = await runInitCli([flag, "--skip-install", "--path", outPath]);
@@ -224,10 +235,7 @@ describe("runInitCli --yes --skip-install", () => {
       expect(input).not.toHaveBeenCalled();
       expect(confirm).not.toHaveBeenCalled();
     } finally {
-      if (stdinTTY) Object.defineProperty(process.stdin, "isTTY", stdinTTY);
-      else delete (process.stdin as { isTTY?: boolean }).isTTY;
-      if (stdoutTTY) Object.defineProperty(process.stdout, "isTTY", stdoutTTY);
-      else delete (process.stdout as { isTTY?: boolean }).isTTY;
+      restoreTty();
       rmSync(tmp, { recursive: true, force: true });
     }
   });
@@ -410,21 +418,22 @@ describe("runInitCli --yes --skip-install", () => {
 
 // #988: in a terminal without --yes, a flag answers its wizard question instead of being dropped.
 describe("runInitCli wizard in a TTY", () => {
-  const stdinTTY = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
-  const stdoutTTY = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");
   let tmp: string;
   let asked: string[];
+  /** The choice to pick for a select prompt, by message; any other prompt takes its default. */
+  let picks: Record<string, string>;
+  let restoreTty: () => void;
 
   beforeEach(() => {
     tmp = mkdtempSync(join(tmpdir(), "askdb-init-wizard-"));
     asked = [];
-    Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true });
-    Object.defineProperty(process.stdout, "isTTY", { value: true, configurable: true });
+    picks = {};
+    restoreTty = fakeTty();
     vi.spyOn(process.stdout, "write").mockReturnValue(true);
-    // Every prompt is answered with its default, like pressing Enter.
+    // Every prompt is answered with its default, like pressing Enter, unless `picks` names a choice.
     vi.mocked(select).mockImplementation((async (opts: { message: string; default?: unknown; choices: Array<{ value: unknown }> }) => {
       asked.push(opts.message);
-      return opts.default ?? opts.choices[0]!.value;
+      return picks[opts.message] ?? opts.default ?? opts.choices[0]!.value;
     }) as unknown as typeof select);
     vi.mocked(input).mockImplementation((async (opts: { message: string; default?: string }) => {
       asked.push(opts.message);
@@ -439,10 +448,7 @@ describe("runInitCli wizard in a TTY", () => {
   afterEach(() => {
     for (const prompt of [select, input, confirm]) vi.mocked(prompt).mockReset().mockRejectedValue(new Error("unexpected prompt"));
     vi.mocked(process.stdout.write).mockRestore();
-    if (stdinTTY) Object.defineProperty(process.stdin, "isTTY", stdinTTY);
-    else delete (process.stdin as { isTTY?: boolean }).isTTY;
-    if (stdoutTTY) Object.defineProperty(process.stdout, "isTTY", stdoutTTY);
-    else delete (process.stdout as { isTTY?: boolean }).isTTY;
+    restoreTty();
     rmSync(tmp, { recursive: true, force: true });
   });
 
@@ -482,8 +488,24 @@ describe("runInitCli wizard in a TTY", () => {
       skipped: ["Database source", "Schema output directory"],
     },
     {
-      flags: ["--ai-provider", "anthropic", "--ai-key-env", "CLAUDE_KEY"],
-      config: ['provider: "anthropic"', 'apiKey: env("CLAUDE_KEY")'],
+      flags: ["--database", "prisma", "--prisma-schema", "./db/schema.prisma", "--no-studio-execute"],
+      config: ['"./db/schema.prisma"'],
+      skipped: [
+        "Database source",
+        "Path to schema.prisma",
+        "Enable Studio execute (run generated SQL read-only from the browser playground)?",
+      ],
+    },
+    {
+      // Prisma has no live database, so the wizard asks which one execute uses; --sqlite-file names its file.
+      flags: ["--database", "prisma", "--studio-execute", "--sqlite-file", "./exec.db"],
+      picks: { "Studio execute needs a live database provider. Which one?": "sqlite" },
+      config: ['file: "./exec.db"', "enabled: true"],
+      skipped: ["SQLite file path for Studio execute"],
+    },
+    {
+      flags: ["--ai-provider", "anthropic", "--ai-key-env", "CLAUDE_KEY", "--ai-model-env", "CLAUDE_MODEL"],
+      config: ['provider: "anthropic"', 'apiKey: env("CLAUDE_KEY")', 'model: env("CLAUDE_MODEL")'],
       skipped: ["AI provider"],
     },
     {
@@ -491,7 +513,9 @@ describe("runInitCli wizard in a TTY", () => {
       config: ['env("VEC_URL")', "enabled: true"],
       skipped: ["RAG store", "Enable Studio execute (run generated SQL read-only from the browser playground)?"],
     },
-  ])("$flags answer their questions, and the wizard skips them", async ({ flags, config, skipped }) => {
+  ] as Array<{ flags: string[]; picks?: Record<string, string>; config: string[]; skipped: string[] }>)(
+    "$flags answer their questions, and the wizard skips them", async ({ flags, picks: rowPicks, config, skipped }) => {
+    picks = rowPicks ?? {};
     const written = await initInTty(flags);
     for (const text of config) expect(written).toContain(text);
     for (const message of skipped) expect(asked).not.toContain(message);

@@ -430,17 +430,17 @@ function validatePath(value: string): true | string {
   return true;
 }
 
-/** The answer a flag gave (`given`), or else the user's answer to `prompt`. */
-async function flagOrAsk<T>(given: T | undefined, prompt: () => Promise<T>): Promise<T> {
-  return given !== undefined ? given : prompt();
+/** The answer a flag gave (`fromFlag`), or else the user's answer to `prompt`. */
+async function flagOrAsk<T>(fromFlag: T | undefined, prompt: () => Promise<T>): Promise<T> {
+  return fromFlag !== undefined ? fromFlag : prompt();
 }
 
 /**
- * The wizard's answers. A question whose flag is in `given` takes the flag's value and isn't
+ * The wizard's answers. A question whose flag is in `overrides` takes the flag's value and isn't
  * asked (#988); the rest are prompted for.
  */
-export async function runWizard(prompter: InitPrompter, given: InitAnswerOverrides = {}): Promise<InitAnswers> {
-  const database = await flagOrAsk(given.database, () =>
+export async function runWizard(prompter: InitPrompter, overrides: InitAnswerOverrides = {}): Promise<InitAnswers> {
+  const database = await flagOrAsk(overrides.database, () =>
     prompter.select<InitAnswers["database"]>({
       message: "Database source",
       choices: [
@@ -455,7 +455,7 @@ export async function runWizard(prompter: InitPrompter, given: InitAnswerOverrid
   );
 
   // Env var NAMES are not prompted for — we use conventional defaults
-  // (DATABASE_URL, OPENAI_API_KEY, ...) and tell the user afterward that
+  // (DATABASE_URL, OPENAI_API_KEY, ...) unless a flag names one, and tell the user afterward that
   // they can rename any of them by editing the `env("...")` calls in the
   // generated askdb.config.ts. Only real, undefaultable decisions (file
   // paths, provider choices) get a prompt.
@@ -464,7 +464,7 @@ export async function runWizard(prompter: InitPrompter, given: InitAnswerOverrid
   let prismaSchema: string | undefined;
 
   if (database === "sqlite") {
-    sqliteFile = await flagOrAsk(given.sqliteFile, async () =>
+    sqliteFile = await flagOrAsk(overrides.sqliteFile, async () =>
       (
         await prompter.input({
           message: "SQLite file path",
@@ -474,7 +474,7 @@ export async function runWizard(prompter: InitPrompter, given: InitAnswerOverrid
       ).trim(),
     );
   } else if (database === "prisma") {
-    prismaSchema = await flagOrAsk(given.prismaSchema, () =>
+    prismaSchema = await flagOrAsk(overrides.prismaSchema, () =>
       prompter.input({
         message: "Path to schema.prisma",
         default: "./prisma/schema.prisma",
@@ -482,10 +482,10 @@ export async function runWizard(prompter: InitPrompter, given: InitAnswerOverrid
       }),
     );
   } else {
-    connectionEnv = given.connectionEnv ?? "DATABASE_URL";
+    connectionEnv = overrides.connectionEnv ?? "DATABASE_URL";
   }
 
-  const schemaOut = await flagOrAsk(given.schemaOut, () =>
+  const schemaOut = await flagOrAsk(overrides.schemaOut, () =>
     prompter.input({
       message: "Schema output directory",
       default: "./askdb",
@@ -493,7 +493,7 @@ export async function runWizard(prompter: InitPrompter, given: InitAnswerOverrid
     }),
   );
 
-  const aiProvider = await flagOrAsk(given.aiProvider, () =>
+  const aiProvider = await flagOrAsk(overrides.aiProvider, () =>
     prompter.select<InitAnswers["aiProvider"]>({
       message: "AI provider",
       choices: AI_PROVIDER_SETUPS.map((setup) => ({
@@ -505,10 +505,10 @@ export async function runWizard(prompter: InitPrompter, given: InitAnswerOverrid
   );
 
   const providerDefaults = aiDefaults(aiProvider);
-  const aiKeyEnv = given.aiKeyEnv ?? providerDefaults.keyEnv;
-  const aiModelEnv = given.aiModelEnv ?? providerDefaults.modelEnv;
+  const aiKeyEnv = overrides.aiKeyEnv ?? providerDefaults.keyEnv;
+  const aiModelEnv = overrides.aiModelEnv ?? providerDefaults.modelEnv;
 
-  const ragStore = await flagOrAsk(given.ragStore, () =>
+  const ragStore = await flagOrAsk(overrides.ragStore, () =>
     prompter.select<InitAnswers["ragStore"]>({
       message: "RAG store",
       choices: [
@@ -520,11 +520,11 @@ export async function runWizard(prompter: InitPrompter, given: InitAnswerOverrid
     }),
   );
 
-  const pgvectorEnv = ragStore === "pgvector" ? (given.pgvectorEnv ?? "PGVECTOR_URL") : undefined;
+  const pgvectorEnv = ragStore === "pgvector" ? (overrides.pgvectorEnv ?? "PGVECTOR_URL") : undefined;
 
   // Opt-in: Studio execute runs generated SQL against a live database, so it
   // defaults to off (matching `--studio-execute`'s documented default).
-  const enableStudioExecute = await flagOrAsk(given.studioExecute, () =>
+  const enableStudioExecute = await flagOrAsk(overrides.studioExecute, () =>
     prompter.confirm({
       message: "Enable Studio execute (run generated SQL read-only from the browser playground)?",
       default: false,
@@ -548,7 +548,7 @@ export async function runWizard(prompter: InitPrompter, given: InitAnswerOverrid
     });
     if (execProvider === "sqlite") {
       // `--sqlite-file` names Studio execute's file here, as it does without the wizard.
-      const execSqliteFile = await flagOrAsk(given.sqliteFile, async () =>
+      const execSqliteFile = await flagOrAsk(overrides.sqliteFile, async () =>
         (
           await prompter.input({
             message: "SQLite file path for Studio execute",
@@ -716,7 +716,7 @@ async function runInit(opts: InitOptions, installer: InstallFn): Promise<number>
       process.stdout.write(`  Packages:      ${packages.map(packageNameOf).join(", ")}\n`);
     }
     process.stdout.write(`  Env vars:      ${plan.envVars.map((v) => v.name).join(", ")}\n`);
-    process.stdout.write('                 (defaults — rename via `env("...")` in askdb.config.ts if you\'d like)\n');
+    process.stdout.write('                 (rename any via `env("...")` in askdb.config.ts if you\'d like)\n');
     process.stdout.write("---------------\n\n");
 
     let confirmed: boolean;
