@@ -32,6 +32,13 @@ test("a code block with inserted and deleted lines becomes a diff", async () => 
   assert.equal(await convert(html), "```diff\n const a = 1;\n-const b = 2;\n+const b = 3;\n```");
 });
 
+test("an image with a copy per theme is written once, as its light copy", async () => {
+  const html =
+    `<figure class="doc-chart"><img src="/_astro/chart-light.svg" alt="A bar chart." class="dark:sl-hidden">` +
+    `<img src="/_astro/chart-dark.svg" alt="A bar chart." class="light:sl-hidden"><figcaption>Drawn with ECharts.</figcaption></figure>`;
+  assert.equal(await convert(html), "![A bar chart.](https://askdb.tools/_astro/chart-light.svg)\n\n*Figure: Drawn with ECharts.*");
+});
+
 test("a file tree becomes a text fence, one entry per line with its comment", async () => {
   const icon = `<span><svg viewBox="0 0 24 24"><path d="M0 0"></path></svg></span>`;
   const directory = `<span><span class="sr-only">Directory</span><svg viewBox="0 0 24 24"><path d="M0 0"></path></svg></span>`;
