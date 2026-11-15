@@ -1,0 +1,7 @@
+# The repo ignores askdb/ folders; this example commits its schema artifact.
+!askdb/
+node_modules/
+.env
+chart.svg
+chart-light.svg
+chart-dark.svg

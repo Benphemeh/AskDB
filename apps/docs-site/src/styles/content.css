@@ -783,6 +783,37 @@ starlight-tabs [role="tabpanel"] > .expressive-code:only-child .frame .header {
   box-shadow: var(--ask-shadow-sheet);
 }
 
+/*
+ * A chart an example drew (guides/plan-a-chart.mdx): one static SVG per theme, each an <img>, with
+ * Starlight's `dark:sl-hidden` and `light:sl-hidden` classes showing one. It sits in a frame like a
+ * diagram's, with its caption as a bar under it. No rule here sets `display`: Starlight's classes
+ * are in a cascade layer, so a `display` in this unlayered file would show both images.
+ */
+.sl-markdown-content figure.doc-chart {
+  background-color: var(--ask-surface-2);
+  border: 1px solid var(--ask-border);
+  border-radius: var(--ask-radius);
+  margin-block: 1.5rem;
+  overflow: hidden;
+}
+
+.sl-markdown-content figure.doc-chart > img {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  height: auto;
+  margin: 1rem auto;
+  max-width: calc(100% - 2rem);
+}
+
+.sl-markdown-content figure.doc-chart > figcaption {
+  background-color: var(--ask-surface);
+  border-top: 1px solid var(--ask-border);
+  margin: 0;
+  padding: 0.75rem 1rem;
+  text-align: start;
+}
+
 /* --- Starlight components, in the site's shape: Steps, FileTree, Card, LinkCard, LinkButton --- */
 .sl-markdown-content .sl-steps > li::before {
   background-color: var(--ask-surface-2);

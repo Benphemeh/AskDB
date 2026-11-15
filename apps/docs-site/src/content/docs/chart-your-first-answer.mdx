@@ -1,0 +1,345 @@
+---
+title: "Chart your first answer"
+description: "Add a chart to the Quickstart's project: ask the question from a script, run the SQL, let your model pick a chart without seeing a row, and draw it with ECharts from your own rows."
+---
+
+import { Image } from "astro:assets";
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+import AgentPrompt from "../../components/AgentPrompt.astro";
+import ExampleLink from "../../components/ExampleLink.astro";
+import chartLight from "../../assets/charts/total-spent-light.svg";
+import chartDark from "../../assets/charts/total-spent-dark.svg";
+
+In this tutorial, we'll add a chart to the project the Quickstart left us. We'll ask the same question from a script, run the SQL ourselves, let the model pick a chart without showing it a row, and draw that chart with ECharts. At the end, a chart of what each customer spent is open in our browser.
+
+<Aside type="caution" title="Experimental">
+The chart functions come from `@askdb/client/charts`, which is outside AskDB's stability promise: a minor release of `@askdb/client` may change it.
+</Aside>
+
+## Before you start
+
+You need:
+
+- The project from the [Quickstart](/quickstart/): the `askdb-shop` folder with `shop.db`, the `askdb/` folder and `.env`. Run every command on this page in that folder.
+- An OpenAI API key in `.env`, which is what the Quickstart's steps set up. If you chose Anthropic or Google there, [Bring your own model](/guides/bring-your-own-model/) shows how to build that provider's model for step 1.
+
+The two files we'll write, `first-chart.mjs` and `to-echarts.mjs`, are in <ExampleLink path="examples/chart-a-result" />. Compare yours with them if a step doesn't work.
+
+The output on this page is from one recorded run of that example's `chart.mjs`, with gpt-4o-mini on 2026-11-15. The model writes the SQL and the chart's title, so yours can differ.
+
+## 1. Ask the question from a script
+
+In the Quickstart, we asked with the `askdb ask` command and piped the SQL into `run-query.mjs`. A chart needs the question, the SQL and the rows in one place, so now we'll do both from one script.
+
+First, add the packages the script uses:
+
+<Tabs syncKey="pkg">
+  <TabItem label="npm">
+
+```bash
+npm install @askdb/client @askdb/core ai @ai-sdk/openai echarts
+```
+
+  </TabItem>
+  <TabItem label="pnpm">
+
+```bash
+pnpm add @askdb/client @askdb/core ai @ai-sdk/openai echarts
+```
+
+  </TabItem>
+  <TabItem label="yarn">
+
+```bash
+yarn add @askdb/client @askdb/core ai @ai-sdk/openai echarts zod
+```
+
+Yarn 4 gives a package only the packages we list for it, and `@ai-sdk/openai` needs `zod`. npm and pnpm install it for us.
+
+  </TabItem>
+</Tabs>
+
+`@askdb/core` has `ask()`, which returns checked SQL as `askdb ask` does. `@askdb/client` has the chart functions. `ai` and `@ai-sdk/openai` build the model, and ECharts draws the chart.
+
+Now create `first-chart.mjs`:
+
+```js title="first-chart.mjs"
+import { DatabaseSync } from "node:sqlite";
+import { openai } from "@ai-sdk/openai";
+import { ask, loadSchema } from "@askdb/core";
+
+const question = "How much has each customer spent in total, highest first?";
+const model = openai(process.env.OPENAI_MODEL || "gpt-4o-mini"); // reads OPENAI_API_KEY
+
+// 1. AskDB returns the SQL. Our own code runs it.
+const { sql } = await ask({ question, schema: loadSchema("./askdb"), model, dialect: "sqlite" });
+const statement = new DatabaseSync("shop.db", { readOnly: true }).prepare(sql);
+const rows = statement.all().map((row) => ({ ...row })); // plain objects, for ECharts in step 4
+console.log(sql);
+console.table(rows);
+```
+
+The script builds the model from the key in `.env` and asks our question. Then it runs the SQL on `shop.db`, read-only, as `run-query.mjs` did. Run it:
+
+<Tabs syncKey="pkg">
+  <TabItem label="npm">
+
+```bash
+node --env-file=.env first-chart.mjs
+```
+
+  </TabItem>
+  <TabItem label="pnpm">
+
+```bash
+node --env-file=.env first-chart.mjs
+```
+
+  </TabItem>
+  <TabItem label="yarn">
+
+```bash
+yarn node --env-file=.env first-chart.mjs
+```
+
+Yarn 4 keeps packages where plain `node` doesn't look, so `yarn node` starts Node with Yarn's package lookup.
+
+  </TabItem>
+</Tabs>
+
+`--env-file=.env` gives the script the API key we put in `.env` in the Quickstart. The output should look something like this:
+
+```
+SELECT customers.name, SUM(products.price * orders.quantity) AS total_spent
+FROM customers
+JOIN orders ON customers.id = orders.customer_id
+JOIN products ON orders.product_id = products.id
+GROUP BY customers.id
+ORDER BY total_spent DESC;
+┌─────────┬────────────┬─────────────┐
+│ (index) │ name       │ total_spent │
+├─────────┼────────────┼─────────────┤
+│ 0       │ 'Grace'    │ 398         │
+│ 1       │ 'Margaret' │ 377         │
+│ 2       │ 'Ada'      │ 138.99      │
+│ 3       │ 'Linus'    │ 49.99       │
+└─────────┴────────────┴─────────────┘
+```
+
+That's the Quickstart's answer again, this time from our own script. Notice that the script keeps the rows in `rows`. The next steps use them, and the model never gets them. On Node 22, Node also prints an `ExperimentalWarning` about SQLite, as it did in the Quickstart.
+
+## 2. Classify the columns
+
+To pick a chart, we need to know what each column holds: names to group by, or numbers to plot. `classifyResult()` works that out in our own process, with no model call. Add the highlighted lines: the import from `@askdb/client/charts`, which also brings in `planChart` for step 3, and the lines under the `// 2.` comment.
+
+```js title="first-chart.mjs" ins={3,16-19}
+import { DatabaseSync } from "node:sqlite";
+import { openai } from "@ai-sdk/openai";
+import { classifyResult, planChart } from "@askdb/client/charts";
+import { ask, loadSchema } from "@askdb/core";
+
+const question = "How much has each customer spent in total, highest first?";
+const model = openai(process.env.OPENAI_MODEL || "gpt-4o-mini"); // reads OPENAI_API_KEY
+
+// 1. AskDB returns the SQL. Our own code runs it.
+const { sql } = await ask({ question, schema: loadSchema("./askdb"), model, dialect: "sqlite" });
+const statement = new DatabaseSync("shop.db", { readOnly: true }).prepare(sql);
+const rows = statement.all().map((row) => ({ ...row })); // plain objects, for ECharts in step 4
+console.log(sql);
+console.table(rows);
+
+// 2. Classify the columns, here in our own process.
+const columns = statement.columns().map(({ name }) => ({ name }));
+const result = classifyResult({ columns, rowCount: rows.length, rows });
+console.log(result.shape);
+```
+
+Run the script again, with the same command as in step 1. After the SQL and the rows, it now prints this:
+
+```
+{
+  columns: [
+    { name: 'name', kind: 'category' },
+    { name: 'total_spent', kind: 'currency' }
+  ],
+  rowCount: 4,
+  truncated: false
+}
+```
+
+`name` is a category, and `total_spent` is currency. Notice what isn't here: no `Grace`, no `398`. The column names, their kinds and the row count are all the model will get of our result.
+
+## 3. Ask the model for a chart
+
+Now we pass `planChart()` the question, the SQL and that classified result, with the same model that wrote the SQL. Add the highlighted lines, the ones under the `// 3.` comment:
+
+```js title="first-chart.mjs" ins={21-23}
+import { DatabaseSync } from "node:sqlite";
+import { openai } from "@ai-sdk/openai";
+import { classifyResult, planChart } from "@askdb/client/charts";
+import { ask, loadSchema } from "@askdb/core";
+
+const question = "How much has each customer spent in total, highest first?";
+const model = openai(process.env.OPENAI_MODEL || "gpt-4o-mini"); // reads OPENAI_API_KEY
+
+// 1. AskDB returns the SQL. Our own code runs it.
+const { sql } = await ask({ question, schema: loadSchema("./askdb"), model, dialect: "sqlite" });
+const statement = new DatabaseSync("shop.db", { readOnly: true }).prepare(sql);
+const rows = statement.all().map((row) => ({ ...row })); // plain objects, for ECharts in step 4
+console.log(sql);
+console.table(rows);
+
+// 2. Classify the columns, here in our own process.
+const columns = statement.columns().map(({ name }) => ({ name }));
+const result = classifyResult({ columns, rowCount: rows.length, rows });
+console.log(result.shape);
+
+// 3. Ask the model which chart fits. It gets the question, the SQL and result.shape.
+const plan = await planChart({ question, sql, result, model, dialect: "sqlite" });
+console.log(plan);
+```
+
+Run the script again. It makes a second model call, and then prints the plan:
+
+```
+{
+  primary: {
+    type: 'horizontal-bar',
+    category: 'name',
+    series: [ 'total_spent' ],
+    title: 'Total Spending by Customers (Highest First)',
+    description: 'Displays the total amount spent by each customer, ranked from highest to lowest.'
+  },
+  source: 'model',
+  latencyMs: 1287
+}
+```
+
+`primary` is a **chart spec**. It names a chart type, the column for the labels (`category`), the columns to plot (`series`), a title and a description. It holds no rows, and it draws nothing: drawing is our job, as running the SQL was. `source` says the model picked this chart, and `latencyMs` says how long that took.
+
+## 4. Draw the chart
+
+ECharts draws from an option object, so we need a function that turns a chart spec into one. Create `to-echarts.mjs`:
+
+```js title="to-echarts.mjs"
+/**
+ * Turns a chart spec from @askdb/client/charts into an ECharts option.
+ * ECharts reads your rows from `dataset.source` and picks columns by name with `encode`,
+ * so the spec's `category` and `series` go in as they are.
+ * A metric is one number, not a chart: it gets no option.
+ *
+ * @param {import("@askdb/client/charts").ChartSpec} spec
+ * @param {Record<string, unknown>[]} rows
+ * @returns {import("echarts").EChartsOption | null}
+ */
+export function toEChartsOption(spec, rows) {
+  if (spec.type === "metric") return null;
+  const base = {
+    title: { text: spec.title, subtext: spec.description },
+    dataset: { source: rows },
+    tooltip: {},
+  };
+  if (spec.type === "pie") {
+    return { ...base, series: [{ type: "pie", encode: { itemName: spec.category, value: spec.series[0] } }] };
+  }
+  const horizontal = spec.type === "horizontal-bar";
+  const categoryAxis = { type: "category", inverse: horizontal }; // inverse: the first row at the top
+  const valueAxis = { type: "value" };
+  return {
+    ...base,
+    legend: { show: spec.series.length > 1, bottom: 0 },
+    grid: { top: 80 },
+    xAxis: horizontal ? valueAxis : categoryAxis,
+    yAxis: horizontal ? categoryAxis : valueAxis,
+    series: spec.series.map((column) => ({
+      type: spec.type === "line" || spec.type === "area" ? "line" : "bar",
+      name: column,
+      ...(spec.type === "area" ? { areaStyle: {} } : {}),
+      encode: horizontal ? { x: column, y: spec.category } : { x: spec.category, y: column },
+    })),
+  };
+}
+```
+
+It has a path for each chart type a chart spec can name. Ours takes the `horizontal-bar` path: one bar per row, with the names down the side.
+
+Now draw the chart from our rows. Add the highlighted lines to `first-chart.mjs`: the three new imports, and the lines under the `// 4.` comment.
+
+```js title="first-chart.mjs" ins={1,6-7,28-33}
+import { writeFileSync } from "node:fs";
+import { DatabaseSync } from "node:sqlite";
+import { openai } from "@ai-sdk/openai";
+import { classifyResult, planChart } from "@askdb/client/charts";
+import { ask, loadSchema } from "@askdb/core";
+import * as echarts from "echarts";
+import { toEChartsOption } from "./to-echarts.mjs";
+
+const question = "How much has each customer spent in total, highest first?";
+const model = openai(process.env.OPENAI_MODEL || "gpt-4o-mini"); // reads OPENAI_API_KEY
+
+// 1. AskDB returns the SQL. Our own code runs it.
+const { sql } = await ask({ question, schema: loadSchema("./askdb"), model, dialect: "sqlite" });
+const statement = new DatabaseSync("shop.db", { readOnly: true }).prepare(sql);
+const rows = statement.all().map((row) => ({ ...row })); // plain objects, for ECharts in step 4
+console.log(sql);
+console.table(rows);
+
+// 2. Classify the columns, here in our own process.
+const columns = statement.columns().map(({ name }) => ({ name }));
+const result = classifyResult({ columns, rowCount: rows.length, rows });
+console.log(result.shape);
+
+// 3. Ask the model which chart fits. It gets the question, the SQL and result.shape.
+const plan = await planChart({ question, sql, result, model, dialect: "sqlite" });
+console.log(plan);
+
+// 4. Draw the chart ourselves, from our own rows.
+const chart = echarts.init(null, null, { renderer: "svg", ssr: true, width: 480, height: 300 });
+chart.setOption({ ...toEChartsOption(plan.primary, rows), animation: false });
+writeFileSync("chart.svg", chart.renderToSVGString());
+chart.dispose();
+console.log("Wrote chart.svg");
+```
+
+Run the script one last time. The last line of the output is new:
+
+```
+Wrote chart.svg
+```
+
+Open `chart.svg` in a browser, for example by dragging the file onto a browser window. It should look something like this:
+
+<figure class="doc-chart">
+  <Image src={chartLight} alt="A horizontal bar chart titled Total Spending by Customers (Highest First). Grace 398, Margaret 377, Ada 138.99, Linus 49.99." class="dark:sl-hidden" />
+  <Image src={chartDark} alt="A horizontal bar chart titled Total Spending by Customers (Highest First). Grace 398, Margaret 377, Ada 138.99, Linus 49.99." class="light:sl-hidden" />
+  <figcaption>The chart from the recorded run, drawn by ECharts from that run's 4 rows. The model picked the horizontal bars, the two columns and the title, with gpt-4o-mini on 2026-11-15.</figcaption>
+</figure>
+
+That's our chart. ECharts drew it from the four rows our own code read from `shop.db`. The model chose the bars, the columns and the title, and it never saw a row.
+
+## What we built
+
+We asked a question from a script and ran the SQL ourselves. `classifyResult()` described the columns in our own process, `planChart()` had the model pick a chart from that description, and ECharts drew the chart from our rows. AskDB returned the SQL and the chart spec. Our code did the running and the drawing.
+
+Try another question: change `question` to "How many units of each product were sold?", run the script, and open `chart.svg` again. The script draws any answer that has rows to group and a number to plot. For any other answer, such as one number or one with no chart, it stops with an error at the drawing step. [Chart a query result](/guides/plan-a-chart/) handles those.
+
+## Use with your agent
+
+<AgentPrompt>
+
+Add a chart of a query result to this project by following the tutorial at https://askdb.tools/chart-your-first-answer.md, against this project's own database and one of its own questions instead of the sample shop database.
+
+The goal: a script that asks the question with `ask()`, runs the SQL through the project's own read-only connection, classifies the result with `classifyResult()`, plans a chart with `planChart()`, and draws it with ECharts from the project's own rows.
+
+- AskDB returns SQL and a chart spec. It runs no SQL and draws nothing: this project's code does both.
+- Never put a row in a prompt. `planChart()` gets the question, the SQL and the classified result.
+- `@askdb/client/charts` is experimental. For an answer that is one number, or that has no chart, follow https://askdb.tools/guides/plan-a-chart.md.
+
+</AgentPrompt>
+
+## Read next
+
+- [Chart a query result](/guides/plan-a-chart/): Add the chart step to your own application, with a row cap and the cases this tutorial skipped.
+- [Chart planning](/concepts/chart-planning/): What the model sees, and why your application draws the chart.
+- [Embed in a Node app](/guides/embed-in-node/): Call `ask()` from a service and run the SQL through your own database driver.
+- [@askdb/client/charts API](/reference/client-charts-api/): Every option, type and check.

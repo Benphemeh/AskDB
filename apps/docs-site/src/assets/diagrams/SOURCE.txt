@@ -2,12 +2,10 @@ A flow or a sequence is a ```diagram fence in the page itself, drawn to inline
 SVG at build time by AskDB's own diagram kit (plugins/remark-diagram.mjs; see
 STYLE.md, "Diagrams", and ADR 0051). No diagram is a file in this folder.
 
-Three diagrams are Mermaid, in a ```mermaid fence rendered by pele (ADR 0041):
+Two diagrams are Mermaid, in a ```mermaid fence rendered by pele (ADR 0041):
 
   src/content/docs/quickstart.mdx              the entity-relationship diagram, by design
   src/content/docs/reference/packages.mdx      the package dependency graph, by design
-  src/content/docs/guides/plan-a-chart.mdx     a flowchart, until that guide's rewrite
-                                               (#1008) lands and is converted
 
 To list them: git grep -c '```mermaid' -- apps/docs-site/src/content/docs
 

@@ -6,11 +6,14 @@
     // root `test` task it does not also depend on this package's `build`.
     "test": {
       "dependsOn": ["^build"],
-      // `test:errors` checks the API reference against these files, which live outside this package.
+      // `test:errors` checks the API reference against the two errors files, and `test:examples`
+      // checks the chart pages against the chart example. Both live outside this package.
       "inputs": [
         "$TURBO_EXTENDS$",
         "$TURBO_ROOT$/packages/core/src/errors.ts",
-        "$TURBO_ROOT$/packages/client/src/errors.ts"
+        "$TURBO_ROOT$/packages/client/src/errors.ts",
+        "$TURBO_ROOT$/examples/chart-a-result/**",
+        "$TURBO_ROOT$/examples/quickstart-shop/shop.sql"
       ]
     }
   }

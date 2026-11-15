@@ -25,8 +25,11 @@ export interface HtmlToMarkdownOptions {
   diagrams?: string[];
 }
 
-/** Site furniture: nothing in these carries the page's content. */
-const FURNITURE = "script, style, link, template, button, .sl-anchor-link, .sr-only, .link-card-icon";
+/**
+ * Site furniture: nothing in these carries the page's content. `light:sl-hidden` is Starlight's
+ * class for the dark-theme copy of an image that has one per theme; the light copy stands for both.
+ */
+const FURNITURE = "script, style, link, template, button, .sl-anchor-link, .sr-only, .link-card-icon, .light\\:sl-hidden";
 
 const element = (tagName: string, children: ElementContent[], properties: Element["properties"] = {}): Element => ({
   type: "element",
