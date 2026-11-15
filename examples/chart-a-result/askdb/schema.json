@@ -1,0 +1,113 @@
+{
+  "version": 2,
+  "schemaId": "askdb",
+  "provider": "sqlite",
+  "tables": [
+    {
+      "id": "table:public.customers",
+      "name": "customers",
+      "schema": "public",
+      "columns": [
+        {
+          "id": "table:public.customers#id",
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primaryKey": true
+        },
+        {
+          "id": "table:public.customers#name",
+          "name": "name",
+          "type": "TEXT",
+          "nullable": false
+        },
+        {
+          "id": "table:public.customers#country",
+          "name": "country",
+          "type": "TEXT",
+          "nullable": false
+        }
+      ]
+    },
+    {
+      "id": "table:public.orders",
+      "name": "orders",
+      "schema": "public",
+      "columns": [
+        {
+          "id": "table:public.orders#id",
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primaryKey": true
+        },
+        {
+          "id": "table:public.orders#customer_id",
+          "name": "customer_id",
+          "type": "INTEGER",
+          "nullable": false
+        },
+        {
+          "id": "table:public.orders#product_id",
+          "name": "product_id",
+          "type": "INTEGER",
+          "nullable": false
+        },
+        {
+          "id": "table:public.orders#quantity",
+          "name": "quantity",
+          "type": "INTEGER",
+          "nullable": false
+        },
+        {
+          "id": "table:public.orders#ordered_at",
+          "name": "ordered_at",
+          "type": "TEXT",
+          "nullable": false
+        }
+      ],
+      "relationships": [
+        {
+          "from": "table:public.orders#customer_id",
+          "to": "table:public.customers#id"
+        },
+        {
+          "from": "table:public.orders#product_id",
+          "to": "table:public.products#id"
+        }
+      ]
+    },
+    {
+      "id": "table:public.products",
+      "name": "products",
+      "schema": "public",
+      "columns": [
+        {
+          "id": "table:public.products#id",
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primaryKey": true
+        },
+        {
+          "id": "table:public.products#name",
+          "name": "name",
+          "type": "TEXT",
+          "nullable": false
+        },
+        {
+          "id": "table:public.products#category",
+          "name": "category",
+          "type": "TEXT",
+          "nullable": false
+        },
+        {
+          "id": "table:public.products#price",
+          "name": "price",
+          "type": "NUMERIC(10, 2)",
+          "nullable": false
+        }
+      ]
+    }
+  ]
+}

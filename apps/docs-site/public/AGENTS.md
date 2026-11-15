@@ -40,6 +40,7 @@ AskDB is a workspace of small, layered packages — install only what your use c
 - **Schema too big for one prompt** (rule of thumb: more than ~22 tables, or rendered DDL over ~8K tokens) → add `@askdb/rag` with a retriever. See `/guides/rag-for-large-schemas/`.
 - **Multi-tenant app** → declare a `tenant-policy.md` in the schema artifact and pass `tenantScope` on every `ask()` call, sourced from your host's auth context. Run `result.sql` with `result.tenantParams` (or `result.unboundSql` with `result.params`), never `result.sql` alone. The database enforces tenant isolation; AskDB's tenant check is a heuristic that catches a forgotten filter, not a boundary. See `/guides/multi-tenancy/`, `/guides/tenant-hierarchy/` for hierarchical (`subtree`) access, and `/guides/enforce-tenancy-in-the-database/` for row-level security and the Postgres grants to revoke.
 - **AskDB as an agent tool** → wrap `ask()` as a tool/function definition over the library or HTTP surface — there's no first-party MCP server yet. See `/guides/integrations/agents-mcp/`.
+- **Showing a chart of a query result** → `@askdb/client/charts` (experimental: a minor release may change it). After the host runs the SQL, `classifyResult()` classifies the result's columns in the host process, and `planChart()` asks the model which chart fits, from the question, the SQL with its literals masked, and the column names and kinds, never a row. It returns a chart spec (`type`, `category`, `series`, `title`, `description`). AskDB renders nothing: the host draws the spec from its own rows with its own charting library. See `/guides/plan-a-chart/`, `/concepts/chart-planning/` and `/reference/client-charts-api/`.
 - **Switching database engines** → swap the engine package and the `dialect` value; the schema artifact format and the `ask()` API don't change. See `/guides/switch-engines/`.
 - **Connecting to SQL Server** (the connection-string formats, a self-signed certificate, your own `mssql` pool) → see `/guides/connect-to-sql-server/`.
 
@@ -51,6 +52,7 @@ AskDB is a workspace of small, layered packages — install only what your use c
 | Let Studio run the SQL it generates | `/guides/enable-studio-execute/` |
 | Rerun a stored query with new values, without a model call | `/guides/rerun-a-query-with-new-values/` |
 | Cap the rows a query returns | `/guides/cap-the-rows-a-query-returns/` |
+| Chart a query result, drawn by the host (experimental) | `/guides/plan-a-chart/` |
 | Keep sensitive columns out of prompts | `/guides/keep-sensitive-columns-out-of-prompts/` |
 | Match the server's string settings (`backslashEscapes`) | `/guides/match-server-string-settings/` |
 | Bundle an app that uses AskDB | `/guides/bundle-your-app/` |

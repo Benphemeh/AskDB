@@ -1,11 +1,11 @@
 ---
 title: "@askdb/client/charts API reference"
-description: "Experimental API reference for @askdb/client/charts: classifyResult(), planChart(), validateChartSpec(), the chart spec, the part-to-whole policy and the fallback."
+description: "Experimental API reference for @askdb/client/charts: classifyResult(), planChart(), validateChartSpec(), the chart spec and its six chart types, the part-to-whole policy and the fallback."
 ---
 
 import { Aside, Badge } from "@astrojs/starlight/components";
 
-`@askdb/client/charts` plans a chart for a query result. The model sees the question, the SQL with its literals masked, and the result's column names and kinds. It never sees a row.
+`@askdb/client/charts` plans a chart for a query result and returns a chart spec. It draws nothing: your application draws the spec from its own rows. The model sees the question, the SQL with its literals masked, and the result's column names and kinds. It never sees a row.
 
 <Badge text="Experimental" variant="caution" />
 
@@ -17,7 +17,7 @@ This entry point is outside AskDB's stability promise: a minor release of `@askd
 import { classifyResult, planChart, validateChartSpec } from "@askdb/client/charts";
 ```
 
-The entry point imports only `@askdb/client`'s peers, `@askdb/core` and `ai`. [Plan a chart for a query result](/guides/plan-a-chart/) shows it end to end.
+The entry point imports only `@askdb/client`'s peers, `@askdb/core` and `ai`. [Chart a query result](/guides/plan-a-chart/) shows it end to end, with the chart drawn. [Chart planning](/concepts/chart-planning/) explains the design.
 
 ## `classifyResult(input)`
 
@@ -99,7 +99,23 @@ The model returns a JSON object through the AI SDK's structured output (`generat
 | `source` | `"model" \| "fallback"` | Who picked the chart. |
 | `fallbackReason` | `"timeout" \| "aborted" \| "model-error" \| "invalid-spec"` | Set when `source` is `"fallback"`. |
 | `issues` | `ChartSpecIssue[]` | Set when the model's primary chart failed the checks. |
-| `latencyMs` | `number` | How long planning took. |
+| `latencyMs` | `number` | How long planning took, in milliseconds. |
+
+A plan from a model, for a result with the columns `name` (a category) and `total_spent` (currency) and the question "How much has each customer spent in total, highest first?":
+
+```json
+{
+  "primary": {
+    "type": "horizontal-bar",
+    "category": "name",
+    "series": ["total_spent"],
+    "title": "Total Spending by Customers (Highest First)",
+    "description": "Displays the total amount spent by each customer, ranked from highest to lowest."
+  },
+  "source": "model",
+  "latencyMs": 1287
+}
+```
 
 ### `ChartSpec`
 
@@ -110,6 +126,21 @@ The model returns a JSON object through the AI SDK's structured output (`generat
 | `series` | `string[]` | The columns to plot as numbers. |
 | `title` | `string` | A factual title. |
 | `description` | `string` | One sentence on what is plotted. |
+
+A chart spec names columns of the result and holds no data. Each name in `category` and `series` is a column name as you passed it to `classifyResult()`.
+
+### Chart types
+
+What each `type` asks your application to draw:
+
+| `type` | Draw |
+| --- | --- |
+| `metric` | One number: the value of the one `series` column in the one row. It has no `category`. |
+| `line` | One line per `series` column, along the `category` column. |
+| `area` | As `line`, with the area under each line filled. |
+| `bar` | One bar per row for each `series` column, with the `category` column along the horizontal axis. |
+| `horizontal-bar` | As `bar`, with the `category` column along the vertical axis. |
+| `pie` | One slice per row: the `category` column names the slice, and the one `series` column sizes it. |
 
 ### The rubric
 
@@ -178,5 +209,6 @@ Every type the entry point exports:
 
 ## Read next
 
-- [Plan a chart for a query result](/guides/plan-a-chart/): The planner end to end.
+- [Chart a query result](/guides/plan-a-chart/): The planner end to end, with the chart drawn.
+- [Chart planning](/concepts/chart-planning/): Why the model sees no rows, and why your application draws.
 - [@askdb/client API](/reference/client-api/): `createAskDb()` and `client.ask()`.

@@ -27,7 +27,7 @@ When `ask()` calls your model provider, the request contains:
 
 That's everything `ask()` sends. The model returns SQL.
 
-The experimental chart planner, `planChart()` in `@askdb/client/charts`, makes a separate call. It sends the question, the SQL your application ran with every literal replaced by `?`, and each result column's name and kind, the row count and whether the result was cut. It sends no row ([Plan a chart for a query result](/guides/plan-a-chart/)).
+The experimental chart planner, `planChart()` in `@askdb/client/charts`, makes a separate call. It sends the question, the SQL your application ran with every literal replaced by `?`, and each result column's name and kind, the row count and whether the result was cut. It sends no row, and it returns a chart spec that your application draws from its own rows. [Chart planning](/concepts/chart-planning/) shows the message it sends.
 
 ## What never crosses the boundary
 

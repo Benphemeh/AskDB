@@ -1,0 +1,5 @@
+---
+"@askdb/docs-site": patch
+---
+
+The chart guide is rewritten as "Chart a query result" (same address, `/guides/plan-a-chart/`). It now opens with what `@askdb/client/charts` does and who draws the chart: AskDB returns a chart spec, and your application draws it from its own rows with its own charting library. It shows a real chart for the Quickstart's question, a diagram of who holds the rows, the output of each step, and a mapping from the chart spec to an ECharts option. A new concept page, "Chart planning", explains what the model sees, why AskDB returns a spec, what the checks refuse, what a chart costs and when to skip the planner. The API reference adds a table of what each chart type asks you to draw. A new runnable example, `examples/chart-a-result`, holds the code and the recorded run the pages show.

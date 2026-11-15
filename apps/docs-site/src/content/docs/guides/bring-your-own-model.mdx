@@ -53,7 +53,7 @@ flowchart TB
 - **Use `@askdb/client` (built on `@askdb/ai`)** when you want `askdb.config.ts` to drive provider/model selection — one config file, no provider code, and the CLI/Studio/your app all resolve the same way. This is the right default when you're embedding AskDB as a standalone service and don't already have a provider-config system.
 - **Construct a `LanguageModel` directly with the AI SDK** when your app already owns provider/config resolution (env vars, a secrets manager, feature flags), so provider config doesn't live in two systems.
 
-Either way you get a plain AI SDK `LanguageModel`, so you can reuse it for calls AskDB doesn't make, such as a `generateObject()` call for chart planning next to `ask()`. On the config path, build it with `@askdb/ai`'s registry, as [One config driving both](#one-config-driving-both) shows.
+Either way you get a plain AI SDK `LanguageModel`, so you can reuse it for your own AI SDK calls next to `ask()`, and pass it to `planChart()` when you [chart a query result](/guides/plan-a-chart/). On the config path, build it with `@askdb/ai`'s registry, as [One config driving both](#one-config-driving-both) shows.
 
 If you're an agent implementing this integration: check whether the host app already constructs AI SDK models elsewhere before reaching for `@askdb/ai` — duplicating provider config across two systems is the failure mode to avoid.
 

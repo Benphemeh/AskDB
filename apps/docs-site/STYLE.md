@@ -143,6 +143,7 @@ Agents are the site's second reader, so each page must read well as plain Markdo
 - `Badge` for a status on a heading or in a table: `<Badge text="Experimental" variant="caution" />`. The sidebar entry of an experimental page carries the same badge (`badge` in `astro.config.mjs`).
 - `AgentPrompt` (`src/components/AgentPrompt.astro`) for the "Use with your agent" block of a task guide, under a `## Use with your agent` heading, before "Read next". The slot is the prompt: plain paragraphs and lists, with blank lines inside the tags. Name pages by their absolute `.md` URL (`https://askdb.tools/guides/multi-tenancy.md`), state the goal, and repeat the constraints the guide sets (AskDB returns SQL, the application runs it).
 - `ExampleLink` to point at a runnable example in the repo.
+- A chart that an example drew is a static SVG for each theme, in `src/assets/charts/`. Show it in a `<figure class="doc-chart">` with two `Image`s from `astro:assets`: the light file with `class="dark:sl-hidden"` and the dark file with `class="light:sl-hidden"`, each with the same `alt`. Say in the `<figcaption>` what drew it and from which run. `guides/plan-a-chart.mdx` has the pattern; `examples/chart-a-result/draw-recorded.mjs` draws its two files.
 - Diagrams are [Mermaid](https://mermaid.js.org/), written in a `mermaid` fence and rendered to inline SVG at build time by [pele](https://pele.run). Pages ship no diagram JavaScript, and CI and the Pages deploy need no binary or browser. See "Diagrams" below.
 
 ## Visuals
