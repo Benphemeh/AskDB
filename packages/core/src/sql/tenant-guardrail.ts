@@ -646,7 +646,8 @@ const UNCHECKABLE_RELATIONS: ReadonlySet<string> = new Set([
  * any case, bare, quoted or qualified, not only right before `(` or after `FROM`: an engine can
  * reach a function in forms with no `(` after its name, and the check doesn't parse a `FROM`
  * clause, so a column, an alias or a placeholder named like a listed function or relation counts
- * too. Text in comments and single-quoted strings doesn't. Read under every reading from `tenantStatementReadings`, so a name any of them sees counts.
+ * too. Text in comments and single-quoted strings doesn't. Read under every reading from
+ * `tenantStatementReadings`, so a name any of them sees counts.
  */
 function listedName(
   read: SqlRead,
@@ -663,9 +664,9 @@ function listedName(
 }
 
 /**
- * A token's name, lowercase, when it can name a function or a relation: a word, a quoted identifier, a `"…"`
- * string (which some servers read as a name), or a `:name` placeholder, which the shared lexer
- * reads as one token but Postgres reads as `:` and then a name.
+ * A token's name, lowercase, when it can name a function or a relation: a word, a quoted
+ * identifier, a `"…"` string (which some servers read as a name), or a `:name` placeholder, which
+ * the shared lexer reads as one token but Postgres reads as `:` and then a name.
  */
 function nameOf(token: SqlToken): string | undefined {
   if (token.kind === "word" || token.kind === "quoted_identifier") return token.lower;
