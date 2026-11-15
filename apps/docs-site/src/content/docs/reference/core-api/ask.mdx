@@ -188,7 +188,7 @@ Returns the NL→SQL user prompt `ask()` sends with a built-in dialect: the rule
 | `formatSchemaForNlToSql(schema, options?)` | The same for the older v1 `NormalizedSchema`. |
 | `synthesizeRetrievedDdl(args)` | The schema block for retrieved chunks: `{ ddl, tableIds, tablesEmitted, chunksUsed, … }`. `args` takes `schema`, `results` (`RetrievedResult[]`) and the three formatting options. `@askdb/rag` re-exports it. |
 | `nlToSqlAmbiguityNotes(question, schema)` | The hints `ask()` adds to the prompt when the question and the schema look misaligned, as a `string[]`. They name no schema table ([ADR 0038](https://github.com/Ygilany/AskDB/blob/main/docs/adrs/0038-prompt-hints-name-no-schema-table.md)). |
-| `extractSqlFromModelText(raw)` | The SQL in a model reply: the first `sql` fence, else the first fence with no tag, else the whole reply. A reply whose only fences have another tag, such as `json`, gives `""`. |
+| `extractSqlFromModelText(raw)` | The SQL in a model reply: the first `sql` fence, else the first fence with no tag, else the whole reply. A reply whose only fences have another tag, such as `json`, gives `""`. A reply with an `askdb-decline` fence, the decline format `buildNlToSqlUserPrompt()` asks for, throws [`QuestionDeclinedError`](/reference/core-api/errors/#errors) with its reason, even when it also has a `sql` fence. |
 | `extractUnboundSqlFromModelText(raw)` | The content of the reply's `sql-unbound` fence, or `undefined` when it's missing or empty. |
 
 For the quoting `quoteIdentifier` takes, see [`promptIdentifierQuoter()`](/reference/core-api/dialects/#dialectspec).

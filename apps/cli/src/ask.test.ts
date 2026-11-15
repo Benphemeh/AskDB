@@ -70,6 +70,13 @@ describe("askdb ask", () => {
     expect(stderr).toMatch(/^SqlValidationError \[[\w-]+\]: /);
   });
 
+  it("prints the model's reason for a declined question on stderr, with no SQL, and exits 1 (#949)", async () => {
+    const decline = "```askdb-decline\nThe schema has no weather data.\n```";
+    expect(await runAskCli(["-q", "What's the weather like?", "--mock-sql", decline])).toBe(1);
+    expect(stdout).toBe("");
+    expect(stderr).toBe("AskDB can't answer this as a read-only query: The schema has no weather data.\n");
+  });
+
   it("rejects an unknown --mode and exits 1", async () => {
     expect(await runAskCli(["-q", "x", "--mock-sql", "SELECT 1", "--mode", "loose"])).toBe(1);
     expect(stdout).toBe("");

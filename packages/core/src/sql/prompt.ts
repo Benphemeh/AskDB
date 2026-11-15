@@ -13,6 +13,7 @@ import {
 import type { NormalizedTenantPolicy, TenantScope } from "../schema/v2/tenant-policy.js";
 import type { DialectSpec } from "./dialect-spec.js";
 import { nonAsciiNameRule, promptIdentifierQuoter, qualifiedNameQuotingRule } from "./prompt-identifiers.js";
+import { DECLINE_FENCE_TAG } from "./extract-sql.js";
 import { buildTenantPromptBlock } from "./tenant-prompt.js";
 
 function isV2(schema: AnyNormalizedSchema): schema is NormalizedSchemaV2 {
@@ -108,6 +109,7 @@ export function buildNlToSqlUserPrompt(
     "Rules:",
     `- Output exactly one ${dialect.displayName} SELECT query (CTE WITH is ok). End with optional semicolon.`,
     '- Put the SQL only inside one markdown fenced block labelled ```sql (preferred). No extra commentary.',
+    `- If the question can't be answered from the schema below, or asks to change data (insert, update, delete, create, drop, …), write no SQL: reply with only a \`\`\`${DECLINE_FENCE_TAG} fenced block holding a one-line reason. If only part of it can be answered as a read (for example it also asks to delete what it reads), decline the whole question, and in the reason name the part that changes data and suggest asking for the read part alone.`,
     unqualifiedNamespace === undefined
       ? "- Use identifiers from the schema below; qualify table names where it helps readability."
       : `- Use identifiers from the schema below and write each table name exactly as it is listed. \`${unqualifiedNamespace}\` is not a schema in ${dialect.displayName}: never write \`${unqualifiedNamespace}.<table>\`, even where ids or notes below mention \`${unqualifiedNamespace}\`.`,
@@ -186,5 +188,5 @@ export function buildNlToSqlUserPrompt(
 
 /** Dialect-parameterized system prompt for the NL→SQL generator. */
 export function buildNlToSqlSystemPrompt(dialect: DialectSpec): string {
-  return `You are AskDB SQL generator—correct, deterministic ${dialect.displayName} for analytics. Produce one SELECT (or WITH) only.`;
+  return `You are AskDB SQL generator—correct, deterministic ${dialect.displayName} for analytics. Produce one SELECT (or WITH) only, or, when the question can't be answered as a read-only query from the schema, decline in a \`\`\`${DECLINE_FENCE_TAG} block with a one-line reason.`;
 }

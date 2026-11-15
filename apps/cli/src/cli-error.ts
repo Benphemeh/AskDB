@@ -1,4 +1,4 @@
-import { AskDbError, SqlValidationError } from "@askdb/core";
+import { AskDbError, QuestionDeclinedError, SqlValidationError } from "@askdb/core";
 import { MissingAskDbConfigError } from "./project-config.js";
 
 /**
@@ -21,6 +21,11 @@ export function errorMessage(error: unknown): string {
 /** The CLI's printer for `askdb ask` and the top-level handler: AskDB errors keep their name. */
 export function printCliError(error: unknown): void {
   if (error instanceof MissingAskDbConfigError) {
+    process.stderr.write(`${error.message}\n`);
+    return;
+  }
+  // #949: a declined question is an answer, not a fault, so it prints without the class name.
+  if (error instanceof QuestionDeclinedError) {
     process.stderr.write(`${error.message}\n`);
     return;
   }

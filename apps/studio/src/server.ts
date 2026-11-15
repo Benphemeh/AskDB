@@ -29,6 +29,7 @@ import {
   formatSchemaV2ForNlToSql,
   formatSensitiveReference,
   loadSchema,
+  QuestionDeclinedError,
   saveSchemaFile,
   schemaHasSensitiveIdentifiers,
   SensitiveEnrichmentTargetError,
@@ -992,9 +993,15 @@ async function askSampleQuestion(
             generateText: createTrackedGenerateText(usage),
             ...(providerOptions ? { providerOptions } : {}),
           },
-  }).finally(async () => {
-    await ragIndex?.dispose();
-  });
+  })
+    .catch((error: unknown) => {
+      // #949: the Playground shows the model's reason in place of SQL, so Execute has nothing to run.
+      if (error instanceof QuestionDeclinedError) throw new StudioHttpError(422, error.message);
+      throw error;
+    })
+    .finally(async () => {
+      await ragIndex?.dispose();
+    });
 
   return {
     sql: result.sql,

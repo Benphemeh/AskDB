@@ -7,7 +7,8 @@ import type { FormatNlToSqlOptions } from "../schema/normalize.js";
 import type { AnyNormalizedSchema } from "../schema/types.js";
 import type { NormalizedTenantPolicy, TenantScope } from "../schema/v2/tenant-policy.js";
 import type { DialectSpec } from "./dialect-spec.js";
-import { extractSqlFromModelText, extractUnboundSqlFromModelText } from "./extract-sql.js";
+import { extractUnboundSqlFromModelText } from "./extract-sql.js";
+import { readSqlFromModelReply } from "./model-reply.js";
 import {
   crossValidateManifestAgainstSql,
   parseParameterManifest,
@@ -218,9 +219,9 @@ async function runGenerateSelectSql(
     } catch (e) {
       throw new SqlGenerationError(`Model call failed: ${failureMessage(e)}`, e);
     }
-    // The read-only check is a guardrail finding, decided by the caller; here the SQL is
-    // only normalized (trailing `;` removed) when it passes.
-    const sql = normalizeSelectSql(dialect, extractSqlFromModelText(text));
+    // A decline throws here, before any SQL is read or checked (#949). The read-only check is a
+    // guardrail finding, decided by the caller; here the SQL is only normalized when it passes.
+    const sql = normalizeSelectSql(dialect, readSqlFromModelReply(dialect, text));
 
     // Optional parameterized extras — any failure clears them (never throws).
     let unboundNamedSql: string | undefined;

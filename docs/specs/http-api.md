@@ -89,6 +89,7 @@ Correlation ID comes from the `x-correlation-id` header, or is generated.
 | `schema_override_disabled` | 403 | `schemaJson` sent while `httpApi.allowSchemaOverride` is off |
 | `not_found` | 404 | Unknown route |
 | `payload_too_large` | 413 | Body over `maxBodyBytes` |
+| `question_declined` | 422 | `QuestionDeclinedError` (#949), with `reason`: the model's one-line reason, which `message` ends with. It's the model's answer to the question, not provider error text. |
 | `guardrail_violation` | 422 | `SensitiveReferenceError`, `TenantGuardrailError` (with `rule`). Not reachable today: the server never sets `sensitiveGuardrailMode: "strict"` and never passes a `tenantScope`, so a tenant-policy schema throws `TenantScopeError` first (→ `500 tenant_scope_not_configured`). |
 | `generation_not_configured` | 500 | `ModelNotConfiguredError`, `SchemaNotConfiguredError` (#845), and `SchemaLoadError` (#840) and `DialectNotSupportedError` (#720) for the server's configured schema, with a generic message that names no path. The server builds its client without `unknownDialect`, so an unknown provider is refused, never generated as PostgreSQL. The log's `errName` tells the two apart. |
 | `tenant_scope_not_configured` | 500 | `TenantScopeError` with reason `MISSING_SCOPE`: a tenant-policy schema, which the server can't scope (#716, #343) |

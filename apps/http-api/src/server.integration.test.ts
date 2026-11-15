@@ -345,6 +345,30 @@ describe("http-api", () => {
     }
   });
 
+  // #949: the model declined the question (off-topic, or asks to change data).
+  it("a declined question maps to 422 question_declined with the model's reason", async () => {
+    installTestRuntime({
+      mockSql: "```askdb-decline\nThe schema has no weather data.\n```",
+      logLevel: "silent",
+      host: { schemaPath: schemaPath.pathname },
+    });
+    const app = await startApp();
+    try {
+      const { status, json } = await postAsk(app.url, { question: "What's the weather like?" });
+      expect(status).toBe(422);
+      expect(json).toMatchObject({
+        ok: false,
+        error: {
+          code: "question_declined",
+          message: "AskDB can't answer this as a read-only query: The schema has no weather data.",
+          reason: "The schema has no weather data.",
+        },
+      });
+    } finally {
+      await app.close();
+    }
+  });
+
   // #845: no schema configured server-side is the operator's to fix, like #840's schema that
   // doesn't load: a generic 500, with the cause in the server log. A request that brings its own
   // schemaJson doesn't need the server's schema, so it's unaffected.

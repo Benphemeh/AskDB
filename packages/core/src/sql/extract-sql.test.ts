@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { QuestionDeclinedError } from "../errors.js";
 import { extractSqlFromModelText, extractUnboundSqlFromModelText } from "./extract-sql.js";
 
 const threeBlockReply = `
@@ -47,6 +48,12 @@ describe("extractSqlFromModelText", () => {
 
   it("returns bare prose when no fence is present", () => {
     expect(extractSqlFromModelText("SELECT id FROM users")).toBe("SELECT id FROM users");
+  });
+
+  // #949: a host that builds its own call from buildNlToSqlUserPrompt() gets the decline too.
+  it("throws QuestionDeclinedError for a reply in the decline format the prompt asks for, even beside a sql fence", () => {
+    const reply = "```sql\nSELECT id FROM orders LIMIT 1\n```\n```askdb-decline\nIt also asks to delete the order.\n```";
+    expect(() => extractSqlFromModelText(reply)).toThrow(QuestionDeclinedError);
   });
 });
 

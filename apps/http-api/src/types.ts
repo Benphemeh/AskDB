@@ -47,9 +47,12 @@ export type AskHttpErrorResponse = {
       | "tenant_scope_not_configured"
       | "sql_validation_error"
       | "guardrail_violation"
+      | "question_declined"
       | "sql_generation_error"
       | "internal_error";
     message: string;
     rule?: string;
+    /** With `question_declined`: the model's one-line reason, also at the end of `message`. */
+    reason?: string;
   };
 };

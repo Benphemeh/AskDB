@@ -99,6 +99,8 @@ Execute is off until you set `studio.execute.enabled: true` ([Enable Studio exec
 
 A query that fails at run time, for a missing driver, a connection error, a database error or a timeout, shows its error in the Playground.
 
+When the model declines a question, because the schema can't answer it or it asks to change data, **Generate SQL** shows `AskDB can't answer this as a read-only query:` and the model's reason in place of SQL, so there's nothing to execute.
+
 These checks reduce risk, but they aren't a sandbox. The SELECT check is heuristic, and a SELECT can still call functions with side effects. Point `studio.execute` at a **read-only database role**. On SQL Server, a read-only login is the only real guarantee.
 
 ## Security model

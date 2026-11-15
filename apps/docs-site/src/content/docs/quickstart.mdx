@@ -401,8 +401,8 @@ The schema artifact is what AskDB gives the model. When we ask a question, AskDB
 This is the request, with the instructions shortened. A line that starts with `…` stands for text left out. Notice that it holds table and column names and types, and no row from `shop.db`.
 
 ```text title="What the model receives"
-You are AskDB SQL generator—correct, deterministic SQLite for analytics. Produce one SELECT (or WITH) only.
-… rules: write one read-only SQLite SELECT, in one sql code block, with notes on SQLite syntax
+You are AskDB SQL generator—correct, deterministic SQLite for analytics. Produce one SELECT (or WITH) only, or, when the question can't be answered as a read-only query from the schema, decline in a ```askdb-decline block with a one-line reason.
+… rules: write one read-only SQLite SELECT, in one sql code block, or decline a question the schema can't answer or that changes data, with notes on SQLite syntax
 Database schema:
 TABLE customers
   - id INTEGER (PK NOT NULL)
@@ -470,6 +470,8 @@ ORDER BY total_spent DESC;
 ```
 
 The model writes the SQL, so yours can differ: other aliases, another layout, or other columns. Notice what AskDB did and didn't do. It checked the SQL before printing it: for example, it returns only read-only SQL. It didn't run the SQL. Running it is our job.
+
+Ask something the shop database can't answer, such as "What's the weather like?", or ask it to change data, such as "delete all orders", and AskDB prints `AskDB can't answer this as a read-only query:` with the model's reason instead of SQL.
 
 If you see `no AI API key configured`, check that `.env` has your key (step 3).
 

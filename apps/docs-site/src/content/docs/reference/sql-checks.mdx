@@ -110,7 +110,7 @@ The upgrade notes say what each fix asks of your app: [GHSA-8pwj-6hfv-5pm4 in 1.
 
 | Rule | The SQL has |
 | --- | --- |
-| `SQL_EMPTY` | No statement. |
+| `SQL_EMPTY` | No statement: the model didn't return SQL. |
 | `SQL_NOT_SELECT_OR_WITH` | A first keyword, after any opening parentheses, other than `SELECT` or `WITH`. |
 | `SQL_MULTI_STATEMENT` | A `;` that separates a second statement. A single trailing `;` is kept, as the model wrote it, and anything after it is refused. If you wrap the SQL, for example in a row-cap subquery, remove the `;` first (see [Row limits](/guides/run-safely-in-prod/#row-limits)). On SQL Server, also a second statement written without a `;`: see [SQL Server statements](#sql-server-statements). |
 | `SQL_COMMENT` | A `--` or `/* … */` comment, or `#` on MySQL and MariaDB. |
