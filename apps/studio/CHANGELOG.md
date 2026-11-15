@@ -1,5 +1,30 @@
 # @askdb/studio
 
+## 0.2.0-rc.2
+
+### Patch Changes
+
+- b1fb648: Studio's top bar no longer shows the "Search tables, concepts, queries… ⌘K" box. It was a placeholder with no input behind it and no ⌘K shortcut, and its label wrapped out of the box at every window width (#950). The Tables view's own "Search tables…" box still filters tables. On a narrow window, the top bar's breadcrumbs now clip instead of running under the index status pill.
+- 87920a5: Studio's **Suggest** now shows its drafts under the field they belong to, with **Use** on each draft and **Dismiss** for the set, instead of in a dialog, so you can review drafts for several fields at once (#952). A new **Suggest all empty fields** bar on the Enrichment tab drafts every empty description and alias of the open table and its columns, one model call per field: it states the number of calls and waits for you to confirm. With `modes.omitSensitiveFromPrompt` on, it skips sensitive columns and says how many, **Suggest** is disabled on a sensitive column instead of failing (#639), and while you've marked the table or a column sensitive without saving, every **Suggest** on that table waits for **Save**, because Suggest sends the saved schema. Nothing reaches the artifact until **Use** and **Save**. `GET /api/workspace` now returns `omitSensitiveFromPrompt`. The Studio tour and reference describe the inline drafts.
+- bc14b44: Studio's Playground now shows the sensitive-column warning for the SQL it generates, as `askdb ask` prints it: "Generated SQL references sensitive columns: public.customers.name. Review carefully before sharing or running this SQL outside AskDB." `POST /api/ask` returns the check `ask()` ran as `sensitiveGuardrail`, with the columns and, as `unresolvedScopeNote`, the check's note when it couldn't resolve every table, or `null` when the schema marks nothing sensitive. Before, Studio dropped the check's result, so a column marked sensitive in Studio looked unmarked until Execute ran the query (#957). The Studio page says so.
+- 70fe6ad: The Playground shows the model's reason in place of SQL when it declines a question the schema can't answer, or one that asks to change data, so Execute has nothing to run (#949). `POST /api/ask` answers it with `422`, with `error.message` set to `AskDB can't answer this as a read-only query: <reason>`.
+- 1fb73be: Studio's Overview button **Draft enrichment** is now **Enrich tables**, without the sparkle icon that marks AI features, because it opens the Tables view and drafts nothing (#951). The **Pending enrichment** card's row link reads **Enrich** for the same reason. The Overview subtitle and the navigation rail's footer now show the schema's dialect and id, such as `sqlite · askdb`, instead of the AI provider's name with `postgres` as the fallback (#963). On a window 960 px wide or narrower, the Tables and Concepts lists open as a drawer from a **Tables** or **Concepts** button in the view header, instead of disappearing with no way to reach them (#954). The Studio tour's Overview screenshot shows the new button and subtitle.
+- Updated dependencies [b7c6c0f]
+- Updated dependencies [73c9c7d]
+- Updated dependencies [197e1c0]
+- Updated dependencies [a7fdcce]
+  - @askdb/core@1.0.0-rc.2
+  - @askdb/introspect@1.0.0-rc.2
+  - @askdb/sqlite@1.0.0-rc.2
+  - @askdb/client@1.0.0-rc.2
+  - @askdb/enrich@0.2.0-rc.2
+  - @askdb/mysql@1.0.0-rc.2
+  - @askdb/postgres@1.0.0-rc.2
+  - @askdb/rag@0.2.0-rc.2
+  - @askdb/sqlserver@1.0.0-rc.2
+  - @askdb/ai@1.0.0-rc.2
+  - @askdb/config@1.0.0-rc.2
+
 ## 0.2.0-rc.1
 
 ### Patch Changes

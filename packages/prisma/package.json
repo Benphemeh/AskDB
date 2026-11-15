@@ -1,6 +1,6 @@
 {
   "name": "@askdb/prisma",
-  "version": "1.0.0-rc.1",
+  "version": "1.0.0-rc.2",
   "description": "AskDB Prisma integration: schema-file introspection connector for Prisma schemas.",
   "keywords": [
     "askdb",

@@ -1,5 +1,34 @@
 # askdb
 
+## 1.0.0-rc.2
+
+### Patch Changes
+
+- 7fe0fff: `askdb init` in a terminal without `--yes` now uses the flags you pass as the wizard's answers and skips those questions, instead of ignoring them (#988). `npx askdb init --database mysql` used to ask for the engine again, so accepting the wizard's default wrote a PostgreSQL config; it now skips that question and writes a MySQL one. `--database`, `--sqlite-file`, `--prisma-schema`, `--schema-out`, `--ai-provider`, `--rag-store` and `--studio-execute`/`--no-studio-execute` skip their questions, and `--connection-env`, `--ai-key-env`, `--ai-model-env` and `--pgvector-env` set the same env var names they set with `--yes`. The wizard's summary no longer calls those names defaults. With no flags, the wizard asks everything as before. No flag, exit code or JSON output changed.
+- 747079d: `askdb introspect` now prints one line on stderr when `--out` succeeds, such as `Wrote askdb/schema.json: 3 tables (sqlite).`, instead of nothing (#946). `askdb ask` shows `Generating SQL…` on stderr while it waits for the model, only when stderr is a terminal, and clears it before anything else prints; stdout is unchanged (#947). `askdb init`'s next steps run the CLI through the package manager it detected: the project's copy when its `package.json` lists `askdb` (`npx askdb`, `pnpm exec askdb`, `yarn askdb`, `bunx askdb`), else a one-off copy (`pnpm dlx askdb`, `yarn dlx askdb`). They give the copy to `.env` as a command, and say to add the variables instead when a `.env` already exists (#937). `askdb init --help` names `--database`'s value `<engine>` and says where the location comes from (#945). No flag, exit code or JSON output changed.
+- 70fe6ad: `askdb ask` prints `AskDB can't answer this as a read-only query: <reason>` on stderr, and nothing on stdout, when the model declines the question because the schema can't answer it or it asks to change data (#949). The exit code is `1`, as for every error.
+- Updated dependencies [b7c6c0f]
+- Updated dependencies [73c9c7d]
+- Updated dependencies [197e1c0]
+- Updated dependencies [a7fdcce]
+- Updated dependencies [b1fb648]
+- Updated dependencies [87920a5]
+- Updated dependencies [bc14b44]
+- Updated dependencies [70fe6ad]
+- Updated dependencies [1fb73be]
+  - @askdb/core@1.0.0-rc.2
+  - @askdb/introspect@1.0.0-rc.2
+  - @askdb/sqlite@1.0.0-rc.2
+  - @askdb/studio@0.2.0-rc.2
+  - @askdb/client@1.0.0-rc.2
+  - @askdb/enrich@0.2.0-rc.2
+  - @askdb/mysql@1.0.0-rc.2
+  - @askdb/postgres@1.0.0-rc.2
+  - @askdb/rag@0.2.0-rc.2
+  - @askdb/sqlserver@1.0.0-rc.2
+  - @askdb/ai@1.0.0-rc.2
+  - @askdb/config@1.0.0-rc.2
+
 ## 1.0.0-rc.1
 
 ### Major Changes
