@@ -543,7 +543,60 @@ node run-query.mjs < query.sql
 
 ## What we built
 
-We made a database, and AskDB read its schema. Then we asked a question in plain English and got back checked SQL. Our own code ran that SQL read-only and printed the answer. Your own database works the same way: point `askdb init` at it, introspect, and ask. Try another question, such as "Which products has nobody from the US bought?", and pipe its SQL into `run-query.mjs` the same way.
+We made a database, and AskDB read its schema. Then we asked a question in plain English and got back checked SQL. Our own code ran that SQL read-only and printed the answer. Try another question, such as "Which products has nobody from the US bought?", and pipe its SQL into `run-query.mjs` the same way.
+
+## Use your own database
+
+Your own database works the same way. In your project, run `askdb init` for its engine, with `--ai-provider` if you don't use OpenAI, as in step 2. Then fill in `.env` as in step 3, with the database's location in `DATABASE_URL`. Run `askdb introspect` and `askdb ask` as in steps 4 and 5.
+
+<Tabs syncKey="engine">
+  <TabItem label="PostgreSQL">
+
+```bash
+npx askdb init --yes --database postgres
+```
+
+```bash title=".env"
+DATABASE_URL=postgres://user:password@localhost:5432/app
+```
+
+  </TabItem>
+  <TabItem label="MySQL">
+
+```bash
+npx askdb init --yes --database mysql
+```
+
+```bash title=".env"
+DATABASE_URL=mysql://user:password@localhost:3306/app
+```
+
+  </TabItem>
+  <TabItem label="SQLite">
+
+```bash
+npx askdb init --yes --database sqlite --sqlite-file ./app.db
+```
+
+SQLite needs no `DATABASE_URL`: the config reads the file you name with `--sqlite-file`.
+
+  </TabItem>
+  <TabItem label="SQL Server">
+
+```bash
+npx askdb init --yes --database sqlserver
+```
+
+```bash title=".env"
+DATABASE_URL=mssql://user:password@localhost:1433/app
+```
+
+[Connect to SQL Server](/guides/connect-to-sql-server/) lists the other connection-string formats, and the fix for a self-signed certificate.
+
+  </TabItem>
+</Tabs>
+
+On a database server, introspection only reads the catalog, so a read-only user is enough.
 
 ## If SQLite won't install: use Postgres in Docker
 
@@ -577,6 +630,8 @@ The SQLite driver, `better-sqlite3`, has prebuilt binaries only for the systems 
 7. When you're done, remove the container: `docker rm -f askdb-shop-db`.
 
 ## Read next
+
+The files this tutorial had you type are in <ExampleLink path="examples/quickstart-shop" />. The "Skip the typing" tip at the top of this page has the command that fetches them.
 
 <div class="home-path-grid">
   <a href="/studio/"><strong>Studio</strong><span>Describe tables and columns, and test questions in your browser, to improve the SQL the model writes.</span></a>
