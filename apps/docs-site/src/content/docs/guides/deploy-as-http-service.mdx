@@ -130,7 +130,7 @@ Execution is your gateway service's job, because that's where your auth context 
 
 ## Custom schema per request
 
-The default is to load the schema from `host.schemaPath` once at boot. Per-request schemas are **off by default**: a request that sends `schemaJson` gets `403 schema_override_disabled`. An override is a schema artifact the server parses and puts into the prompt through your model key, so a caller who can send `schemaJson` controls what AskDB loads. Only enable it for tests or callers you trust. If you run a beta release, upgrade first: the [upgrade notes](/reference/upgrade-notes/#other-changes-you-may-notice-in-beta48) say which schema files it then refuses. For a multi-product deployment where different consumers send different schemas, turn it on in `askdb.config.ts`:
+The default is to load the schema from `host.schemaPath` once at boot. Per-request schemas are **off by default**: a request that sends `schemaJson` gets `403 schema_override_disabled`. An override is a schema artifact the server parses and puts into the prompt through your model key, so a caller who can send `schemaJson` controls what AskDB loads. Only enable it for tests or callers you trust. If you run a beta release, upgrade `@askdb/http-api` itself before you enable it, because it pins its `@askdb/core`. The [upgrade notes](/reference/upgrade-notes/#other-changes-you-may-notice-in-beta48) say which schema files the upgraded server refuses. For a multi-product deployment where different consumers send different schemas, turn it on in `askdb.config.ts`:
 
 ```ts
 httpApi: { allowSchemaOverride: true },
