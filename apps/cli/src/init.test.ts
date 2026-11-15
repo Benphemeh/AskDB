@@ -408,6 +408,97 @@ describe("runInitCli --yes --skip-install", () => {
   });
 });
 
+// #988: in a terminal without --yes, a flag answers its wizard question instead of being dropped.
+describe("runInitCli wizard in a TTY", () => {
+  const stdinTTY = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
+  const stdoutTTY = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");
+  let tmp: string;
+  let asked: string[];
+
+  beforeEach(() => {
+    tmp = mkdtempSync(join(tmpdir(), "askdb-init-wizard-"));
+    asked = [];
+    Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true });
+    Object.defineProperty(process.stdout, "isTTY", { value: true, configurable: true });
+    vi.spyOn(process.stdout, "write").mockReturnValue(true);
+    // Every prompt is answered with its default, like pressing Enter.
+    vi.mocked(select).mockImplementation((async (opts: { message: string; default?: unknown; choices: Array<{ value: unknown }> }) => {
+      asked.push(opts.message);
+      return opts.default ?? opts.choices[0]!.value;
+    }) as unknown as typeof select);
+    vi.mocked(input).mockImplementation((async (opts: { message: string; default?: string }) => {
+      asked.push(opts.message);
+      return opts.default ?? "";
+    }) as unknown as typeof input);
+    vi.mocked(confirm).mockImplementation((async (opts: { message: string; default?: boolean }) => {
+      asked.push(opts.message);
+      return opts.default ?? true;
+    }) as unknown as typeof confirm);
+  });
+
+  afterEach(() => {
+    for (const prompt of [select, input, confirm]) vi.mocked(prompt).mockReset().mockRejectedValue(new Error("unexpected prompt"));
+    vi.mocked(process.stdout.write).mockRestore();
+    if (stdinTTY) Object.defineProperty(process.stdin, "isTTY", stdinTTY);
+    else delete (process.stdin as { isTTY?: boolean }).isTTY;
+    if (stdoutTTY) Object.defineProperty(process.stdout, "isTTY", stdoutTTY);
+    else delete (process.stdout as { isTTY?: boolean }).isTTY;
+    rmSync(tmp, { recursive: true, force: true });
+  });
+
+  async function initInTty(flags: string[]): Promise<string> {
+    const outPath = join(tmp, "askdb.config.ts");
+    expect(await runInitCli(["--skip-install", "--path", outPath, ...flags])).toBe(0);
+    return readFileSync(outPath, "utf8");
+  }
+
+  it("with no answer flags, asks every question", async () => {
+    const config = await initInTty([]);
+    expect(config).toContain('provider: "postgres"');
+    expect(asked).toEqual([
+      "Database source",
+      "Schema output directory",
+      "AI provider",
+      "RAG store",
+      "Enable Studio execute (run generated SQL read-only from the browser playground)?",
+      "Write config and install packages?",
+    ]);
+  });
+
+  it.each([
+    {
+      flags: ["--database", "mysql"],
+      config: ['provider: "mysql"', 'databaseUrl: env("DATABASE_URL")'],
+      skipped: ["Database source"],
+    },
+    {
+      flags: ["--database", "sqlite", "--sqlite-file", "./shop.db"],
+      config: ['provider: "sqlite"', 'file: "./shop.db"'],
+      skipped: ["Database source", "SQLite file path"],
+    },
+    {
+      flags: ["--database", "sqlserver", "--connection-env", "MSSQL_URL", "--schema-out", "./schema"],
+      config: ['provider: "sqlserver"', 'databaseUrl: env("MSSQL_URL")', '"./schema"'],
+      skipped: ["Database source", "Schema output directory"],
+    },
+    {
+      flags: ["--ai-provider", "anthropic", "--ai-key-env", "CLAUDE_KEY"],
+      config: ['provider: "anthropic"', 'apiKey: env("CLAUDE_KEY")'],
+      skipped: ["AI provider"],
+    },
+    {
+      flags: ["--rag-store", "pgvector", "--pgvector-env", "VEC_URL", "--studio-execute"],
+      config: ['env("VEC_URL")', "enabled: true"],
+      skipped: ["RAG store", "Enable Studio execute (run generated SQL read-only from the browser playground)?"],
+    },
+  ])("$flags answer their questions, and the wizard skips them", async ({ flags, config, skipped }) => {
+    const written = await initInTty(flags);
+    for (const text of config) expect(written).toContain(text);
+    for (const message of skipped) expect(asked).not.toContain(message);
+    expect(asked).toContain("Write config and install packages?");
+  });
+});
+
 describe("init helpers", () => {
   it("resolveInitDepSpecs returns non-empty specs", () => {
     const s = resolveInitDepSpecs();

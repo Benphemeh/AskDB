@@ -102,6 +102,8 @@ npx askdb@latest init          # wizard in a terminal
 npx askdb@latest init --yes    # non-interactive, Postgres + OpenAI defaults
 ```
 
+Flags work with the wizard too. Each flag below answers its wizard question, and the wizard doesn't ask it: `npx askdb init --database mysql` skips the engine question and writes a MySQL config, and `--sqlite-file`, `--prisma-schema`, `--schema-out`, `--ai-provider`, `--rag-store` and `--studio-execute` or `--no-studio-execute` skip theirs. The wizard doesn't ask for env var names, so `--connection-env`, `--ai-key-env`, `--ai-model-env` and `--pgvector-env` replace the names it would use. It asks only the questions no flag answered, then shows a summary to confirm.
+
 **General flags**
 
 | Flag | Description |
