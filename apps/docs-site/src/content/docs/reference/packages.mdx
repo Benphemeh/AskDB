@@ -51,7 +51,7 @@ Config-aware facade over `@askdb/core`. `createAskDb()` resolves the schema, mod
 
 See the **[@askdb/client API reference](/reference/client-api/)** for the full option documentation.
 
-**Experimental: `@askdb/client/charts`.** A second entry point plans a chart for a query result without sending rows to the model: `classifyResult()`, `planChart()` and `validateChartSpec()`. It's outside the stability promise, so a minor release may change it. See the **[@askdb/client/charts API reference](/reference/client-charts-api/)**.
+**Experimental: `@askdb/client/charts`.** A second entry point asks your model which chart fits a query result, without sending it a row, and returns a chart spec: `classifyResult()`, `planChart()` and `validateChartSpec()`. It draws nothing: your application draws the spec from its own rows, with its own charting library. It's outside the stability promise, so a minor release may change it. See [Chart a query result](/guides/plan-a-chart/) and the **[@askdb/client/charts API reference](/reference/client-charts-api/)**.
 
 ### `@askdb/ai`
 

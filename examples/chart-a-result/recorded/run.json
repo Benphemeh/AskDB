@@ -1,0 +1,81 @@
+{
+  "recordedOn": "2026-11-15",
+  "model": "gpt-4o-mini",
+  "question": "How much has each customer spent in total, highest first?",
+  "sql": "SELECT customers.name, SUM(products.price * orders.quantity) AS total_spent\nFROM customers\nJOIN orders ON customers.id = orders.customer_id\nJOIN products ON orders.product_id = products.id\nGROUP BY customers.id\nORDER BY total_spent DESC;",
+  "columns": [
+    {
+      "name": "name",
+      "type": "TEXT"
+    },
+    {
+      "name": "total_spent"
+    }
+  ],
+  "rows": [
+    {
+      "name": "Grace",
+      "total_spent": 398
+    },
+    {
+      "name": "Margaret",
+      "total_spent": 377
+    },
+    {
+      "name": "Ada",
+      "total_spent": 138.99
+    },
+    {
+      "name": "Linus",
+      "total_spent": 49.99
+    }
+  ],
+  "truncated": false,
+  "result": {
+    "shape": {
+      "columns": [
+        {
+          "name": "name",
+          "kind": "category"
+        },
+        {
+          "name": "total_spent",
+          "kind": "currency"
+        }
+      ],
+      "rowCount": 4,
+      "truncated": false
+    },
+    "local": {
+      "name": {
+        "additive": true,
+        "hasNegative": false,
+        "distinctCount": 4,
+        "maxLabelLength": 8
+      },
+      "total_spent": {
+        "additive": true,
+        "hasNegative": false,
+        "distinctCount": 4,
+        "maxLabelLength": 6
+      }
+    }
+  },
+  "prompt": {
+    "system": "You plan a chart for the result of a SQL query. You never see the rows: only the question, the query with its literal values replaced by ?, and the result's columns with their kinds.\nReturn one primary chart and at most one alternate (null when there is none). Each chart has a type, a category column, series columns, a title and a short description.\n\nPick the type by these rules, in order:\n1. One row with one headline number: metric (no category, one series).\n2. A measure over ordered time (a date or year category): line. Use area only when the filled volume is the point.\n3. Part of a whole across 2–8 categories: pie, for one additive total or count only.\n4. A ranking (top, bottom, highest, lowest…): horizontal-bar.\n5. A few short categories: bar (horizontal-bar when the labels are long).\n\nRules:\n- Never invent a column, a formula or an aggregation. Use only the columns listed, by their exact names.\n- Series are measure, currency or percent columns. An identifier or a year is a category, never a series.\n- Never a pie for an average, a rate or ratio, a percent, a time series, a ranking, more than one series, or a truncated result.\n- Keep titles and descriptions factual: say what is plotted, not what it means.",
+    "user": "Question: How much has each customer spent in total, highest first?\n\nSQL (literals replaced with ?):\nSELECT customers.name, SUM(products.price * orders.quantity) AS total_spent\nFROM customers\nJOIN orders ON customers.id = orders.customer_id\nJOIN products ON orders.product_id = products.id\nGROUP BY customers.id\nORDER BY total_spent DESC;\n\nResult shape: 4 rows.\nColumns:\n- name (category)\n- total_spent (currency)"
+  },
+  "plan": {
+    "primary": {
+      "type": "horizontal-bar",
+      "category": "name",
+      "series": [
+        "total_spent"
+      ],
+      "title": "Total Spending by Customers (Highest First)",
+      "description": "Displays the total amount spent by each customer, ranked from highest to lowest."
+    },
+    "source": "model",
+    "latencyMs": 1287
+  }
+}

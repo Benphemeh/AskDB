@@ -51,6 +51,8 @@ NL-to-SQL isn't a new problem. Systems that answer English questions from a data
 
 There are two ways to call AskDB from TypeScript. `createAskDb()` from `@askdb/client` takes the model, the schema and the dialect from your `askdb.config.ts`, the same config the CLI and Studio use. `ask()` from `@askdb/core` takes a schema you loaded and any Vercel AI SDK model. Both return checked SQL, and your code runs it through your own connection. [Embed in a Node app](/guides/embed-in-node/) walks through both.
 
+Once your code has the rows, the experimental `@askdb/client/charts` can ask your model which chart fits them, from the question, the SQL and the column kinds, never the rows. It returns a chart spec, and your app draws it with its own charting library. [Chart your first answer](/chart-your-first-answer/) is the tutorial, and [Chart a query result](/guides/plan-a-chart/) is the guide for your own app.
+
 </section>
 
 ## Works with the database you already have

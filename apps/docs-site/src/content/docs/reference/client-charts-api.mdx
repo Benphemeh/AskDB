@@ -1,11 +1,11 @@
 ---
 title: "@askdb/client/charts API reference"
-description: "Experimental API reference for @askdb/client/charts: classifyResult(), planChart(), validateChartSpec(), the chart spec, the part-to-whole policy and the fallback."
+description: "Experimental API reference for @askdb/client/charts: classifyResult(), planChart(), validateChartSpec(), the chart spec and its six chart types, the part-to-whole policy and the fallback."
 ---
 
 import { Aside, Badge } from "@astrojs/starlight/components";
 
-`@askdb/client/charts` plans a chart for a query result. The model sees the question, the SQL with its literals masked, and the result's column names and kinds. It never sees a row.
+`@askdb/client/charts` plans a chart for a query result and returns a chart spec. It draws nothing: your application draws the spec from its own rows. The model sees the question, the SQL with its literals masked, and the result's column names and kinds. It never sees a row.
 
 <Badge text="Experimental" variant="caution" />
 
@@ -17,7 +17,7 @@ This entry point is outside AskDB's stability promise: a minor release of `@askd
 import { classifyResult, planChart, validateChartSpec } from "@askdb/client/charts";
 ```
 
-The entry point imports only `@askdb/client`'s peers, `@askdb/core` and `ai`. [Plan a chart for a query result](/guides/plan-a-chart/) shows it end to end.
+The entry point imports only `@askdb/client`'s peers, `@askdb/core` and `ai`. [Chart a query result](/guides/plan-a-chart/) shows it end to end, with the chart drawn. [Chart planning](/concepts/chart-planning/) explains the design.
 
 ## `classifyResult(input)`
 
@@ -37,14 +37,14 @@ classifyResult(input: ClassifyResultInput): ClassifiedResult
 
 ### Column kinds
 
-Each column gets one kind. The name decides first, then the database type, then the values.
+Each column gets one kind. The name decides an identifier and a year. Whether a column is a number comes from its database type, then its values when you pass rows, then its name.
 
 | Kind | Read from |
 | --- | --- |
 | `identifier` | A name whose last word is `id` or `uuid`: `customer_id`, `orderId`. `paid` is not one. |
 | `year` | A name with the word `year`, `yr` or `fy`. |
 | `date` | A date or time database type; values that are all `Date` objects or ISO dates; a name with a word such as `date`, `day`, `month`, `quarter` or `at`. |
-| `percent` | A number whose name has `pct`, `percent`, `rate`, `ratio` or `share`. |
+| `percent` | A number whose name has `pct`, `percent`, `percentage`, `rate`, `ratio` or `share`. |
 | `currency` | A number of type `money`, or whose name has a word such as `amount`, `cost`, `revenue`, `total` or `price`. |
 | `measure` | Any other number. |
 | `category` | Anything else, including a text column named like a number. |
@@ -99,17 +99,48 @@ The model returns a JSON object through the AI SDK's structured output (`generat
 | `source` | `"model" \| "fallback"` | Who picked the chart. |
 | `fallbackReason` | `"timeout" \| "aborted" \| "model-error" \| "invalid-spec"` | Set when `source` is `"fallback"`. |
 | `issues` | `ChartSpecIssue[]` | Set when the model's primary chart failed the checks. |
-| `latencyMs` | `number` | How long planning took. |
+| `latencyMs` | `number` | How long planning took, in milliseconds. |
+
+A plan from a model, for a result with the columns `name` (a category) and `total_spent` (currency) and the question "How much has each customer spent in total, highest first?":
+
+```json
+{
+  "primary": {
+    "type": "horizontal-bar",
+    "category": "name",
+    "series": ["total_spent"],
+    "title": "Total Spending by Customers (Highest First)",
+    "description": "Displays the total amount spent by each customer, ranked from highest to lowest."
+  },
+  "source": "model",
+  "latencyMs": 1287
+}
+```
 
 ### `ChartSpec`
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `type` | `"metric" \| "line" \| "area" \| "bar" \| "horizontal-bar" \| "pie"` | The chart type. |
-| `category` | `string` | The column along the axis, or the slices. A metric has none. |
+| `category` | `string`, optional | The column along the axis, or the slices. A metric has none. |
 | `series` | `string[]` | The columns to plot as numbers. |
 | `title` | `string` | A factual title. |
 | `description` | `string` | One sentence on what is plotted. |
+
+A chart spec names columns of the result and holds no data. Each name in `category` and `series` is a column name as you passed it to `classifyResult()`.
+
+### Chart types
+
+What each `type` asks your application to draw:
+
+| `type` | Draw |
+| --- | --- |
+| `metric` | One number: the value of the one `series` column in the one row. It has no `category`. |
+| `line` | One line per `series` column, along the `category` column. |
+| `area` | As `line`, with the area under each line filled. |
+| `bar` | One bar per row for each `series` column, with the `category` column along the horizontal axis. |
+| `horizontal-bar` | As `bar`, with the `category` column along the vertical axis. |
+| `pie` | One slice per row: the `category` column names the slice, and the one `series` column sizes it. |
 
 ### The rubric
 
@@ -148,7 +179,7 @@ validateChartSpec(
 A pie shows one additive total or count across 2–8 categories. The check refuses a pie for:
 
 - more than one series;
-- an average, minimum, maximum, rate, ratio or percent;
+- an average, median, minimum, maximum, rate, ratio or percent;
 - negative values (known only when you passed rows);
 - a date or year category;
 - fewer than 2 or more than 8 rows, or a category that repeats across rows;
@@ -178,5 +209,6 @@ Every type the entry point exports:
 
 ## Read next
 
-- [Plan a chart for a query result](/guides/plan-a-chart/): The planner end to end.
+- [Chart a query result](/guides/plan-a-chart/): The planner end to end, with the chart drawn.
+- [Chart planning](/concepts/chart-planning/): Why the model sees no rows, and why your application draws.
 - [@askdb/client API](/reference/client-api/): `createAskDb()` and `client.ask()`.

@@ -1,46 +1,111 @@
 ---
-title: "Plan a chart for a query result"
-description: "Pick a chart for the rows your application got from AskDB's SQL, with a model that sees the question, the SQL with its values masked, and the result's columns, but never a row."
+title: "Chart a query result"
+description: "Ask your model which chart fits the rows your application got from AskDB's SQL, get back a chart spec, and draw it with your own charting library. The model never sees a row."
 ---
 
-import { Aside, Badge } from "@astrojs/starlight/components";
-import InstallTabs from "../../../components/InstallTabs.astro";
+import { Image } from "astro:assets";
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
 import AgentPrompt from "../../../components/AgentPrompt.astro";
+import ExampleLink from "../../../components/ExampleLink.astro";
+import InstallTabs from "../../../components/InstallTabs.astro";
+import chartLight from "../../../assets/charts/total-spent-light.svg";
+import chartDark from "../../../assets/charts/total-spent-dark.svg";
 
-Ask a model which chart fits a query result, then draw it from your own rows. The model never sees a row value: `@askdb/client/charts` sends it the question, the SQL with every literal replaced by `?`, and the result's column names and kinds.
+AskDB returns SQL, and your application runs it. `@askdb/client/charts` then asks your model which chart fits that result, and returns a chart spec. Your application draws the chart from its own rows, with its own charting library.
+
+The model gets the question, the SQL and the column kinds, never a row. AskDB draws nothing.
+
+If this is new to you, start with the tutorial [Chart your first answer](/chart-your-first-answer/), which draws this chart in the Quickstart's project.
+
+<figure class="doc-chart">
+  <Image src={chartLight} alt="A horizontal bar chart titled Total Spending by Customers (Highest First). Grace 398, Margaret 377, Ada 138.99, Linus 49.99." class="dark:sl-hidden" />
+  <Image src={chartDark} alt="A horizontal bar chart titled Total Spending by Customers (Highest First). Grace 398, Margaret 377, Ada 138.99, Linus 49.99." class="light:sl-hidden" />
+  <figcaption>The chart for "How much has each customer spent in total, highest first?" on the Quickstart's shop database. <code>planChart()</code> returned the chart type, the two columns, the title and the description, from gpt-4o-mini on 2026-11-15. The example drew it with ECharts from that run's 4 rows.</figcaption>
+</figure>
+
+## Who does what
+
+- **Your application** runs the SQL and keeps the rows. It calls `classifyResult()` and `planChart()`, and it draws the chart.
+- **`@askdb/client/charts`** runs in your process. It classifies the columns, builds the prompt and checks the model's answer. It reads the rows you pass to `classifyResult()` and sends them nowhere.
+- **Your model** picks the chart type, the columns, a title and a description. It gets the question, the SQL with every value replaced by `?`, each column's name and kind, and the row count. It gets no row.
+
+<figure>
+
+```mermaid
+flowchart TB
+  %% Who holds what while a chart is planned. Source of truth: packages/client/src/charts/
+  %% (classify.ts, plan.ts, validate.ts, fallback.ts). The rows go from the application's own
+  %% query to classifyResult() and to its own charting library, and to nothing else.
+  ask["ask()<br/>returns checked SQL"]
+  run["your application runs it<br/>and keeps the rows"]
+  classify["classifyResult()<br/>in your process"]
+  plan["planChart()"]
+  model["your model"]
+  draw["your charting library<br/>draws the chart"]
+  ask -- "SQL" --> run
+  run -- "rows" --> classify
+  classify -- "column names and kinds,<br/>the row count" --> plan
+  plan -- "the question,<br/>the SQL with ? for values,<br/>column names and kinds" --> model
+  model -- "chart spec" --> plan
+  plan -- "checked chart spec" --> draw
+  run -- "rows" --> draw
+```
+
+<figcaption>The rows go from your application's query to <code>classifyResult()</code>, which runs in your process, and to your own charting library. <code>planChart()</code> sends your model the question, the SQL with <code>?</code> for every value, and the column names and kinds. It checks the chart spec the model returns, and your application draws that spec.</figcaption>
+</figure>
+
+[Chart planning](/concepts/chart-planning/) explains the design: what the model never sees, what the checks refuse, what a chart costs, and when to skip the planner.
 
 <Aside type="caution" title="Experimental">
-<Badge text="Experimental" variant="caution" /> `@askdb/client/charts` is outside AskDB's stability promise: a minor release of `@askdb/client` may change it ([ADR 0030](https://github.com/Ygilany/AskDB/blob/main/docs/adrs/0030-1-0-promises-checked-sql-only.md)).
+`@askdb/client/charts` is outside AskDB's stability promise: a minor release of `@askdb/client` may change it ([ADR 0030](https://github.com/Ygilany/AskDB/blob/main/docs/adrs/0030-1-0-promises-checked-sql-only.md)).
 </Aside>
 
 ## Before you start
 
 - A service that calls `ask()` or `client.ask()` and runs the SQL under your own connection. [Embed in a Node app](/guides/embed-in-node/) builds one.
 - A row cap on that connection. A chart from a cut result needs to know it was cut; [Cap the rows a query returns](/guides/cap-the-rows-a-query-returns/) returns `{ rows, truncated }`.
-- The packages below. `@askdb/client/charts` imports only `@askdb/client`'s peers, `@askdb/core` and `ai`; the rest are for steps 1 and 3.
+- A charting library. This guide uses [Apache ECharts](https://echarts.apache.org/); step 4 says what changes for another one.
+- Room for one more model call per chart, after the call `ask()` makes.
 
-<InstallTabs pkgs="@askdb/client @askdb/core @askdb/config @askdb/ai ai @ai-sdk/openai" />
+Install `@askdb/client`, which holds the `@askdb/client/charts` entry point, and ECharts. The entry point imports only `@askdb/core` and `ai`, and `@askdb/config` is a peer of `@askdb/client`. A service from [Embed in a Node app](/guides/embed-in-node/) has all of these but ECharts, and the package for its model.
 
-Swap `@ai-sdk/openai` for the AI SDK package your config selects.
+<InstallTabs pkgs="@askdb/client @askdb/core @askdb/config ai echarts" />
+
+The whole flow, on the Quickstart's shop database, is in <ExampleLink path="examples/chart-a-result" />. Its `draw-recorded.mjs` draws the chart above with no API key. The output in each step below is from that example's recorded run.
 
 ## 1. Run the query
 
 Generate the SQL and run it yourself. AskDB returns the SQL and never runs it.
 
 ```ts
-import { createAskDb } from "@askdb/client";
-import { bootstrapAskDbEnv, getAskDbRuntimeConfig } from "@askdb/config";
-
-bootstrapAskDbEnv({ cwd: process.cwd() });
-const askdb = createAskDb({ config: getAskDbRuntimeConfig(), schema: { path: "./my-app.schema" } });
-const question = "How many orders did each region place last quarter?";
-const { sql } = await askdb.ask(question);
+const question = "How much has each customer spent in total, highest first?";
+const { sql } = await askdb.ask(question);        // or ask({ question, schema, model, dialect })
 const { rows, truncated } = await runCapped(sql); // your own connection and row cap
+```
+
+On the shop database, the model wrote this SQL, and the application got 4 rows:
+
+```sql
+SELECT customers.name, SUM(products.price * orders.quantity) AS total_spent
+FROM customers
+JOIN orders ON customers.id = orders.customer_id
+JOIN products ON orders.product_id = products.id
+GROUP BY customers.id
+ORDER BY total_spent DESC;
+```
+
+```json
+[
+  { "name": "Grace", "total_spent": 398 },
+  { "name": "Margaret", "total_spent": 377 },
+  { "name": "Ada", "total_spent": 138.99 },
+  { "name": "Linus", "total_spent": 49.99 }
+]
 ```
 
 ## 2. Classify the result in your process
 
-`classifyResult()` reads the column names, their database types and, if you pass them, the rows. It runs in your process and makes no model call. It returns two parts: `shape`, the only part the model sees, and `local`, facts such as negative values and label lengths that stay in your process.
+Pass the columns and the rows to `classifyResult()`. It runs in your process and makes no model call.
 
 ```ts
 import { classifyResult } from "@askdb/client/charts";
@@ -54,109 +119,192 @@ const result = classifyResult({
 });
 ```
 
-Pass `schema` (the schema artifact `ask()` used) to take a column's type from the artifact when your driver doesn't report one. A result column takes the type of the one schema column with its name; a name shared by two schema columns decides nothing.
+It returns two parts. `result.shape` is all the model sees of the result:
+
+```json
+{
+  "columns": [
+    { "name": "name", "kind": "category" },
+    { "name": "total_spent", "kind": "currency" }
+  ],
+  "rowCount": 4,
+  "truncated": false
+}
+```
+
+`result.local` holds facts read from the rows, such as negative values and label lengths. They stay in your process, for the checks in step 3.
+
+If your driver doesn't report a column's type, pass `schema`, the schema artifact `ask()` used. A result column then takes the type of the one schema column with its name. [Column kinds](/reference/client-charts-api/#column-kinds) lists every kind and how it's read.
 
 ## 3. Plan the chart
 
-Pass the question, the SQL and the classified result to `planChart()` with a model. Use the same model wiring as `ask()`: an AI SDK model you build, or one from `@askdb/ai`'s registry.
+Pass the question, the SQL and the classified result to `planChart()`, with the model you give `ask()`. Pass `dialect` as you do to `ask()`: it decides how `planChart()` finds the values to mask in the SQL.
+
+<Tabs syncKey="wiring">
+  <TabItem label="AskDB builds the model">
 
 ```ts
 import { planChart } from "@askdb/client/charts";
 import { createAiRegistry } from "@askdb/ai";
 
-const model = await createAiRegistry().createLanguageModelFromEnv(process.env); // or openai("gpt-4o-mini")
+const model = await createAiRegistry().createLanguageModelFromEnv(process.env);
 if (!model) throw new Error("No AI provider is configured: set its API key.");
-const plan = await planChart({ question, sql, result, model, dialect: "postgres" });
+const plan = await planChart({ question, sql, result, model, dialect: "sqlite" });
 ```
 
-Before the model call, `planChart()` replaces every literal in the SQL with `?`: strings, numbers and tenant values bound into the SQL. It finds them with the SQL checks' own lexer, for the `dialect` you pass. An id that isn't built in, a custom dialect, or no dialect reads the SQL the way every built-in engine would, which masks more. If the SQL can't be read safely, for example a string that never closes, the model gets no SQL at all. A column name that holds a literal, such as the name SQLite and MySQL give an unaliased `COUNT(CASE WHEN status = 'refunded' THEN 1 END)`, is shown as `column_2`, and `planChart()` maps the model's answer back to the real name.
-
-If you keep sensitive columns out of prompts (`modes.omitSensitiveFromPrompt`), pass that setting as `omitSensitiveIdentifiers` with the schema artifact as `schema`, as `ask()` takes it. The model then gets no SQL that mentions a sensitive column, and a result column named like one is shown under a `column_<n>` label.
+  </TabItem>
+  <TabItem label="Your app builds the model">
 
 ```ts
-const plan = await planChart({ question, sql, result, model, dialect: "postgres", schema, omitSensitiveIdentifiers: true });
+import { planChart } from "@askdb/client/charts";
+import { openai } from "@ai-sdk/openai";
+
+const model = openai("gpt-4o-mini"); // the model you pass to ask()
+const plan = await planChart({ question, sql, result, model, dialect: "sqlite" });
 ```
 
-`planChart()` never rejects because of the model. When the model errors, takes longer than `timeoutMs` (15000 by default), returns something that isn't a chart spec, or names a chart that fails the checks, `plan.source` is `"fallback"` and `plan.fallbackReason` says why. The fallback picks a chart from the classified columns with the same rules.
+  </TabItem>
+</Tabs>
 
-## 4. Draw the chart from your rows
+The recorded run returned this plan:
 
-`plan.primary` names the columns to plot. Map them onto your chart library and your own rows:
-
-```ts
-if (plan.primary) {
-  const { type, category, series, title } = plan.primary;
-  renderChart({ type, title, x: category, y: series, data: rows });
+```json
+{
+  "primary": {
+    "type": "horizontal-bar",
+    "category": "name",
+    "series": ["total_spent"],
+    "title": "Total Spending by Customers (Highest First)",
+    "description": "Displays the total amount spent by each customer, ranked from highest to lowest."
+  },
+  "source": "model",
+  "latencyMs": 1287
 }
 ```
 
-`plan.primary` is null when no column holds a number to plot, or when a result of several rows has no column to group them by. Show the table instead. `plan.alternate`, when set, is a second chart you can offer.
+`plan.primary` is the chart spec: a `type`, the `category` column, the `series` columns, a `title` and a `description`. It names columns of your result and holds no data. The model picks it, so yours can differ.
 
-## What the model sees
+## 4. Draw the chart from your rows
 
-<figure>
+Map the chart spec onto your charting library's config, and give the library your rows. For ECharts:
 
-```mermaid
-flowchart TB
-  %% Source of truth: ADR 0044 (docs/adrs/0044-chart-planning-sends-no-rows.md), classifyResult in
-  %% packages/client/src/charts/classify.ts and buildChartUserPrompt in prompt.ts.
-  rows["your rows"]
-  classify["classifyResult()<br/>in your process"]
-  local["local facts:<br/>negative values, label lengths"]
-  mask["planChart() replaces<br/>every SQL literal with ?"]
-  model["language model"]
-  plan["plan: columns to plot"]
-  draw["you draw the chart<br/>from your rows"]
-  rows --> classify
-  classify --> local
-  classify -- "shape" --> mask
-  mask -- "question, masked SQL,<br/>column names and kinds" --> model
-  model --> plan
-  plan --> draw
-  rows --> draw
+| Chart spec | ECharts option |
+| --- | --- |
+| Your rows | `dataset.source` |
+| `title`, `description` | `title.text`, `title.subtext` |
+| Each name in `series` | One entry in `series`, named after the column |
+| `type: "bar"` | `series[].type: "bar"`, with `encode: { x: category, y: column }` |
+| `type: "horizontal-bar"` | The same, with the axes swapped: `encode: { x: column, y: category }` |
+| `type: "line"` | `series[].type: "line"` |
+| `type: "area"` | A line series with `areaStyle: {}` |
+| `type: "pie"` | One series of `type: "pie"`, with `encode: { itemName: category, value: series[0] }` and no axes |
+| `type: "metric"` | No chart. Show `rows[0][series[0]]` as a number, under the title. |
+
+This function does that mapping for every chart type:
+
+```js title="to-echarts.mjs"
+/**
+ * Turns a chart spec from @askdb/client/charts into an ECharts option.
+ * ECharts reads your rows from `dataset.source` and picks columns by name with `encode`,
+ * so the spec's `category` and `series` go in as they are.
+ * A metric is one number, not a chart: it gets no option.
+ *
+ * @param {import("@askdb/client/charts").ChartSpec} spec
+ * @param {Record<string, unknown>[]} rows
+ * @returns {import("echarts").EChartsOption | null}
+ */
+export function toEChartsOption(spec, rows) {
+  if (spec.type === "metric") return null;
+  const base = {
+    title: { text: spec.title, subtext: spec.description },
+    dataset: { source: rows },
+    tooltip: {},
+  };
+  if (spec.type === "pie") {
+    return { ...base, series: [{ type: "pie", encode: { itemName: spec.category, value: spec.series[0] } }] };
+  }
+  const horizontal = spec.type === "horizontal-bar";
+  const categoryAxis = { type: "category", inverse: horizontal }; // inverse: the first row at the top
+  const valueAxis = { type: "value" };
+  return {
+    ...base,
+    legend: { show: spec.series.length > 1, bottom: 0 },
+    grid: { top: 80 },
+    xAxis: horizontal ? valueAxis : categoryAxis,
+    yAxis: horizontal ? categoryAxis : valueAxis,
+    series: spec.series.map((column) => ({
+      type: spec.type === "line" || spec.type === "area" ? "line" : "bar",
+      name: column,
+      ...(spec.type === "area" ? { areaStyle: {} } : {}),
+      encode: horizontal ? { x: column, y: spec.category } : { x: spec.category, y: column },
+    })),
+  };
+}
 ```
 
-<figcaption>What crosses to the model and what stays in your process. Rows and local facts never leave; the model gets the question, the masked SQL and the result's shape, and returns the columns to plot.</figcaption>
-</figure>
+Call it where your application shows the result. `showTable` and `showNumber` stand for your own code:
 
-| | Sent to the model | Stays in your process |
-| --- | --- | --- |
-| Question | the question | |
-| SQL | the SQL with every literal replaced by `?` | the literal values |
-| Result | column names and kinds, and the row count | every row, and local facts such as negative values and label lengths |
+```ts
+import * as echarts from "echarts";
+import { toEChartsOption } from "./to-echarts.mjs";
 
-For the question above, the model gets this, after fixed instructions that state the rules and hold no data:
-
-```text
-Question: How many orders did each region place last quarter?
-
-SQL (literals replaced with ?):
-SELECT region, COUNT(*) AS order_count FROM orders WHERE tenant_id = ? AND placed_at >= ? GROUP BY region
-
-Result shape: 6 rows.
-Columns:
-- region (category)
-- order_count (measure)
+const spec = plan.primary;
+if (!spec) {
+  showTable(rows); // no chart fits this result
+} else if (spec.type === "metric") {
+  showNumber(spec.title, rows[0][spec.series[0]]);
+} else {
+  echarts.init(document.getElementById("chart")).setOption(toEChartsOption(spec, rows));
+}
 ```
 
-The column names reach the model, as they do in the prompt `ask()` sends, unless omission withholds them. Values don't.
+Your page then shows a chart like the one at the top of this guide. The rows reach the browser from your own API, the way they reach a table. The chart spec can go with them: it holds no row.
+
+If you use another library, map the same five fields. Chart.js, Recharts and Vega-Lite also take an array of row objects and a column name for each axis: `parsing.xAxisKey` and `parsing.yAxisKey` in Chart.js, `dataKey` in Recharts, and `encoding.x.field` in Vega-Lite.
+
+## 5. Handle a fallback and a result with no chart
+
+`planChart()` never rejects because of the model. Check three fields of the plan:
+
+- **`plan.primary` is `null`.** No column holds a number to plot, or a result of several rows has no column to group them by. Show the table.
+- **`plan.source` is `"fallback"`.** The model call failed, was aborted, took longer than `timeoutMs` (15000 by default), or returned a chart that failed the checks. `plan.primary` is then a chart picked from the classified columns by fixed rules, so draw it the same way. `plan.fallbackReason` says why, and `plan.issues` lists what the checks refused. Log both. For the result above, the fallback picks the same horizontal bar chart, with the title "Total spent by name".
+- **`plan.alternate` is set.** It's a second chart spec that passed the checks. Offer it as another view of the same rows.
+
+To wait less than 15 s for a chart, pass `timeoutMs`:
+
+```ts
+const plan = await planChart({ question, sql, result, model, dialect: "sqlite", timeoutMs: 5000 });
+```
+
+If you store a chart spec and draw it later from new rows, classify the new result and check the spec with [`validateChartSpec()`](/reference/client-charts-api/#validatechartspecspec-result-context) first.
+
+## Keep sensitive columns out of the prompt
+
+If you keep sensitive columns out of prompts (`modes.omitSensitiveFromPrompt`), pass that setting as `omitSensitiveIdentifiers`, with the schema artifact as `schema`, as `ask()` takes it. The model then gets no SQL that mentions a sensitive column, and a result column named like one is shown under a `column_<n>` label. `planChart()` maps the label in the model's answer back to the real name.
+
+```ts
+const plan = await planChart({ question, sql, result, model, dialect: "sqlite", schema, omitSensitiveIdentifiers: true });
+```
+
+[Keep sensitive columns out of prompts](/guides/keep-sensitive-columns-out-of-prompts/) lists every prompt that follows the setting.
 
 ## Use with your agent
 
 <AgentPrompt>
 
-Add chart planning to this project's AskDB service. Follow https://askdb.tools/guides/plan-a-chart.md.
+Add a chart to the place where this project shows a query result from AskDB. Follow https://askdb.tools/guides/plan-a-chart.md.
 
-Goal: call `classifyResult()` and `planChart()` from `@askdb/client/charts` on a query result, then draw `plan.primary` from the application's own rows.
+Constraints:
 
-- `@askdb/client/charts` is experimental: a minor release of `@askdb/client` may change it.
-- Never send rows to a model. Pass the question, the SQL and the classified result.
-- AskDB returns SQL and never runs it. The application runs the SQL under its own connection, with a row cap.
+- AskDB returns SQL and a chart spec. This application runs the SQL and draws the chart from its own rows, with its own charting library.
+- Pass `classifyResult()` the result's columns, row count and `truncated` flag. Never put a row in a prompt.
+- `@askdb/client/charts` is experimental. Draw `plan.primary` when it is set, show the table when it is `null`, and log `plan.fallbackReason` and `plan.issues`.
 
 </AgentPrompt>
 
 ## Read next
 
+- [Chart planning](/concepts/chart-planning/): What the model sees, what the checks refuse, and when to skip the planner.
 - [@askdb/client/charts API](/reference/client-charts-api/): Every option, type and check.
 - [Cap the rows a query returns](/guides/cap-the-rows-a-query-returns/): The `truncated` flag the planner reads.
 - [Bring your own model](/guides/bring-your-own-model/): Both ways to give the planner a model.

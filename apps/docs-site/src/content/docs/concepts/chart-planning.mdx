@@ -1,0 +1,101 @@
+---
+title: "Chart planning"
+description: "How @askdb/client/charts picks a chart for a query result without showing the model a row, why your application draws it, what the checks refuse, what it costs, and when to skip it."
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+Chart planning picks a chart for a query result. Your model chooses it from the question, the SQL and the column kinds, and AskDB returns that choice as a chart spec. Your application draws the chart from its own rows.
+
+This page explains why the work is split that way, and where the split stops being useful.
+
+<Aside type="caution" title="Experimental">
+`@askdb/client/charts` is outside AskDB's stability promise: a minor release of `@askdb/client` may change it ([ADR 0030](https://github.com/Ygilany/AskDB/blob/main/docs/adrs/0030-1-0-promises-checked-sql-only.md)).
+</Aside>
+
+## A chart needs intent, not values
+
+Two things decide which chart fits a result. The first is what the question asks for: a ranking, a share of a whole, a change over time, or one number. The second is what each column holds: a name to group by, a date, an amount, an id.
+
+Neither one needs a value from the rows. A model reads the first from the question. `classifyResult()` reads the second in your process, from the column names, their database types and, if you pass them, the rows. So the model can pick a chart from the question, the SQL and a list of column kinds.
+
+That keeps chart planning inside the rule the rest of AskDB follows: your rows never reach the model ([Privacy model](/concepts/privacy-model/)). A model that reads rows is a different decision, with consent, sensitive columns and size limits to settle first, and AskDB doesn't make it for you. [ADR 0044](https://github.com/Ygilany/AskDB/blob/main/docs/adrs/0044-chart-planning-sends-no-rows.md) records the choice.
+
+## What the model sees
+
+Take the question from the [Quickstart](/quickstart/), "How much has each customer spent in total, highest first?", on its shop database. This is the whole message `planChart()` sent the model for it, after fixed instructions that state the rules and hold no data:
+
+```text title="What planChart() sent"
+Question: How much has each customer spent in total, highest first?
+
+SQL (literals replaced with ?):
+SELECT customers.name, SUM(products.price * orders.quantity) AS total_spent
+FROM customers
+JOIN orders ON customers.id = orders.customer_id
+JOIN products ON orders.product_id = products.id
+GROUP BY customers.id
+ORDER BY total_spent DESC;
+
+Result shape: 4 rows.
+Columns:
+- name (category)
+- total_spent (currency)
+```
+
+The result had 4 rows: Grace, Margaret, Ada and Linus, with what each spent. None of those names or amounts is in the message. The model learns that the result has 4 rows, a column of names to group by and a column of money, and that the question asks for "highest first". That's enough to answer "a horizontal bar chart of `total_spent` by `name`".
+
+The SQL helps the model tell a ranking from a breakdown, because it shows the grouping and the ordering. But SQL carries values of its own: a filter such as `WHERE customers.country = 'US'` holds a value from the question, and a tenant filter can hold a tenant ID. So `planChart()` replaces every literal with `?` before the model sees the SQL. That filter reaches the model as `WHERE customers.country = ?`. If `planChart()` can't read the SQL safely, for example when a string never closes, the model gets no SQL at all.
+
+Column names do reach the model, as they do in the prompt `ask()` sends. If you keep sensitive columns out of prompts, `planChart()` follows that setting when you pass it the schema artifact. [What the model receives](/reference/client-charts-api/#what-the-model-receives) has the exact rules.
+
+## Why AskDB returns a spec, and your application draws it
+
+The model's answer is a chart spec with five fields: a chart type, a category column, series columns, a title and a description.
+
+```json
+{
+  "type": "horizontal-bar",
+  "category": "name",
+  "series": ["total_spent"],
+  "title": "Total Spending by Customers (Highest First)",
+  "description": "Displays the total amount spent by each customer, ranked from highest to lowest."
+}
+```
+
+AskDB could have asked the model for chart code instead, such as a Vega-Lite document or a React component. It doesn't, for two reasons. Chart code is code your application would have to run. And a check can't tell what such code plots. A spec that only names columns is data, and every field in it can be checked against the result.
+
+AskDB also doesn't draw the chart. Your application already holds the rows, and it already has a design system and, often, a charting library. A chart that AskDB drew would need the rows passed back in, and would look like AskDB's idea of your product. So the split follows the one for SQL: AskDB returns SQL and your application runs it; AskDB returns a chart spec and your application draws it. [Chart a query result](/guides/plan-a-chart/) maps the spec onto ECharts in about 30 lines.
+
+## When the model's pick doesn't fit
+
+A model can name a column the result doesn't have, plot an id as if it were a quantity, or ask for a pie chart of a ranking. `planChart()` runs every spec through `validateChartSpec()` before it returns it. For the example above, a pie chart is refused with this message:
+
+```text
+No pie: a ranking isn't part of a whole.
+```
+
+A pie chart gets the strictest check, because a pie makes a claim: the slices add up to a whole. That's true for one total or count, across a few categories, from a complete result. It's false for an average or a rate, for a result that a row cap cut, and for the top of a ranking. The [part-to-whole policy](/reference/client-charts-api/#the-part-to-whole-policy) lists every case.
+
+When the model's spec fails the checks, or the model call fails or times out, `planChart()` doesn't throw. It picks a chart itself, from the classified columns, by the same rules the model is given. The plan says so: `source` is `"fallback"`, and `fallbackReason` says why. For the example, the fallback picks the same horizontal bar chart, with a plainer title, "Total spent by name". The model's contribution there is the wording. On other results it's the reading of the question: the fallback knows a ranking or a share of a whole only from words such as "top" and "share".
+
+The kinds that the checks rely on are themselves heuristics. `classifyResult()` reads a column's kind from its name first, then its database type, then its values. A numeric column named `rate` is read as a percent even if it holds a count, and then it's never a pie. The [column kinds](/reference/client-charts-api/#column-kinds) table says what each kind is read from.
+
+## What it costs
+
+- **One model call per chart,** after the one `ask()` makes. `classifyResult()` and `validateChartSpec()` make none.
+- **A small prompt.** It holds the fixed instructions, the question, the SQL and one line per column. It doesn't grow with the number of rows.
+- **Time.** The recorded run above took 1.3 s with gpt-4o-mini, on 2026-11-15. `planChart()` waits up to `timeoutMs`, 15 s by default, and then falls back.
+
+## When not to use it
+
+- **You already know the chart.** A fixed dashboard or a saved report has a chart someone chose. Draw it. If you stored a chart spec, `validateChartSpec()` checks it against a new result with no model call.
+- **The result needs a chart the spec can't describe.** A spec has one category column and one of six types: metric, line, area, bar, horizontal bar and pie. It can't describe a scatter plot, a map, or a result with two columns to group by, such as one row per month and region.
+- **You want the model to read the values.** A summary of the result, a note on an outlier, or a title that names the top customer all need the rows. The planner never sends them, so it can't write those.
+- **The second model call costs too much.** Pick the chart with your own rules. A result of one row is a number, and a result with a date column is a line chart, with no model at all.
+
+## Read next
+
+- [Chart your first answer](/chart-your-first-answer/): The tutorial: draw a first chart in the Quickstart's project.
+- [Chart a query result](/guides/plan-a-chart/): Classify a result, plan a chart and draw it with ECharts.
+- [@askdb/client/charts API](/reference/client-charts-api/): Every option, type and check.
+- [Privacy model](/concepts/privacy-model/): Everything AskDB sends to your model provider.

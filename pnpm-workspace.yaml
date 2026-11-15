@@ -6,6 +6,8 @@ packages:
   - "!examples/consumer-lab"
   # The Quickstart example installs askdb from the registry, as a reader does; installable-smoke runs it from packed tarballs.
   - "!examples/quickstart-shop"
+  # The chart example installs AskDB and ECharts from the registry too; installable-smoke runs its keyless tests from packed tarballs.
+  - "!examples/chart-a-result"
   # Shared multi-engine test fixture (replaces Pagila); see fixtures/multi-engine/README.md.
   - "fixtures/multi-engine"
 publicHoistPattern:

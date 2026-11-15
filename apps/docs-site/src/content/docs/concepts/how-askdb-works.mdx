@@ -80,6 +80,10 @@ You bring the model. AskDB calls whatever provider you wire in — typically thr
 
 The same model never sees your database connection, your credentials, or the rows your application returns. See [Privacy model](/concepts/privacy-model/) for the precise list of what crosses the boundary.
 
+## After the rows: a chart
+
+AskDB's part ends at checked SQL, with one optional step after your application has run it. The experimental `@askdb/client/charts` entry point asks your model which chart fits the result, from the question, the SQL and the column kinds, and returns a chart spec. Your application draws the chart from its own rows, with its own charting library, so the rows still never reach the model. See [Chart planning](/concepts/chart-planning/).
+
 ## Read next
 
 - [The schema artifact](/concepts/the-schema-artifact/): The file the model reads — what's in it, who owns it, how it evolves.
