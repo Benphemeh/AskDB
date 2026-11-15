@@ -210,7 +210,7 @@ Customer purchase orders. One row per submitted order.
 
 ### Front-matter rules
 
-- **YAML only.** The block opens with `---`, `---yaml` or `---yml`. Since `@askdb/core` 1.0.0-beta.48, any other format, such as `---js` or `---json`, fails to load: `Malformed table front-matter YAML in <file>: front-matter must be YAML`. The same rule covers `concepts.md` and `tenant-policy.md`.
+- **YAML only.** The block opens with `---`, `---yaml` or `---yml`. Any other format, such as `---js` or `---json`, fails to load: `Malformed table front-matter YAML in <file>: front-matter must be YAML`. The same rule covers `concepts.md` and `tenant-policy.md`.
 - **Required.** A table file without front-matter, or without `id`, `name` and `schemaId`, fails to load.
 - **No unknown keys.** A key that isn't in the table below fails to load: `Invalid table front-matter in <file>: …`, with `Unrecognized key` in the details.
 - **One file per table.** Two files with the same `id` fail to load: `… both have front-matter id <id>. Each table needs exactly one markdown file; merge them.`
