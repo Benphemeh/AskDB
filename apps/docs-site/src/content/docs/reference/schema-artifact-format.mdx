@@ -3,24 +3,26 @@ title: "Schema artifact format"
 description: "Every file in a schema artifact: the schema.json fields, the table and concept front-matter, stable IDs, sensitivity rules, the loader's warnings, and the bundle format."
 ---
 
-<p class="doc-eyebrow">Reference · Schema artifact</p>
+import { FileTree } from "@astrojs/starlight/components";
 
-<p class="doc-lede">A schema artifact is a folder of files that <code>loadSchema()</code> reads, or one bundle file that holds them. This page lists each file, every field it accepts, and what AskDB does with it. For why the artifact is split this way, see <a href="/concepts/the-schema-artifact/">The schema artifact</a>.</p>
+A schema artifact is a folder of files that `loadSchema()` reads, or one bundle file that holds them. This page lists each file, every field it accepts, and what AskDB does with it. For why the artifact is split this way, see [The schema artifact](/concepts/the-schema-artifact/).
 
 It's the only format AskDB reads. `@askdb/core` owns it: `loadSchema()`, `loadSchemaFromJson()` and `readSchemaDirectory()` are in the [`@askdb/core` API reference](/reference/core-api/schema/#loadschemapath).
 
 ## Layout
 
-```
-my-app.schema/
-  schema.json         # required: the physical layer
-  tables/
-    orders.md         # optional: one file for each table you describe
-    users.md
-  concepts.md         # optional: business concepts that span tables
-  tenant-policy.md    # optional: the tenant policy
-  schema.lock.json    # written by @askdb/rag; loadSchema() ignores it
-```
+<FileTree>
+
+- my-app.schema/
+  - **schema.json** required: the physical layer
+  - tables/
+    - orders.md optional: one file for each table you describe
+    - users.md
+  - concepts.md optional: business concepts that span tables
+  - tenant-policy.md optional: the tenant policy
+  - schema.lock.json written by @askdb/rag; loadSchema() ignores it
+
+</FileTree>
 
 Only `schema.json` is required. A folder with no markdown files loads, and each table then has only its names and types.
 
@@ -67,7 +69,7 @@ Another JSON file throws instead when its folder also holds `tenant-policy.md`, 
 
 The physical layer: the tables and columns AskDB read from the database. Here it is for a Postgres database with `orders` and `users` tables, with `users.email` marked sensitive:
 
-```json
+```json title="schema.json"
 {
   "version": 2,
   "schemaId": "my-app",
@@ -186,7 +188,7 @@ Renaming a table or column in the database changes its ID. AskDB treats a rename
 
 One markdown file describes one table: YAML front-matter, then a markdown body.
 
-```markdown
+```markdown title="tables/orders.md"
 ---
 id: table:public.orders
 name: orders
@@ -260,7 +262,7 @@ For a sensitive table, AskDB drops its description, aliases, `primaryEntity`, co
 
 Business concepts that span tables, such as a *customer* who can be in `users` or in `leads`. The full-schema prompt lists every concept after the tables: its label, synonyms, links (named the way the prompt names tables and columns) and description. A link to an untracked table is left out, and so is a concept whose links are all untracked. With retrieval, the prompt lists only the concepts retrieval picks.
 
-```markdown
+```markdown title="concepts.md"
 ---
 concepts:
   - id: concept:customer
@@ -322,7 +324,7 @@ Each table and column ends up with one `sensitive` value:
 
 A bundle is one JSON file that holds a whole artifact. Loading it gives the same result as loading the folder.
 
-```jsonc
+```jsonc title="prod.bundle.json"
 {
   "bundled": true,
   "physical": { /* schema.json */ },
@@ -345,8 +347,6 @@ This is the only format AskDB reads. Until 1.0.0 stable, release candidates incl
 
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/concepts/the-schema-artifact/"><strong>The schema artifact</strong><span>Why the artifact is files your team owns, and how its two layers fit together.</span></a>
-  <a href="/guides/author-your-schema/"><strong>Enrich your schema</strong><span>Enrich the artifact in Studio and keep it current as the database changes.</span></a>
-  <a href="/reference/core-api/schema/#loadschemapath"><strong>@askdb/core API</strong><span><code>loadSchema()</code>, <code>loadSchemaFromJson()</code> and the loaded schema's fields.</span></a>
-</div>
+- [The schema artifact](/concepts/the-schema-artifact/): Why the artifact is files your team owns, and how its two layers fit together.
+- [Enrich your schema](/guides/author-your-schema/): Enrich the artifact in Studio and keep it current as the database changes.
+- [@askdb/core API](/reference/core-api/schema/#loadschemapath): `loadSchema()`, `loadSchemaFromJson()` and the loaded schema's fields.

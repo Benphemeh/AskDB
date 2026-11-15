@@ -3,9 +3,26 @@ title: "Scope to a tenant hierarchy"
 description: "Let a user see a tenant and everything beneath it, such as an agency, its sub-agencies and their clients, with a subtree scope and a resolveTenantDescendants callback."
 ---
 
-<p class="doc-eyebrow">Tenant-scoped generation</p>
+import AgentPrompt from "../../../components/AgentPrompt.astro";
 
-<p class="doc-lede">A <code>subtree</code> scope says "these IDs and everything beneath them". An agency administrator, for example, sees their agency, its sub-agencies, and those sub-agencies' clients. AskDB never opens a database connection, so it can't walk your hierarchy itself. You pass a <code>resolveTenantDescendants</code> callback that returns the subtree's IDs grouped by tenant root, and <code>ask()</code> binds each root's IDs to that root's own placeholder.</p>
+A `subtree` scope says "these IDs and everything beneath them". An agency administrator, for example, sees their agency, its sub-agencies, and those sub-agencies' clients. AskDB never opens a database connection, so it can't walk your hierarchy itself. You pass a `resolveTenantDescendants` callback that returns the subtree's IDs grouped by tenant root, and `ask()` binds each root's IDs to that root's own placeholder.
+
+<figure>
+
+```mermaid
+flowchart TB
+  %% Source of truth: packages/core/src/sql/tenant-hierarchy.ts (the subtree expands to a multi_root scope, one entry per root).
+  scope["subtree scope<br/>tenantRoot: agencies<br/>rootIds: 1"]
+  a["agencies<br/>:tenant_agency_ids = 1"]
+  s["sub_agencies<br/>:tenant_sub_agency_ids = 5"]
+  c["clients<br/>:tenant_client_ids = 5"]
+  scope -- "seed" --> a
+  a -- "sub_agencies.agency_id" --> s
+  s -- "clients.sub_agency_id" --> c
+```
+
+<figcaption>What a <code>subtree</code> scope covers. The seed agency, its sub-agencies and their clients each get their own placeholder and their own IDs.</figcaption>
+</figure>
 
 ## Before you start
 
@@ -135,10 +152,20 @@ resolveTenantDescendants: (tenantRoot, seedIds) => ({
 
 `@askdb/client` forwards `resolveTenantDescendants` like any other per-call override: `askdb.ask(question, { tenantScope, resolveTenantDescendants })`.
 
+## Use with your agent
+
+<AgentPrompt>
+Let users of this project see a tenant and everything beneath it. Follow https://askdb.tools/guides/tenant-hierarchy.md.
+
+Constraints:
+
+- AskDB returns SQL and never runs it, and it never opens a database connection to walk the hierarchy. This application supplies `resolveTenantDescendants`, which returns IDs grouped by tenant root.
+- Tenant scope comes from the application's own authorization: `rootIds` are the IDs the signed-in user may see. Authorization and caching of the closure stay the application's job.
+- Keep the database as the tenant boundary. AskDB's tenant check is a defense in depth, not a guarantee.
+</AgentPrompt>
+
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/guides/multi-tenancy/"><strong>Scope queries to a tenant</strong><span>The policy, the scope and the SQL for a single tenant level.</span></a>
-  <a href="/reference/tenant-policy/"><strong>Tenant policy format</strong><span>Every policy field, including <code>parent</code> and <code>hierarchy</code>.</span></a>
-  <a href="/concepts/tenant-isolation/"><strong>Tenant isolation</strong><span>Why the database should still be the tenant boundary.</span></a>
-</div>
+- [Scope queries to a tenant](/guides/multi-tenancy/): The policy, the scope and the SQL for a single tenant level.
+- [Tenant policy format](/reference/tenant-policy/): Every policy field, including `parent` and `hierarchy`.
+- [Tenant isolation](/concepts/tenant-isolation/): Why the database should still be the tenant boundary.

@@ -5,9 +5,7 @@ description: "Every export of @askdb/ai: the provider registry, the built-in pro
 
 import InstallTabs from "../../../components/InstallTabs.astro";
 
-<p class="doc-eyebrow">Reference · @askdb/ai</p>
-
-<p class="doc-lede"><code>@askdb/ai</code> turns a provider and a model setting into a Vercel AI SDK model, the <code>model</code> that <code>ask()</code> takes. <code>@askdb/client</code> builds its registry for you. Import it yourself to build a model outside the client and share it with your app's own AI SDK calls, to restrict or extend the set of providers, or to share one registry across clients.</p>
+`@askdb/ai` turns a provider and a model setting into a Vercel AI SDK model, the `model` that `ask()` takes. `@askdb/client` builds its registry for you. Import it yourself to build a model outside the client and share it with your app's own AI SDK calls, to restrict or extend the set of providers, or to share one registry across clients.
 
 <InstallTabs pkgs="@askdb/ai ai" />
 
@@ -37,6 +35,12 @@ flowchart TB
 </figure>
 
 ## `createAiRegistry(providers?)`
+
+```ts
+import { createAiRegistry } from "@askdb/ai";
+
+function createAiRegistry(adapters?: AiProviderAdapters): AiRegistry;
+```
 
 Returns an `AiRegistry` for the providers you pass. Without an argument, it registers every [built-in provider](#built-in-providers). Each loads its AI SDK package only when it first builds a model, so registering one you don't use costs nothing.
 
@@ -107,18 +111,31 @@ The CLI, Studio and the HTTP API already include all four SDKs, and register onl
 
 The shape of a provider adapter, for a provider that isn't built in. [Bring your own model](/guides/bring-your-own-model/#a-provider-that-isnt-built-in) walks through a complete one, for Mistral.
 
-| Field | Required | What it does |
+| Field | Default | Description |
 | --- | --- | --- |
-| `provider` | yes | The name `ai.provider` and `ASKDB_AI_PROVIDER` select it by. |
-| `aliases` | no | Other names that select it. |
-| `configHint` | no | One sentence on how to set its key, for `keyMissingMessage()`. |
-| `resolveConfig(env, options)` | yes | Resolves an `AiConfig` from an env map, or `undefined` without an API key. `options` is a `ResolveConfigOptions`: `usage`, and the `modelDefault` and `modelEnvVar` the registry was called with. |
-| `resolveConfigFromSection(section, { usage })` | no | Resolves an `AiConfig` from an `AiModelSection`, or `undefined` without an API key. Without it, the registry passes the section to `resolveConfig` as the universal keys: `ASKDB_AI_PROVIDER`, `ASKDB_AI_API_KEY`, `ASKDB_AI_BASE_URL`, and `ASKDB_AI_MODEL` (`ASKDB_AI_EMBEDDING_MODEL` for an embedding section). |
-| `createLanguageModel(config)` | yes | Builds the AI SDK `LanguageModel`. It may return a `Promise`. |
-| `createEmbeddingModel(config, options?)` | yes | Builds the AI SDK `EmbeddingModel`. |
-| `resolveProviderOptions(config, settings)` | no | Maps a reasoning effort to the provider's `providerOptions`. Return `undefined` for a model that doesn't support it. Without it, the provider gets no reasoning options. |
+| `provider` | required | The name `ai.provider` and `ASKDB_AI_PROVIDER` select it by. |
+| `aliases` | optional | Other names that select it. |
+| `configHint` | optional | One sentence on how to set its key, for `keyMissingMessage()`. |
+| `resolveConfig(env, options)` | required | Resolves an `AiConfig` from an env map, or `undefined` without an API key. `options` is a `ResolveConfigOptions`: `usage`, and the `modelDefault` and `modelEnvVar` the registry was called with. |
+| `resolveConfigFromSection(section, { usage })` | optional | Resolves an `AiConfig` from an `AiModelSection`, or `undefined` without an API key. Without it, the registry passes the section to `resolveConfig` as the universal keys: `ASKDB_AI_PROVIDER`, `ASKDB_AI_API_KEY`, `ASKDB_AI_BASE_URL`, and `ASKDB_AI_MODEL` (`ASKDB_AI_EMBEDDING_MODEL` for an embedding section). |
+| `createLanguageModel(config)` | required | Builds the AI SDK `LanguageModel`. It may return a `Promise`. |
+| `createEmbeddingModel(config, options?)` | required | Builds the AI SDK `EmbeddingModel`. |
+| `resolveProviderOptions(config, settings)` | optional | Maps a reasoning effort to the provider's `providerOptions`. Return `undefined` for a model that doesn't support it. Without it, the provider gets no reasoning options. |
 
 Two helpers for adapters:
+
+```ts
+import { resolveBaseConfig, withEmbeddingProviderOptions } from "@askdb/ai";
+
+function resolveBaseConfig(provider: string, env: AiEnv, spec: ProviderEnvSpec, options: ResolveConfigOptions): AiConfig | undefined;
+
+function withEmbeddingProviderOptions(
+  model: EmbeddingModelV3,
+  providerKey: string,
+  options?: CreateEmbeddingModelOptions,
+  toSettings?: (options: CreateEmbeddingModelOptions) => Record<string, JSONValue | undefined>,
+): EmbeddingModel;
+```
 
 - **`resolveBaseConfig(provider, env, spec, options)`** resolves the key, model and base URL from an env map in AskDB's [precedence](#env-map-precedence), given the provider's own variables as a `ProviderEnvSpec`: `apiKeyVars`, and the optional `apiKeySecondaryVars`, `modelVars`, `embeddingModelVars`, `baseURLVars` and `defaultModel`. Returns `undefined` without a key.
 - **`withEmbeddingProviderOptions(model, providerKey, options?, toSettings?)`** wraps an embedding model so `dimensions` and `user` reach the provider under `providerOptions[providerKey]`. `toSettings` renames them to the provider's own settings, such as Gemini's `outputDimensionality`.
@@ -151,6 +168,22 @@ With an `askdb.config.*` file, none of these variables matter on their own: the 
 
 ## Reasoning
 
+```ts
+import { resolveReasoningEffort, resolveReasoningEffortFromSection } from "@askdb/ai";
+
+function resolveReasoningEffortFromSection(
+  reasoning: AiReasoningSection | undefined,
+  usage: AiCallPurpose,
+  override?: ReasoningEffort,
+): ReasoningEffort | undefined;
+
+function resolveReasoningEffort(
+  env: Record<string, string | undefined>,
+  purpose?: AiCallPurpose,
+  override?: ReasoningEffort,
+): ReasoningEffort | undefined;
+```
+
 - **`REASONING_EFFORTS`** is `["minimal", "low", "medium", "high"]`, the values of `ReasoningEffort`.
 - **`resolveReasoningEffortFromSection(reasoning, purpose, override?)`** returns the effort for `"nlToSql"` or `"enrichment"` calls (an `AiCallPurpose`) from `ai.language.reasoning`: `override`, then the purpose's own effort, then `effort`.
 - **`resolveReasoningEffort(env, purpose?, override?)`** reads the same from an env map: `override`, then `ASKDB_AI_REASONING_EFFORT_NL_TO_SQL` or `ASKDB_AI_REASONING_EFFORT_ENRICHMENT`, then `ASKDB_AI_REASONING_EFFORT`. A value that isn't an effort is skipped.
@@ -165,8 +198,6 @@ With an `askdb.config.*` file, none of these variables matter on their own: the 
 
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/guides/bring-your-own-model/"><strong>Bring your own model</strong><span>Wire a model from your config, or build it in your own code.</span></a>
-  <a href="/guides/bundle-your-app/"><strong>Bundle an app that uses AskDB</strong><span>esbuild and webpack settings, and how to ship the schema and config.</span></a>
-  <a href="/reference/config-api/"><strong>@askdb/config API reference</strong><span>The runtime snapshot whose <code>ai</code> sections the registry takes.</span></a>
-</div>
+- [Bring your own model](/guides/bring-your-own-model/): Wire a model from your config, or build it in your own code.
+- [Bundle an app that uses AskDB](/guides/bundle-your-app/): esbuild and webpack settings, and how to ship the schema and config.
+- [@askdb/config API reference](/reference/config-api/): The runtime snapshot whose `ai` sections the registry takes.

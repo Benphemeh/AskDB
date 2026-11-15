@@ -4,10 +4,16 @@ description: "When your schema is too big to fit in a prompt, index it with @ask
 ---
 
 import InstallTabs from "../../../components/InstallTabs.astro";
+import AgentPrompt from "../../../components/AgentPrompt.astro";
 
-<p class="doc-eyebrow">Scale-up guide</p>
+Big databases need retrieval. `@askdb/rag` chunks the same schema artifact and indexes it in a vector store. Per question, AskDB retrieves the relevant slice instead of stuffing the whole thing into every prompt.
 
-<p class="doc-lede">Big databases need retrieval. <code>@askdb/rag</code> chunks the same schema artifact and indexes it in a vector store. Per question, AskDB retrieves the relevant slice instead of stuffing the whole thing into every prompt.</p>
+## Before you start
+
+- A schema artifact on disk, such as `./my-app.schema`. [Enrich your schema](/guides/author-your-schema/) improves retrieval quality.
+- A Postgres database for the pgvector store, which is the recommended store.
+- An embedding model and its provider key.
+- A service that calls `ask()`. [Embed in a Node app](/guides/embed-in-node/) sets one up.
 
 ## When you need it
 
@@ -201,10 +207,22 @@ npx askdb rag setup-store \
 
 1536 is `text-embedding-3-small`'s width; pass your model's. Match the same `table` value in `askdb.config.ts` under `rag.storeConfig.pgvector.table`, which Studio and `askdb rag` read; with it set there, `askdb rag` needs no `--pg-table`.
 
+## Use with your agent
+
+<AgentPrompt>
+
+Add retrieval to this project's AskDB integration. Follow https://askdb.tools/guides/rag-for-large-schemas.md.
+
+Goal: index the schema artifact in a pgvector store and pass a retriever to `ask()`, so each prompt lists only the tables the question needs.
+
+- Set `ai.embedding.model` in `askdb.config.ts`: AskDB has no default embedding model.
+- Leave `includeSensitiveDescribable` off unless I say my trust model allows embedding sensitive text.
+- AskDB returns SQL and never runs it. The application runs the SQL.
+
+</AgentPrompt>
+
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/guides/author-your-schema/"><strong>Enrich your schema</strong><span>Enrichment dramatically improves retrieval quality.</span></a>
-  <a href="/guides/bring-your-own-model/"><strong>Bring your own model</strong><span>Embedder options and key management.</span></a>
-  <a href="/reference/rag-api/"><strong>@askdb/rag API</strong><span>Every export: indexing, retrieval, the lock file, chunking, embedders and stores.</span></a>
-</div>
+- [Enrich your schema](/guides/author-your-schema/): Enrichment dramatically improves retrieval quality.
+- [Bring your own model](/guides/bring-your-own-model/): Embedder options and key management.
+- [@askdb/rag API](/reference/rag-api/): Every export: indexing, retrieval, the lock file, chunking, embedders and stores.

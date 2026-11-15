@@ -3,11 +3,9 @@ title: "Studio tour"
 description: "A tour of Studio's seven views: enrich your schema, test questions against the SQL they generate, and check the RAG index, on your own machine."
 ---
 
-import { Aside } from "@astrojs/starlight/components";
+import { Aside, Steps } from "@astrojs/starlight/components";
 
-<p class="doc-eyebrow">Visual tour</p>
-
-<p class="doc-lede">Studio is a local web app for enriching your schema artifact and testing questions against the SQL they generate. It reads and writes the artifact on your machine, and its AI features send schema text and your questions to the model provider you configure. This tour walks through its seven views.</p>
+Studio is a local web app for enriching your schema artifact and testing questions against the SQL they generate. It reads and writes the artifact on your machine, and its AI features send schema text and your questions to the model provider you configure. This tour walks through its seven views.
 
 <Aside type="tip">Studio is the recommended way to enrich your schema: a local browser UI that edits your schema artifact directly. You can also edit the artifact's files by hand, in the [schema artifact format](/reference/schema-artifact-format/).</Aside>
 
@@ -23,9 +21,13 @@ Studio prints its address, `AskDB Studio is running at http://127.0.0.1:5556`. O
 
 Studio also works as the *first* command in a new project. Run `npx askdb studio` in a directory with no `askdb.config.ts`, or with no schema artifact yet, and Studio opens a setup wizard instead:
 
+<Steps>
+
 1. **Pick your database engine and AI provider.** The wizard asks for environment variable *names* only, never secret values. Studio writes `askdb.config.ts` and an `.env.example`, and installs the packages the config needs.
 2. **Add your secrets to `.env` yourself.** The wizard shows which variables to fill in. The values stay on your disk.
 3. **Run introspection from the browser.** Studio reads your schema's structure (tables and columns, never rows) and opens the Overview.
+
+</Steps>
 
 `npx askdb init` asks the same questions in the terminal and writes the same files. The [Studio reference](/reference/studio/#guided-setup) says what the wizard writes and installs, and how it picks a package manager.
 
@@ -35,7 +37,12 @@ The core Studio workflow is **enrich → ask → re-enrich**. Add descriptions, 
 
 ## Overview
 
+<figure>
+
 ![The Overview dashboard showing table count, enrichment progress, RAG index health, and suggested next actions](../../assets/studio/overview.png)
+
+<figcaption>The Overview: stat cards, pending enrichment, recent Playground queries and suggested next actions.</figcaption>
+</figure>
 
 The Overview shows the state of your schema artifact:
 
@@ -48,7 +55,12 @@ The Overview shows the state of your schema artifact:
 
 ## Tables and enrichment
 
+<figure>
+
 ![The Tables view showing a table list on the left and the Enrichment tab on the right with description, aliases, and common query language fields](../../assets/studio/tables.png)
+
+<figcaption>The Tables view: the table list, and the open table's Enrichment tab.</figcaption>
+</figure>
 
 The Tables view lists every table in your schema, grouped by schema, with a search box and filters for **Complete**, **Partial** and **Not started** tables. Select a table to open it in three tabs:
 
@@ -64,7 +76,12 @@ The Tables view lists every table in your schema, grouped by schema, with a sear
 
 ## Concepts
 
+<figure>
+
 ![The Concepts view with an empty list and an Add concept button](../../assets/studio/concepts.png)
+
+<figcaption>The Concepts view, before you add a concept.</figcaption>
+</figure>
 
 Concepts capture business vocabulary that spans tables, such as "active subscription" or "customer" in a schema where that meaning joins several tables. **Add concept** asks for an ID (Studio adds the `concept:` prefix), a label, synonyms, links to the tables and columns it covers, and a description. **Save** writes `concepts.md`.
 
@@ -72,7 +89,12 @@ Concepts reach the model in both Playground modes: **Full schema** lists every c
 
 ## Tenancy
 
+<figure>
+
 ![The Tenancy view offering Draft with AI or Configure manually options for multi-tenant isolation](../../assets/studio/tenancy.png)
+
+<figcaption>The Tenancy view: draft a tenant policy with AI, or configure it manually.</figcaption>
+</figure>
 
 The Tenancy view declares tenant isolation for a multi-tenant schema. Choose **Draft with AI** to have your model propose a tenant policy, or **Configure manually** to pick the tenant root table, its tenant ID column and an enforcement mode (**Strict** or **Warn**) yourself. Either way, you review the policy before **Save** writes `tenant-policy.md`. A saved policy shows its table coverage and an **Edit** button.
 
@@ -80,7 +102,12 @@ The Tenancy view declares tenant isolation for a multi-tenant schema. Choose **D
 
 ## RAG Index
 
+<figure>
+
 ![The RAG Index view with chunk counts, the index details, and the Query Debugger showing retrieved chunks](../../assets/studio/rag-index.png)
+
+<figcaption>The RAG Index view: chunk counts, Index Details and the Query Debugger.</figcaption>
+</figure>
 
 The RAG Index view builds the retrieval index and shows what retrieval returns for a question:
 
@@ -92,14 +119,23 @@ With `rag.embedder: "mock"`, which `askdb init` writes, Studio embeds with a loc
 
 ## Playground
 
+<figure>
+
 ![The Query Playground with a natural-language input field and a Generate SQL button](../../assets/studio/playground.png)
 
+<figcaption>The Playground: type a question and generate SQL.</figcaption>
+</figure>
+
 The Playground is where you test whether your enrichment works:
+
+<Steps>
 
 1. Type a question in plain language.
 2. Choose **Full schema** or **RAG**. Full schema sends every tracked table with its columns, descriptions, aliases, enum values, column notes, foreign keys, common query language notes and business context, then your concepts. A sensitive table or column shows only names and types, with a sensitive tag ([Sensitive columns](/concepts/privacy-model/#sensitive-columns)). A table's example questions aren't part of it. RAG retrieves only the relevant chunks, and is available once the index exists. It also shows each listed column's note and the business context it retrieves, under the same sensitive rules: see [What the model sees](/concepts/privacy-model/#what-the-model-sees).
 3. With a tenant policy, the **Tenant scope** box is ticked: set the access kind, the tenant root and IDs, and the SQL output, **$N parameters** or **Inline literals**. See [Scope queries to a tenant](/guides/multi-tenancy/#4-try-it-in-studios-playground).
 4. Click **Generate SQL**, or press ⌘↵ (Ctrl+Enter).
+
+</Steps>
 
 The SQL appears with an **Explain** panel that shows the result of AskDB's SQL checks. When the SQL reads a column marked sensitive, a warning above it names the columns, as [`askdb ask`](/reference/cli/#output) prints it, and a `Note:` line follows when the check couldn't tell which tables the SQL reads. Neither blocks the SQL. A query loaded from the history shows no warning: generate it again to see one. The Playground doesn't show which chunks retrieval picked: run the same question in the [RAG Index](#rag-index) Query Debugger for that. Like the CLI, the Playground follows `modes.omitSensitiveFromPrompt`.
 
@@ -113,7 +149,12 @@ Once the SQL looks right, the **Get the code** panel turns the session into Type
 
 ## Settings
 
+<figure>
+
 ![The Settings view with the Workspace, RAG Store and Schema Warnings cards](../../assets/studio/settings.png)
+
+<figcaption>Settings: the Workspace, RAG Store and Schema Warnings cards.</figcaption>
+</figure>
 
 Settings, at the bottom of the side rail, shows how Studio is set up. It changes nothing:
 
@@ -125,9 +166,7 @@ The rail's **Dark mode** button switches Studio's theme.
 
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/guides/enable-studio-execute/"><strong>Enable Studio execute</strong><span>Run the Playground's SQL against your database under a read-only role.</span></a>
-  <a href="/reference/studio/"><strong>Studio reference</strong><span>Flags, files, what each AI feature sends, and the security model.</span></a>
-  <a href="/guides/author-your-schema/"><strong>Enrich your schema</strong><span>The enrichment workflow, and keeping the artifact current.</span></a>
-  <a href="/quickstart/"><strong>Quickstart</strong><span>Create a sample database, ask a question from the CLI, and run the SQL.</span></a>
-</div>
+- [Enable Studio execute](/guides/enable-studio-execute/): Run the Playground's SQL against your database under a read-only role.
+- [Studio reference](/reference/studio/): Flags, files, what each AI feature sends, and the security model.
+- [Enrich your schema](/guides/author-your-schema/): The enrichment workflow, and keeping the artifact current.
+- [Quickstart](/quickstart/): Create a sample database, ask a question from the CLI, and run the SQL.

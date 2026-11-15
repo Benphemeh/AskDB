@@ -1,16 +1,16 @@
 // Turns each ```mermaid fence into an inline SVG at build time with pele (ADR 0041), so pages ship
 // no diagram JavaScript. The SVG takes its colors from the `--pele-*` variables in
-// src/styles/custom.css, so it follows the theme toggle without a second render. A diagram pele
+// src/styles/content.css, so it follows the theme toggle without a second render. A diagram pele
 // can't render fails the build, naming the page, the line and pele's error code.
 import { PeleError, render } from "pele";
 
 /**
  * The label fonts. pele sizes each node from the font's measurements, and at build time there is
  * no computed style to read them from, so the plugin passes the site's own stacks: `--sl-font` and
- * `--sl-font-mono` in src/styles/custom.css. A test keeps them equal.
+ * `--sl-font-mono` in src/styles/tokens.css. A test keeps them equal.
  */
-export const DIAGRAM_FONT = 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-export const DIAGRAM_FONT_MONO = '"SFMono-Regular", Consolas, "Liberation Mono", Menlo, ui-monospace, monospace';
+export const DIAGRAM_FONT = '"Inter Variable", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+export const DIAGRAM_FONT_MONO = '"JetBrains Mono Variable", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, ui-monospace, monospace';
 
 /** Thrown for a diagram pele can't render. `code` is pele's: `syntax`, `semantic`, `unsupported-diagram` or `limit`. */
 export class DiagramRenderError extends Error {

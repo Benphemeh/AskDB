@@ -3,11 +3,39 @@ title: "The schema artifact"
 description: "Why AskDB's schema artifact is files your team owns: two layers joined by stable IDs, sensitivity that only escalates, and a loader that fails closed."
 ---
 
-<p class="doc-eyebrow">The contract</p>
+import { FileTree } from "@astrojs/starlight/components";
 
-<p class="doc-lede">The schema artifact is the folder of files your team authors, reviews, and checks into version control. It's the model's only source of knowledge about your database, and it's yours to evolve like any other piece of source code.</p>
+The schema artifact is the folder of files your team authors, reviews, and checks into version control. It's the model's only source of knowledge about your database, and it's yours to evolve like any other piece of source code.
 
 This page explains how the artifact is put together and why. The [Schema artifact format](/reference/schema-artifact-format/) lists every file and field.
+
+<figure>
+
+```mermaid
+flowchart TB
+  %% Where each layer comes from, and how the artifact reaches the model. Source of truth:
+  %% apps/cli/src/introspect.ts (writes only schema.json), apps/cli/src/bundle.ts
+  %% (bundleSchemaDirectory refuses what loadSchema() refuses), packages/core/src/schema/v2/loader.ts
+  %% (loadSchema, loadSchemaFromJson), packages/core/src/schema/v2/format.ts (formatSchemaV2ForNlToSql).
+  db[("your database")]
+  introspect["askdb introspect"]
+  team["your team, in Studio<br/>or by hand"]
+  subgraph artifact["the schema artifact, in version control"]
+    physical["schema.json:<br/>the physical layer"]
+    enrichment["tables/*.md, concepts.md,<br/>tenant-policy.md:<br/>the enrichment layer"]
+  end
+  bundle["askdb bundle:<br/>one JSON file"]
+  load["loadSchema()"]
+  model["one annotated schema<br/>text for the model"]
+  db --> introspect --> physical
+  team --> enrichment
+  artifact -- "to ship it" --> bundle --> load
+  artifact -- "as a folder" --> load
+  load -- "ask()" --> model
+```
+
+<figcaption><code>askdb introspect</code> writes the physical layer from your database, and your team writes the enrichment layer. AskDB loads the folder, or the one JSON file <code>askdb bundle</code> packs it into, and at generation time merges both layers into one schema text for the model.</figcaption>
+</figure>
 
 ## Two layers
 
@@ -16,6 +44,18 @@ The artifact keeps two kinds of knowledge apart, because they come from differen
 The **physical layer** is `schema.json`: the tables, columns, types, keys and relationships. It comes from the database. `askdb introspect` reads the database and writes it, and writes it again each time you run it. You rarely edit it by hand.
 
 The **enrichment layer** is markdown: a file for each table you describe, plus optional business concepts and a tenant policy. It comes from people: what a table means, what your users call it, and how they phrase questions about it. Introspection never touches it.
+
+<FileTree>
+
+- askdb/
+  - schema.json the physical layer, from the database
+  - tables/
+    - orders.md enrichment for one table you describe
+    - users.md
+  - concepts.md optional business concepts
+  - tenant-policy.md optional tenant policy
+
+</FileTree>
 
 The split lets each layer change at its own pace. Re-introspection can't erase what your team wrote. And a diff of `schema.json` shows what changed in the database, and nothing else.
 
@@ -39,7 +79,11 @@ The two layers check spelling differently. Markdown front-matter refuses a key i
 
 The model never sees the directory you author. At generation time AskDB merges the physical layer and the enrichment into a single compact, model-facing text — a DDL-style description where each table is rendered as a block and your enrichment is folded in as inline comments (descriptions, aliases, column notes, "common query language" and business context attached to the table and columns they describe). Each table lists its foreign keys, and your concepts follow the tables. Sensitive fields are tagged or withheld here according to your mode.
 
-So the two layers you maintain separately on disk — `schema.json` for structure, markdown for meaning — are assembled into one annotated schema description the model reads. The prompt carries that repackaged text and the question, never your rows, your credentials, or your query results. When your schema has a tenant policy, the prompt also carries a tenant policy block and the `context` from your `tenantScope`, as advisory text. The block names tenant IDs only by placeholder, such as `:tenant_agency_ids`, never by value. See [Privacy model](/concepts/privacy-model/) for the full list of what reaches the model. When a schema is too large to send whole, the same rendering is applied to only the relevant slice retrieved for the question (see [RAG for large schemas](/guides/rag-for-large-schemas/)).
+So the two layers you maintain separately on disk — `schema.json` for structure, markdown for meaning — are assembled into one annotated schema description the model reads. The prompt carries that repackaged text and the question, never your rows, your credentials, or your query results.
+
+When your schema has a tenant policy, the prompt also carries a tenant policy block and the `context` from your `tenantScope`, as advisory text. The block names tenant IDs only by placeholder, such as `:tenant_agency_ids`, never by value. See [Privacy model](/concepts/privacy-model/) for the full list of what reaches the model.
+
+When a schema is too large to send whole, the same rendering is applied to only the relevant slice retrieved for the question (see [RAG for large schemas](/guides/rag-for-large-schemas/)).
 
 ## Directory or bundle
 
@@ -62,8 +106,6 @@ A versionable file means:
 
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/reference/schema-artifact-format/"><strong>Schema artifact format</strong><span>Every file and field, the stable IDs, the loader's warnings, and the bundle format.</span></a>
-  <a href="/guides/author-your-schema/"><strong>Enrich your schema</strong><span>Enrich the artifact in Studio and keep it current as the database changes.</span></a>
-  <a href="/concepts/privacy-model/"><strong>Privacy model</strong><span>What reaches the model in each mode, and how sensitive columns are handled.</span></a>
-</div>
+- [Schema artifact format](/reference/schema-artifact-format/): Every file and field, the stable IDs, the loader's warnings, and the bundle format.
+- [Enrich your schema](/guides/author-your-schema/): Enrich the artifact in Studio and keep it current as the database changes.
+- [Privacy model](/concepts/privacy-model/): What reaches the model in each mode, and how sensitive columns are handled.

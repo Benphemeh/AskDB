@@ -1,99 +1,123 @@
 ---
+/**
+ * The site header: logo, the four top-level sections, search, GitHub and the theme control.
+ * The section links show from 64rem up; below that the sidebar (or the phone menu) lists them.
+ */
 import config from "virtual:starlight/user-config";
-import LanguageSelect from "virtual:starlight/components/LanguageSelect";
 import Search from "virtual:starlight/components/Search";
 import SiteTitle from "virtual:starlight/components/SiteTitle";
 import SocialIcons from "virtual:starlight/components/SocialIcons";
 import ThemeSelect from "virtual:starlight/components/ThemeSelect";
+import { base, withBase } from "../../utils/links";
 
 const shouldRenderSearch =
 	config.pagefind || config.components.Search !== "@astrojs/starlight/components/Search.astro";
+
+/** Each section links to its first page. `prefix` is the path every page in the section starts with. */
+const sections = [
+	{ label: "Quickstart", href: "/quickstart/", prefix: "/quickstart/" },
+	{ label: "Guides", href: "/guides/embed-in-node/", prefix: "/guides/" },
+	{ label: "Concepts", href: "/concepts/how-askdb-works/", prefix: "/concepts/" },
+	{ label: "Reference", href: "/reference/cli/", prefix: "/reference/" },
+];
+const path = Astro.url.pathname.slice(base.length);
 ---
 
 <div class="header">
 	<div class="title-wrapper sl-flex">
 		<SiteTitle />
 	</div>
-	<div class="sl-flex print:hidden search-group">
+	<nav class="section-nav print:hidden" aria-label="Sections">
+		{
+			sections.map(({ label, href, prefix }) => (
+				<a href={withBase(href)} aria-current={path.startsWith(prefix) ? "true" : undefined}>
+					{label}
+				</a>
+			))
+		}
+	</nav>
+	<div class="sl-flex print:hidden right-group">
 		{shouldRenderSearch && <Search />}
-		<div class="sl-flex md:sl-hidden mobile-theme-select">
-			<ThemeSelect />
-		</div>
-	</div>
-	<div class="sl-hidden md:sl-flex print:hidden right-group">
-		<div class="sl-flex social-icons">
+		<div class="sl-hidden md:sl-flex social-icons">
 			<SocialIcons />
 		</div>
 		<ThemeSelect />
-		<LanguageSelect />
 	</div>
 </div>
 
 <style>
-	@layer starlight.core {
+	.header {
+		align-items: center;
+		display: flex;
+		gap: 1rem;
+		height: 100%;
+	}
+
+	.title-wrapper {
+		flex: none;
+		min-width: 0;
+		overflow: clip;
+	}
+
+	.section-nav {
+		display: none;
+		gap: 0.125rem;
+		margin-inline-start: 1rem;
+	}
+
+	.section-nav a {
+		border-radius: var(--ask-radius-sm);
+		color: var(--ask-text-muted);
+		font-size: 0.875rem;
+		font-weight: 500;
+		padding: 0.375rem 0.625rem;
+		text-decoration: none;
+		transition: color 0.12s ease, background-color 0.12s ease;
+	}
+
+	.section-nav a:hover {
+		background-color: color-mix(in srgb, var(--ask-text) 6%, transparent);
+		color: var(--ask-text);
+	}
+
+	.section-nav a[aria-current="true"] {
+		color: var(--ask-text);
+	}
+
+	.right-group {
+		align-items: center;
+		gap: 0.75rem;
+		margin-inline-start: auto;
+	}
+
+	.social-icons {
+		align-items: center;
+		gap: 0.75rem;
+	}
+
+	.social-icons :global(a) {
+		border-radius: var(--ask-radius-sm);
+		color: var(--ask-text-muted);
+		margin: 0;
+		padding: 0.4rem;
+		transition: color 0.12s ease, background-color 0.12s ease;
+	}
+
+	.social-icons :global(a:hover) {
+		background-color: color-mix(in srgb, var(--ask-text) 6%, transparent);
+		color: var(--ask-text);
+		opacity: 1;
+	}
+
+	@media (min-width: 50rem) {
 		.header {
+			padding-inline: 0.25rem;
+		}
+	}
+
+	@media (min-width: 64rem) {
+		.section-nav {
 			display: flex;
-			gap: var(--sl-nav-gap);
-			justify-content: space-between;
-			align-items: center;
-			height: 100%;
-		}
-
-		.title-wrapper {
-			overflow: clip;
-			padding: 0.25rem;
-			margin: -0.25rem;
-			min-width: 0;
-		}
-
-		.search-group {
-			align-items: center;
-		}
-
-		.right-group,
-		.social-icons {
-			gap: 1rem;
-			align-items: center;
-		}
-		.social-icons::after {
-			content: "";
-			height: 2rem;
-			border-inline-end: 1px solid var(--sl-color-gray-5);
-		}
-
-		@media (min-width: 50rem) {
-			:global(:root[data-has-sidebar]) {
-				--__sidebar-pad: calc(2 * var(--sl-nav-pad-x));
-			}
-			:global(:root:not([data-has-toc])) {
-				--__toc-width: 0rem;
-			}
-			.header {
-				--__sidebar-width: max(
-					0rem,
-					var(--sl-content-inline-start, 0rem) - var(--sl-nav-pad-x)
-				);
-				--__main-column-fr: calc(
-					(
-						100% + var(--__sidebar-pad, 0rem) -
-							var(--__toc-width, var(--sl-sidebar-width)) -
-							(2 * var(--__toc-width, var(--sl-nav-pad-x))) -
-							var(--sl-content-inline-start, 0rem) - var(--sl-content-width)
-					) / 2
-				);
-				display: grid;
-				grid-template-columns:
-					minmax(
-						calc(
-							var(--__sidebar-width) +
-								max(0rem, var(--__main-column-fr) - var(--sl-nav-gap))
-						),
-						auto
-					)
-					1fr
-					auto;
-				align-content: center;
-			}
 		}
 	}
 </style>

@@ -3,9 +3,12 @@ title: "Modes and dialects"
 description: "How AskDB adapts to your SQL engine and the trust model you choose at deploy time."
 ---
 
-<p class="doc-eyebrow">Adapting to your stack</p>
+Two knobs you tune per deployment: the **dialect** (which SQL flavor AskDB generates and checks) and the **mode** (what may enter the model's context beyond the schema artifact and the question).
 
-<p class="doc-lede">Two knobs you tune per deployment: the <strong>dialect</strong> (which SQL flavor AskDB generates and checks) and the <strong>mode</strong> (what may enter the model's context beyond the schema artifact and the question).</p>
+| Knob | What it decides | Values | Who sets it |
+| --- | --- | --- | --- |
+| **Dialect** | Which SQL flavor AskDB generates and checks. | `postgres`, `cockroachdb`, `mysql`, `mariadb`, `sqlite`, `sqlserver` | On the CLI, Studio and the HTTP API, the `dialect` in `askdb.config.ts`, else the engine the schema artifact records, else `postgres`. `ask()` takes the dialect id you pass. |
+| **Mode** | What may enter the model's context beyond the schema artifact and the question. | `schema_only` (default), `bounded_results` | The operator, with `modes.askdbMode`. A run can ask for a stricter mode, not a looser one. |
 
 ## Dialects
 
@@ -16,7 +19,16 @@ A dialect is a `DialectSpec` built into `@askdb/core`. Six ship with the core pa
 - Bind parameters with the engine's driver markers (`$1` on Postgres, `?` on MySQL and SQLite, `@p1` on SQL Server).
 - Check that the SQL is a read-only `SELECT` under the engine's rules: its extra forbidden keywords, blocked functions and string escaping.
 
-Introspection is a separate job, and it's the one that needs an engine package and a driver: `@askdb/postgres`, `@askdb/mysql` (MySQL and MariaDB), `@askdb/sqlite` and `@askdb/sqlserver`. Each also re-exports its engine's dialect constant, but `ask()` needs only the dialect id. CockroachDB has a dialect and no engine package, and it's outside the 1.0 support claim: AskDB's end-to-end tests don't cover it.
+Introspection is a separate job, and it's the one that needs an engine package and a driver. Each engine package also re-exports its engine's dialect constant, but `ask()` needs only the dialect id.
+
+| Dialect | Engine package, for introspection |
+| --- | --- |
+| `postgres` | `@askdb/postgres` |
+| `cockroachdb` | None. CockroachDB has a dialect and no engine package, and it's outside the 1.0 support claim: AskDB's end-to-end tests don't cover it. |
+| `mysql` | `@askdb/mysql` |
+| `mariadb` | `@askdb/mysql`, which covers MySQL and MariaDB |
+| `sqlite` | `@askdb/sqlite` |
+| `sqlserver` | `@askdb/sqlserver` |
 
 The CLI, Studio and the HTTP API pick the dialect for the schema you configure: the `dialect` in `askdb.config.ts`, else the engine the schema artifact records, else `postgres`. For an engine AskDB ships no dialect for, they refuse rather than guess: see [`dialect`](/reference/config/#dialect). A server that reads strings differently from the engine's default needs a dialect built to match: see [Match your server's string settings](/guides/match-server-string-settings/). Switching engines is mostly a package swap, and [Switch engines](/guides/switch-engines/) has the checklist.
 
@@ -24,8 +36,12 @@ The CLI, Studio and the HTTP API pick the dialect for the schema you configure: 
 
 A **mode** declares the trust boundary AskDB enforces for a run: what's allowed to enter model context beyond the schema artifact and the natural-language question. Today there are two values.
 
-- **`schema_only`**, the default. AskDB grounds generation in the schema artifact and returns SQL only. The model never sees rows, credentials or query results. This is the right mode for almost every production deployment.
-- **`bounded_results`.** Today it produces the exact same SQL as `schema_only`, and every AskDB surface still returns SQL only. The value is reserved for a later step, in which a host could summarize bounded tabular results back through the model. Until that ships, choosing it changes nothing you can observe. The contracts that step must honor are in [`docs/contracts/modes-v1.md` on GitHub](https://github.com/Ygilany/AskDB/blob/main/docs/contracts/modes-v1.md).
+| Mode | What it does today | When to use it |
+| --- | --- | --- |
+| `schema_only` (default) | AskDB grounds generation in the schema artifact and returns SQL only. The model never sees rows, credentials or query results. | The right mode for almost every production deployment. |
+| `bounded_results` | Produces the exact same SQL as `schema_only`, and every AskDB surface still returns SQL only. Until the later step ships, choosing it changes nothing you can observe. | The value is reserved for a later step, in which a host could summarize bounded tabular results back through the model. |
+
+The contracts that later step must honor are in [`docs/contracts/modes-v1.md` on GitHub](https://github.com/Ygilany/AskDB/blob/main/docs/contracts/modes-v1.md).
 
 The operator owns the mode, not the caller. The config's `modes.askdbMode` is the loosest mode any run gets, on the CLI, `@askdb/client` and the HTTP API. A run can ask for a stricter mode, but not a looser one: asking for `bounded_results` under a `schema_only` config runs `schema_only`, with no error. `modes.omitSensitiveFromPrompt` works the same way: a run can turn omission on, never off. [`modes`](/reference/config/#modes-and-host) in the configuration reference has the keys, and [`askdb ask`](/reference/cli/#askdb-ask) the `--mode` flag.
 
@@ -43,8 +59,6 @@ For most teams:
 
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/concepts/safety-boundaries/"><strong>Safety boundaries</strong><span>What the SQL checks catch in every mode, and why your database stays the boundary.</span></a>
-  <a href="/concepts/privacy-model/"><strong>Privacy model</strong><span>What the model sees and what stays in your stack.</span></a>
-  <a href="/reference/core-api/dialects/"><strong>Dialects reference</strong><span>Each built-in dialect, and every field of a <code>DialectSpec</code>.</span></a>
-</div>
+- [Safety boundaries](/concepts/safety-boundaries/): What the SQL checks catch in every mode, and why your database stays the boundary.
+- [Privacy model](/concepts/privacy-model/): What the model sees and what stays in your stack.
+- [Dialects reference](/reference/core-api/dialects/): Each built-in dialect, and every field of a `DialectSpec`.

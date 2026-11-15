@@ -5,10 +5,9 @@ description: "Let Studio's Playground run the SQL it generates against your data
 
 import { Tabs, TabItem } from "@astrojs/starlight/components";
 import InstallTabs from "../../../components/InstallTabs.astro";
+import AgentPrompt from "../../../components/AgentPrompt.astro";
 
-<p class="doc-eyebrow">Studio</p>
-
-<p class="doc-lede">Let Studio's Playground run the SQL it generates against your database and show the rows. Execute is off by default. Turn it on with its own read-only connection, so a query Studio runs can't change your data.</p>
+Let Studio's Playground run the SQL it generates against your database and show the rows. Execute is off by default. Turn it on with its own read-only connection, so a query Studio runs can't change your data.
 
 ## Before you start
 
@@ -113,10 +112,22 @@ The rows appear under **Results**, with a line such as `25 rows · 6ms`. If the 
 | `SQL rejected by the read-only guardrail (SQL_MULTI_STATEMENT): …` | AskDB's SQL checks refused the statement, before it reached the database. The rule in parentheses says why. |
 | `canceling statement due to statement timeout` (Postgres), or `Query timed out after … ms.` | The query ran longer than `timeoutMs`. |
 
+## Use with your agent
+
+<AgentPrompt>
+
+Turn on Studio execute for this project. Follow https://askdb.tools/guides/enable-studio-execute.md.
+
+Constraints:
+
+- AskDB returns SQL and never runs it. Studio execute is Studio's own feature, and it is off until you set `studio.execute.enabled: true` in `askdb.config.ts`.
+- Give it its own read-only connection, such as `STUDIO_READONLY_DATABASE_URL`, never the connection of a role that can write.
+- Install the driver for the execute engine, then restart Studio.
+
+</AgentPrompt>
+
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/reference/studio/#execute-guards"><strong>Execute guards</strong><span>What Studio checks and limits on every query it runs, per engine.</span></a>
-  <a href="/studio/"><strong>Studio tour</strong><span>The Playground and the rest of Studio's views.</span></a>
-  <a href="/guides/run-safely-in-prod/"><strong>Run safely in production</strong><span>The database role, timeouts and row limits for your own app.</span></a>
-</div>
+- [Execute guards](/reference/studio/#execute-guards): What Studio checks and limits on every query it runs, per engine.
+- [Studio tour](/studio/): The Playground and the rest of Studio's views.
+- [Run safely in production](/guides/run-safely-in-prod/): The database role, timeouts and row limits for your own app.

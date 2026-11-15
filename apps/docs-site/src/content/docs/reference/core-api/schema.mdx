@@ -3,9 +3,7 @@ title: "@askdb/core API reference: schema loading"
 description: "Load a schema artifact with loadSchema(), read and write its files, match sensitive mentions, and ask the model for enrichment suggestions."
 ---
 
-<p class="doc-eyebrow">Reference · @askdb/core</p>
-
-<p class="doc-lede">Load a schema artifact into the schema <code>ask()</code> takes, read and write the files in a schema directory, and ask the model for descriptions to review. <a href="/reference/schema-artifact-format/">Schema artifact format</a> describes the files.</p>
+Load a schema artifact into the schema `ask()` takes, read and write the files in a schema directory, and ask the model for descriptions to review. [Schema artifact format](/reference/schema-artifact-format/) describes the files.
 
 ## `loadSchema(path)`
 
@@ -168,8 +166,6 @@ Each parser reads one file's text. `filePath` names the file in its errors. A fi
 
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/reference/schema-artifact-format/"><strong>Schema artifact format</strong><span>Every file in a schema directory, and the sensitivity rules.</span></a>
-  <a href="/guides/author-your-schema/"><strong>Enrich your schema</strong><span>Describe tables and columns so the model gets them right.</span></a>
-  <a href="/reference/core-api/ask/"><strong>ask()</strong><span>Pass the loaded schema to <code>ask()</code>.</span></a>
-</div>
+- [Schema artifact format](/reference/schema-artifact-format/): Every file in a schema directory, and the sensitivity rules.
+- [Enrich your schema](/guides/author-your-schema/): Describe tables and columns so the model gets them right.
+- [ask()](/reference/core-api/ask/): Pass the loaded schema to `ask()`.

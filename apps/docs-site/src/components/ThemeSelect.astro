@@ -1,30 +1,32 @@
 ---
+/**
+ * The theme control: three buttons (light, dark, system) in one pill. It keeps Starlight's storage
+ * key and `data-theme` attribute, so Starlight's inline theme script still sets the theme before
+ * the first paint.
+ */
 import { Icon } from "@astrojs/starlight/components";
 
 const t = Astro.locals.t;
-const labelBase = t("themeSelect.accessibleLabel");
+const options = [
+	{ theme: "light", icon: "sun", label: t("themeSelect.light") },
+	{ theme: "dark", icon: "moon", label: t("themeSelect.dark") },
+	{ theme: "auto", icon: "laptop", label: t("themeSelect.auto") },
+] as const;
 ---
 
-<starlight-theme-select
-	data-label-base={labelBase}
-	data-label-auto={t("themeSelect.auto")}
-	data-label-light={t("themeSelect.light")}
-	data-label-dark={t("themeSelect.dark")}
->
-	<button type="button" class="sl-theme-toggle" aria-label={labelBase}>
-		<Icon name="laptop" class="label-icon" />
-	</button>
+<starlight-theme-select>
+	<div class="theme-control" role="group" aria-label={t("themeSelect.accessibleLabel")}>
+		{
+			options.map(({ theme, icon, label }) => (
+				<button type="button" data-theme-option={theme} aria-pressed="false" aria-label={label} title={label}>
+					<Icon name={icon} />
+				</button>
+			))
+		}
+	</div>
 </starlight-theme-select>
 
-<script is:inline>
-	StarlightThemeProvider.updatePickers();
-</script>
-
 <script>
-	declare const StarlightThemeProvider: {
-		updatePickers(theme?: string): void;
-	};
-
 	type Theme = "auto" | "dark" | "light";
 
 	const storageKey = "starlight-theme";
@@ -41,45 +43,31 @@ const labelBase = t("themeSelect.accessibleLabel");
 		}
 	}
 
-	const getPreferredColorScheme = (): Theme =>
+	const preferredColorScheme = (): Theme =>
 		matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
 
-	function ariaForTheme(root: HTMLElement, theme: Theme): void {
-		const base = root.dataset.labelBase ?? "Color theme";
-		const auto = root.dataset.labelAuto ?? "Auto";
-		const light = root.dataset.labelLight ?? "Light";
-		const dark = root.dataset.labelDark ?? "Dark";
-		const mode = theme === "auto" ? auto : theme === "light" ? light : dark;
-		const btn = root.querySelector("button");
-		if (btn) btn.setAttribute("aria-label", `${base}: ${mode}`);
-	}
-
-	function onThemeChange(theme: Theme): void {
-		StarlightThemeProvider.updatePickers(theme);
-		document.documentElement.dataset.theme = theme === "auto" ? getPreferredColorScheme() : theme;
-		storeTheme(theme);
-		document.querySelectorAll("starlight-theme-select").forEach((el) => {
-			if (el instanceof HTMLElement) ariaForTheme(el, theme);
+	/** Applies the theme to the page and marks the pressed button in every control. */
+	function applyTheme(theme: Theme): void {
+		document.documentElement.dataset.theme = theme === "auto" ? preferredColorScheme() : theme;
+		document.querySelectorAll<HTMLButtonElement>("starlight-theme-select [data-theme-option]").forEach((button) => {
+			button.setAttribute("aria-pressed", String(button.dataset.themeOption === theme));
 		});
 	}
 
-	const nextTheme = (current: Theme): Theme => {
-		if (current === "auto") return "light";
-		if (current === "light") return "dark";
-		return "auto";
-	};
-
 	matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => {
-		if (loadTheme() === "auto") onThemeChange("auto");
+		if (loadTheme() === "auto") applyTheme("auto");
 	});
 
 	class StarlightThemeSelect extends HTMLElement {
 		constructor() {
 			super();
-			const initial = loadTheme();
-			onThemeChange(initial);
-			this.querySelector("button")?.addEventListener("click", () => {
-				onThemeChange(nextTheme(loadTheme()));
+			applyTheme(loadTheme());
+			this.querySelectorAll<HTMLButtonElement>("[data-theme-option]").forEach((button) => {
+				button.addEventListener("click", () => {
+					const theme = parseTheme(button.dataset.themeOption);
+					storeTheme(theme);
+					applyTheme(theme);
+				});
 			});
 		}
 	}
@@ -90,35 +78,41 @@ const labelBase = t("themeSelect.accessibleLabel");
 </script>
 
 <style>
-	@layer starlight.core {
-		.sl-theme-toggle {
-			align-items: center;
-			background: transparent;
-			border: 0;
-			border-radius: 0.25rem;
-			color: var(--sl-color-gray-2);
-			cursor: pointer;
-			display: flex;
-			justify-content: center;
-			margin: -0.5em;
-			min-height: 2.75rem;
-			min-width: 2.75rem;
-			padding: 0.5em;
-		}
+	.theme-control {
+		background-color: var(--ask-surface);
+		border: 1px solid var(--ask-border);
+		border-radius: 999px;
+		display: flex;
+		gap: 0.125rem;
+		padding: 0.1875rem;
+	}
 
-		.sl-theme-toggle:hover {
-			color: var(--sl-color-white);
-		}
+	button {
+		align-items: center;
+		background: transparent;
+		border: 0;
+		border-radius: 999px;
+		color: var(--ask-text-subtle);
+		cursor: pointer;
+		display: flex;
+		height: 1.625rem;
+		justify-content: center;
+		padding: 0;
+		transition: color 0.12s ease, background-color 0.12s ease;
+		width: 1.625rem;
+	}
 
-		.sl-theme-toggle:focus-visible {
-			outline: 2px solid var(--sl-color-accent);
-			outline-offset: 2px;
-		}
+	button :global(svg) {
+		font-size: 0.875rem;
+	}
 
-		.sl-theme-toggle .label-icon {
-			font-size: 0.875rem;
-			height: 1.25rem;
-			width: 1.25rem;
-		}
+	button:hover {
+		color: var(--ask-text);
+	}
+
+	button[aria-pressed="true"] {
+		background-color: var(--ask-surface-2);
+		box-shadow: 0 0 0 1px var(--ask-border);
+		color: var(--ask-text);
 	}
 </style>

@@ -1,35 +1,32 @@
 ---
+/**
+ * The home page's install command: one line to copy, and where to go next. Rendered by the Hero
+ * override, under the hero's actions.
+ */
+import { REPO_URL, withBase } from "../utils/links";
+
 const installLine = "npx askdb init";
-const hintLine = "# OR: npm install askdb";
 ---
 
-<section class="home-cli-strip" aria-labelledby="home-cli-heading">
-	<h2 id="home-cli-heading" class="home-sr-only">Install AskDB</h2>
-	<div class="home-cli-window">
-		<div class="home-cli-titlebar" aria-hidden="true">
-			<span class="home-cli-dot home-cli-dot--r"></span>
-			<span class="home-cli-dot home-cli-dot--y"></span>
-			<span class="home-cli-dot home-cli-dot--g"></span>
-		</div>
-		<div class="home-cli-body">
-			<div class="home-cli-lines">
-				<p class="home-cli-line">
-					<span class="home-cli-prompt">$</span>
-					<code class="home-cli-cmd" data-install-cmd>{installLine}</code>
-				</p>
-				<p class="home-cli-comment">{hintLine}</p>
-			</div>
-			<button type="button" class="home-cli-copy" aria-label="Copy install commands">
-				Copy
-			</button>
-		</div>
+<section class="home-install" aria-labelledby="home-install-heading">
+	<h2 id="home-install-heading" class="home-sr-only">Install AskDB</h2>
+	<div class="home-install-command">
+		<span class="home-install-prompt" aria-hidden="true">$</span>
+		<code data-install-cmd>{installLine}</code>
+		<button type="button" class="home-install-copy" aria-label="Copy the install command">
+			<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+				<rect x="9" y="9" width="11" height="11" rx="2.5"></rect>
+				<path d="M5 15V6.5A2.5 2.5 0 0 1 7.5 4H15"></path>
+			</svg>
+			<span data-copy-label>Copy</span>
+		</button>
 	</div>
-	<p class="home-cli-foot">
-		Next: <a href="quickstart/">Quickstart</a>
-		<span class="home-cli-foot-sep" aria-hidden="true">·</span>
-		<a href="install/">Install options</a>
-		<span class="home-cli-foot-sep" aria-hidden="true">·</span>
-		<a href="https://github.com/Ygilany/AskDB">GitHub</a>
+	<p class="home-install-foot">
+		Or <code>npm install askdb</code>
+		<span aria-hidden="true">·</span>
+		<a href={withBase("/install/")}>Install options</a>
+		<span aria-hidden="true">·</span>
+		<a href={REPO_URL}>GitHub</a>
 	</p>
 </section>
 
@@ -37,22 +34,19 @@ const hintLine = "# OR: npm install askdb";
 	document.addEventListener("click", async (event) => {
 		const target = event.target;
 		if (!(target instanceof Element)) return;
-		const btn = target.closest(".home-cli-copy");
-		if (!(btn instanceof HTMLButtonElement)) return;
-		const cmdEl = btn.closest(".home-cli-body")?.querySelector("[data-install-cmd]");
-		const commentEl = btn.closest(".home-cli-body")?.querySelector(".home-cli-comment");
-		const parts = [cmdEl?.textContent?.trim(), commentEl?.textContent?.trim()].filter(Boolean);
-		const text = parts.join("\n");
-		if (!text) return;
+		const button = target.closest(".home-install-copy");
+		if (!(button instanceof HTMLButtonElement)) return;
+		const command = button.closest(".home-install-command")?.querySelector("[data-install-cmd]")?.textContent?.trim();
+		const label = button.querySelector("[data-copy-label]");
+		if (!command || !label) return;
 		try {
-			await navigator.clipboard.writeText(text);
-			const prev = btn.textContent;
-			btn.textContent = "Copied";
+			await navigator.clipboard.writeText(command);
+			label.textContent = "Copied";
 			setTimeout(() => {
-				btn.textContent = prev;
+				label.textContent = "Copy";
 			}, 1800);
 		} catch {
-			/* clipboard may be denied */
+			/* The clipboard may be denied; the command is still selectable. */
 		}
 	});
 </script>

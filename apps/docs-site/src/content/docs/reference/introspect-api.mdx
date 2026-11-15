@@ -3,9 +3,7 @@ title: "Introspection API reference"
 description: "API reference for @askdb/introspect, its engine kit, the engine packages (@askdb/postgres, @askdb/mysql, @askdb/sqlite, @askdb/sqlserver) and @askdb/prisma."
 ---
 
-<p class="doc-eyebrow">Reference · Introspection</p>
-
-<p class="doc-lede">These packages read a database, or a Prisma schema file, and write the schema artifact. The <code>askdb</code> CLI and Studio are built on them. Import them to introspect from your own code, or to add an engine.</p>
+These packages read a database, or a Prisma schema file, and write the schema artifact. The `askdb` CLI and Studio are built on them. Import them to introspect from your own code, or to add an engine.
 
 `@askdb/introspect`, the four engine packages and `@askdb/prisma` are in AskDB's 1.0 set ([ADR 0030](https://github.com/Ygilany/AskDB/blob/main/docs/adrs/0030-1-0-promises-checked-sql-only.md)): they go to 1.0.0, and after that a breaking change to them needs a major version. To install them, see the [package reference](/reference/packages/#introspection).
 
@@ -21,6 +19,16 @@ const result = await introspect(
 
 console.log(result.render?.schemaJsonPath, result.warnings);
 ```
+
+| Package | What it exports | Section |
+| --- | --- | --- |
+| `@askdb/introspect` | `introspect()`, the artifact writer, the connector registry, the connector contract and the schema types. | [`@askdb/introspect`](#askdbintrospect) |
+| `@askdb/introspect/kit` | Shared building blocks for engine packages: driver loading, filters and ids, catalog rows, live connector providers, connection labels. | [`@askdb/introspect/kit`](#askdbintrospectkit) |
+| `@askdb/postgres` | Connector, catalog query runner, export bundles and dialect for PostgreSQL. | [`@askdb/postgres`](#askdbpostgres) |
+| `@askdb/mysql` | Connector, catalog query runner and dialect for MySQL and MariaDB, live only. | [`@askdb/mysql`](#askdbmysql) |
+| `@askdb/sqlite` | Connector, catalog query runner and dialect for SQLite, live only. | [`@askdb/sqlite`](#askdbsqlite) |
+| `@askdb/sqlserver` | Connector, catalog query runner and dialect for SQL Server, live only. | [`@askdb/sqlserver`](#askdbsqlserver) |
+| `@askdb/prisma` | A file-only connector for `.prisma` schemas. | [`@askdb/prisma`](#askdbprisma) |
 
 ## `@askdb/introspect`
 
@@ -45,6 +53,13 @@ Runs `options.connector.describe(input)`. The connector's package owns the shape
 `IntrospectResult` is `IntrospectionResult & { render?: RenderResult }`.
 
 ### Writing the artifact
+
+```ts
+import { renderSchemaV2Body, renderToSchemaV2 } from "@askdb/introspect";
+
+function renderToSchemaV2(schema: SqlSchema, options: RenderOptions): RenderResult;
+function renderSchemaV2Body(schema: SqlSchema, options: RenderBodyOptions): RenderBodyResult;
+```
 
 | Function | Description |
 | --- | --- |
@@ -82,6 +97,10 @@ const registry = createConnectorRegistry([
   postgresConnectorProvider,
   { provider: "prisma", load: async () => (await import("@askdb/prisma")).prismaConnectorProvider },
 ]);
+```
+
+```ts
+function createConnectorRegistry(adapters: ConnectorProviderAdapters): ConnectorRegistry;
 ```
 
 `createConnectorRegistry(adapters)` takes an array of entries, or an object keyed by provider id (an `undefined` value is skipped). An entry is an adapter or a lazy entry. It throws when an object key differs from its entry's `provider`, and when a provider id appears twice. It returns a `ConnectorRegistry`:
@@ -212,6 +231,12 @@ import { compileTableFilters, createOptionalDriverLoader, makeTableId } from "@a
 
 ### Driver loading
 
+```ts
+import { createOptionalDriverLoader } from "@askdb/introspect/kit";
+
+function createOptionalDriverLoader<T>(spec: OptionalDriverSpec<T>): OptionalDriverLoader<T>;
+```
+
 | Export | Description |
 | --- | --- |
 | `createOptionalDriverLoader(spec)` | A lazy, cached loader for an optional driver peer. Call it once at module scope. It returns an `OptionalDriverLoader`. |
@@ -223,6 +248,12 @@ import { compileTableFilters, createOptionalDriverLoader, makeTableId } from "@a
 | `rethrowDriverImportError(error)` | Rethrows `error` unchanged. Chain it on your driver's `import()`: that is how bundlers such as esbuild tell an optional dependency from a required one. |
 
 ### Filters and ids
+
+```ts
+import { compileTableFilters } from "@askdb/introspect/kit";
+
+function compileTableFilters(patterns: ReadonlyArray<string> | undefined): GlobMatcher;
+```
 
 | Export | Description |
 | --- | --- |
@@ -243,6 +274,12 @@ import { compileTableFilters, createOptionalDriverLoader, makeTableId } from "@a
 | `mapFkAction(rule)` | Maps a referential action (`CASCADE`, `SET NULL`, …, case-insensitive) to a `SqlForeignKeyAction`, or `undefined`. |
 
 ### Live connector providers
+
+```ts
+import { defineLiveConnectorProvider } from "@askdb/introspect/kit";
+
+function defineLiveConnectorProvider(spec: LiveConnectorProviderSpec): ConnectorProviderAdapter;
+```
 
 `defineLiveConnectorProvider(spec)` builds the `ConnectorProviderAdapter` for an engine that introspects a live database through a `CatalogQueryRunner` only, with no export bundle or schema file. `@askdb/mysql`, `@askdb/sqlite` and `@askdb/sqlserver` use it.
 
@@ -388,8 +425,6 @@ Any other provider throws ``@askdb/prisma: unsupported Prisma datasource provide
 
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/guides/switch-engines/"><strong>Switch engines</strong><span>Install and configure each engine, from the CLI and from code.</span></a>
-  <a href="/guides/integrations/prisma/"><strong>Prisma</strong><span>Introspect from a <code>.prisma</code> file.</span></a>
-  <a href="/reference/packages/"><strong>Package reference</strong><span>What each package is for, and how to install it.</span></a>
-</div>
+- [Switch engines](/guides/switch-engines/): Install and configure each engine, from the CLI and from code.
+- [Prisma](/guides/integrations/prisma/): Introspect from a `.prisma` file.
+- [Package reference](/reference/packages/): What each package is for, and how to install it.

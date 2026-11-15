@@ -3,9 +3,7 @@ title: "@askdb/core API reference: tenant scope"
 description: "TenantScope, scope expansion, tenant placeholders and binding, the tenant prompt block, and the normalized tenant policy types in @askdb/core."
 ---
 
-<p class="doc-eyebrow">Reference · @askdb/core</p>
-
-<p class="doc-lede">The functions and types for a schema with a <code>tenant-policy.md</code>: the scope you pass to <code>ask()</code>, its expansion, the tenant placeholders and how they're bound, and the policy as <code>loadSchema()</code> returns it. <a href="/reference/tenant-policy/">Tenant policy format</a> describes the file, and <a href="/concepts/tenant-isolation/">Tenant isolation</a> explains the model.</p>
+The functions and types for a schema with a `tenant-policy.md`: the scope you pass to `ask()`, its expansion, the tenant placeholders and how they're bound, and the policy as `loadSchema()` returns it. [Tenant policy format](/reference/tenant-policy/) describes the file, and [Tenant isolation](/concepts/tenant-isolation/) explains the model.
 
 ## `TenantScope`
 
@@ -63,6 +61,12 @@ const ids = expandClosure(seedIds, (id) => childrenByAgencyId.get(id) ?? []);
 Walks a hierarchy you already hold in memory, breadth-first, and returns the seed IDs and every descendant, each once, seeds first. It's cycle-safe: an ID it has already visited isn't visited again. Use it inside `resolveTenantDescendants` for a tree inside one table; see [Scope to a tenant hierarchy](/guides/tenant-hierarchy/#walk-a-hierarchy-you-hold-in-memory).
 
 ## `validateTenantScope(tenantPolicy, tenantScope)`
+
+```ts
+import { validateTenantScope } from "@askdb/core";
+
+validateTenantScope(tenantPolicy: NormalizedTenantPolicy, tenantScope: TenantScope | undefined): void
+```
 
 Checks a scope against a policy before you use it, as `ask()` does, and returns nothing. It throws `TenantScopeError`: `MISSING_SCOPE` for an `undefined` scope, `INVALID_SCOPE_SHAPE`, `UNKNOWN_TENANT_ROOT` or `GLOBAL_WITHOUT_REASON` (see [`TenantScopeError` reasons](/reference/core-api/errors/#tenantscopeerror-reasons)). A policy whose two roots share a placeholder throws `SchemaParseError`.
 
@@ -174,8 +178,6 @@ Returns one line describing a `TenantPolicyWarning`, naming the IDs involved. Th
 
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/guides/multi-tenancy/"><strong>Scope queries to a tenant</strong><span>Write a policy and pass a scope, step by step.</span></a>
-  <a href="/reference/tenant-policy/"><strong>Tenant policy format</strong><span>Every field of <code>tenant-policy.md</code>, and what the tenant check requires.</span></a>
-  <a href="/reference/core-api/errors/"><strong>Errors</strong><span><code>TenantScopeError</code> reasons and <code>TenantGuardrailError</code> rules.</span></a>
-</div>
+- [Scope queries to a tenant](/guides/multi-tenancy/): Write a policy and pass a scope, step by step.
+- [Tenant policy format](/reference/tenant-policy/): Every field of `tenant-policy.md`, and what the tenant check requires.
+- [Errors](/reference/core-api/errors/): `TenantScopeError` reasons and `TenantGuardrailError` rules.

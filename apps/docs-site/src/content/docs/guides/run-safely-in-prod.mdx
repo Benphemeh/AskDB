@@ -4,10 +4,47 @@ description: "The operator checklist for AskDB: read-only roles, statement timeo
 ---
 
 import { Tabs, TabItem } from "@astrojs/starlight/components";
+import AgentPrompt from "../../../components/AgentPrompt.astro";
 
-<p class="doc-eyebrow">Production checklist</p>
+AskDB runs its SQL checks on the SQL before it's returned. Those checks catch common model mistakes, but they aren't a security boundary: your application and database own everything that depends on runtime context.
 
-<p class="doc-lede">AskDB runs its SQL checks on the SQL before it's returned. Those checks catch common model mistakes, but they aren't a security boundary. Your application and database own everything that depends on runtime context. This page is the checklist for that side of the boundary. For what AskDB does and doesn't check, see <a href="/concepts/safety-boundaries/">Safety boundaries</a>.</p>
+This page is the checklist for that side of the boundary, so that SQL which gets past the checks still can't write or read what it shouldn't. For what AskDB does and doesn't check, see [Safety boundaries](/concepts/safety-boundaries/).
+
+## Before you start
+
+- **A service that runs the SQL `ask()` returns.** AskDB returns SQL and never runs it, so every control below sits in your application or your database. [Embed in a Node app](/guides/embed-in-node/) sets one up.
+- **Access to create a database role,** or the credentials of one that can only read.
+
+## The layers
+
+Each layer holds when the one before it misses.
+
+<figure>
+
+```mermaid
+flowchart TB
+  %% Source of truth: packages/core/src/ask.ts and packages/core/src/sql/generate.ts (ask() checks the SQL and returns it, never runs it).
+  %% The layers after ask() are this page's sections.
+  ask["ask() returns SQL<br/>its SQL checks are heuristics"]
+  approval["approval<br/>a person reviews high-stakes SQL"]
+  app["your application runs it<br/>read-only transaction,<br/>row cap, audit log"]
+  role["read-only database role<br/>SELECT grants, statement timeout"]
+  rls["row-level security<br/>keeps rows to the tenant"]
+  ask --> approval --> app --> role --> rls
+```
+
+<figcaption>The layers around generated SQL. Only <code>ask()</code> belongs to AskDB. The rest are your application and your database, and the database role is the boundary.</figcaption>
+</figure>
+
+| Control | Owner | Section |
+| --- | --- | --- |
+| Read-only role, `SELECT` on chosen tables | Database | [Database role](#database-role) |
+| Statement timeout, small pool | Application and database | [Connection limits](#connection-limits) |
+| Row cap | Application | [Row limits](#row-limits) |
+| Log of questions, SQL and outcomes | Application | [Audit logging](#audit-logging) |
+| A person reviews the SQL | Application | [Approval flows](#approval-flows) |
+| Sensitive tables and columns | Schema artifact and database | [Sensitive columns](#sensitive-columns) |
+| Tenant boundary | Database | [Multi-tenancy](#multi-tenancy) |
 
 ## Database role
 
@@ -206,10 +243,22 @@ If your app is multi-tenant, make the database the tenant boundary: run generate
 
 On AskDB's side, declare tenant policy in the schema artifact and pass a `tenantScope` to every `ask()` call. AskDB prompts the model to filter by tenant, binds your tenant IDs, and runs the tenant check, a heuristic that looks for a tenant predicate on each scoped table. That check doesn't prove the query is scoped correctly. By default (`tenantSqlMode: "sql-params"`) the IDs are driver parameters, never part of the SQL text: run `result.sql` with `result.tenantParams`, or `result.unboundSql` with `result.params`. Keep that default in production. `sql-only` inlines the IDs as literals, for tools that take one SQL string. See [Multi-tenancy](/guides/multi-tenancy/).
 
+## Use with your agent
+
+<AgentPrompt>
+
+Harden how this project runs the SQL AskDB returns. Follow https://askdb.tools/guides/run-safely-in-prod.md.
+
+Constraints:
+
+- AskDB returns SQL and never runs it. This application runs it, under a read-only database role with `SELECT` on only the tables AskDB may query.
+- AskDB's SQL checks are heuristics, not a security boundary. The database role and row-level security are the boundary.
+- Add a statement timeout, a row cap and audit logging around the code that runs the SQL.
+
+</AgentPrompt>
+
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/concepts/safety-boundaries/"><strong>Safety boundaries</strong><span>What AskDB checks before SQL is returned, and what it doesn't.</span></a>
-  <a href="/concepts/privacy-model/"><strong>Privacy model</strong><span>What crosses the boundary to the model.</span></a>
-  <a href="/guides/multi-tenancy/"><strong>Multi-tenancy</strong><span>Scoping every query to a tenant.</span></a>
-</div>
+- [Safety boundaries](/concepts/safety-boundaries/): What AskDB checks before SQL is returned, and what it doesn't.
+- [Privacy model](/concepts/privacy-model/): What crosses the boundary to the model.
+- [Multi-tenancy](/guides/multi-tenancy/): Scoping every query to a tenant.

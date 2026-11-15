@@ -4,10 +4,9 @@ description: "Stop reading a query's rows at a cap you choose, on every engine, 
 ---
 
 import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+import AgentPrompt from "../../../components/AgentPrompt.astro";
 
-<p class="doc-eyebrow">Run in production</p>
-
-<p class="doc-lede">Add a <code>runCapped()</code> helper that stops reading a query's rows at a cap you choose, keeps the query's <code>ORDER BY</code>, and tells you when the result was cut.</p>
+Add a `runCapped()` helper that stops reading a query's rows at a cap you choose, keeps the query's `ORDER BY`, and tells you when the result was cut.
 
 The SQL `ask()` returns has no row limit. Your application caps the rows, so that a question like "show me every row in this 100M-row table", which is valid SQL, doesn't load the whole table into your server and your UI.
 
@@ -179,10 +178,22 @@ Standard SQL doesn't promise that a derived table keeps its `ORDER BY`. Postgres
 - **MySQL and MariaDB** reject a derived table with two columns of the same name, such as `a.id` and `b.id` from a join.
 </Aside>
 
+## Use with your agent
+
+<AgentPrompt>
+
+Add a `runCapped(sql, params)` helper to this project's code that runs the SQL AskDB returns. Follow https://askdb.tools/guides/cap-the-rows-a-query-returns.md.
+
+Constraints:
+
+- AskDB returns SQL and never runs it. This application runs it, under a read-only role with a statement timeout.
+- Stop reading in the driver at one row more than the cap, instead of rewriting the SQL, so the query's `ORDER BY` stays.
+- Return `{ rows, truncated }`, and tell the user when the result was cut.
+
+</AgentPrompt>
+
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/guides/run-safely-in-prod/"><strong>Run safely in production</strong><span>The database role, timeouts and the rest of the checklist.</span></a>
-  <a href="/guides/multi-tenancy/"><strong>Multi-tenancy</strong><span>Where <code>tenantParams</code> comes from, and the tenant SQL modes.</span></a>
-  <a href="/concepts/safety-boundaries/"><strong>Safety boundaries</strong><span>What AskDB's SQL checks cover, and what your database must enforce.</span></a>
-</div>
+- [Run safely in production](/guides/run-safely-in-prod/): The database role, timeouts and the rest of the checklist.
+- [Multi-tenancy](/guides/multi-tenancy/): Where `tenantParams` comes from, and the tenant SQL modes.
+- [Safety boundaries](/concepts/safety-boundaries/): What AskDB's SQL checks cover, and what your database must enforce.

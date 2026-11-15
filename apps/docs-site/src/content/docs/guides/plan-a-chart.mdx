@@ -3,15 +3,14 @@ title: "Plan a chart for a query result"
 description: "Pick a chart for the rows your application got from AskDB's SQL, with a model that sees the question, the SQL with its values masked, and the result's columns, but never a row."
 ---
 
-import { Aside } from "@astrojs/starlight/components";
+import { Aside, Badge } from "@astrojs/starlight/components";
 import InstallTabs from "../../../components/InstallTabs.astro";
+import AgentPrompt from "../../../components/AgentPrompt.astro";
 
-<p class="doc-eyebrow">Build · Experimental</p>
-
-<p class="doc-lede">Ask a model which chart fits a query result, then draw it from your own rows. The model never sees a row value: <code>@askdb/client/charts</code> sends it the question, the SQL with every literal replaced by <code>?</code>, and the result's column names and kinds.</p>
+Ask a model which chart fits a query result, then draw it from your own rows. The model never sees a row value: `@askdb/client/charts` sends it the question, the SQL with every literal replaced by `?`, and the result's column names and kinds.
 
 <Aside type="caution" title="Experimental">
-`@askdb/client/charts` is outside AskDB's stability promise: a minor release of `@askdb/client` may change it ([ADR 0030](https://github.com/Ygilany/AskDB/blob/main/docs/adrs/0030-1-0-promises-checked-sql-only.md)).
+<Badge text="Experimental" variant="caution" /> `@askdb/client/charts` is outside AskDB's stability promise: a minor release of `@askdb/client` may change it ([ADR 0030](https://github.com/Ygilany/AskDB/blob/main/docs/adrs/0030-1-0-promises-checked-sql-only.md)).
 </Aside>
 
 ## Before you start
@@ -95,6 +94,37 @@ if (plan.primary) {
 
 ## What the model sees
 
+<figure>
+
+```mermaid
+flowchart TB
+  %% Source of truth: ADR 0044 (docs/adrs/0044-chart-planning-sends-no-rows.md), classifyResult in
+  %% packages/client/src/charts/classify.ts and buildChartUserPrompt in prompt.ts.
+  rows["your rows"]
+  classify["classifyResult()<br/>in your process"]
+  local["local facts:<br/>negative values, label lengths"]
+  mask["planChart() replaces<br/>every SQL literal with ?"]
+  model["language model"]
+  plan["plan: columns to plot"]
+  draw["you draw the chart<br/>from your rows"]
+  rows --> classify
+  classify --> local
+  classify -- "shape" --> mask
+  mask -- "question, masked SQL,<br/>column names and kinds" --> model
+  model --> plan
+  plan --> draw
+  rows --> draw
+```
+
+<figcaption>What crosses to the model and what stays in your process. Rows and local facts never leave; the model gets the question, the masked SQL and the result's shape, and returns the columns to plot.</figcaption>
+</figure>
+
+| | Sent to the model | Stays in your process |
+| --- | --- | --- |
+| Question | the question | |
+| SQL | the SQL with every literal replaced by `?` | the literal values |
+| Result | column names and kinds, and the row count | every row, and local facts such as negative values and label lengths |
+
 For the question above, the model gets this, after fixed instructions that state the rules and hold no data:
 
 ```text
@@ -111,10 +141,22 @@ Columns:
 
 The column names reach the model, as they do in the prompt `ask()` sends, unless omission withholds them. Values don't.
 
+## Use with your agent
+
+<AgentPrompt>
+
+Add chart planning to this project's AskDB service. Follow https://askdb.tools/guides/plan-a-chart.md.
+
+Goal: call `classifyResult()` and `planChart()` from `@askdb/client/charts` on a query result, then draw `plan.primary` from the application's own rows.
+
+- `@askdb/client/charts` is experimental: a minor release of `@askdb/client` may change it.
+- Never send rows to a model. Pass the question, the SQL and the classified result.
+- AskDB returns SQL and never runs it. The application runs the SQL under its own connection, with a row cap.
+
+</AgentPrompt>
+
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/reference/client-charts-api/"><strong>@askdb/client/charts API</strong><span>Every option, type and check.</span></a>
-  <a href="/guides/cap-the-rows-a-query-returns/"><strong>Cap the rows a query returns</strong><span>The <code>truncated</code> flag the planner reads.</span></a>
-  <a href="/guides/bring-your-own-model/"><strong>Bring your own model</strong><span>Both ways to give the planner a model.</span></a>
-</div>
+- [@askdb/client/charts API](/reference/client-charts-api/): Every option, type and check.
+- [Cap the rows a query returns](/guides/cap-the-rows-a-query-returns/): The `truncated` flag the planner reads.
+- [Bring your own model](/guides/bring-your-own-model/): Both ways to give the planner a model.

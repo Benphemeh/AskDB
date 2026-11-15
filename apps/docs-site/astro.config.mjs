@@ -2,7 +2,9 @@ import { unified } from "@astrojs/markdown-remark";
 import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
 import starlightLlmsTxt from "starlight-llms-txt";
+import { remarkLinkCards } from "./plugins/remark-link-cards.mjs";
 import { remarkMermaid } from "./plugins/remark-mermaid.mjs";
+import { llmsTxtOptions } from "./src/utils/llms-txt.mjs";
 
 const base = process.env.ASTRO_BASE ?? "/";
 const normalizedBase = base === "/" ? "" : base.replace(/\/$/, "");
@@ -51,9 +53,10 @@ export default defineConfig({
   },
   markdown: {
     // remarkMermaid turns each ```mermaid fence into an inline SVG at build time (ADR 0041), so
-    // pages ship no diagram JavaScript. src/styles/custom.css maps pele's color variables to
-    // Starlight's, so a diagram follows the theme toggle.
-    processor: unified({ remarkPlugins: [remarkRebaseLinks, remarkMermaid] }),
+    // pages ship no diagram JavaScript. src/styles/content.css maps pele's color variables to
+    // Starlight's, so a diagram follows the theme toggle. remarkLinkCards marks a list of
+    // `[Title](/path/): description` items so the same stylesheet lays it out as cards.
+    processor: unified({ remarkPlugins: [remarkRebaseLinks, remarkMermaid, remarkLinkCards] }),
   },
   integrations: [
     starlight({
@@ -77,12 +80,72 @@ export default defineConfig({
         replacesTitle: true,
       },
       favicon: "/favicon-light.png",
-      customCss: ["./src/styles/custom.css"],
+      // The fonts are self-hosted (Fontsource), so a page makes no request to a font host.
+      customCss: [
+        "@fontsource-variable/inter/wght.css",
+        "@fontsource-variable/inter/wght-italic.css",
+        "@fontsource-variable/manrope/wght.css",
+        "@fontsource-variable/jetbrains-mono/wght.css",
+        "./src/styles/tokens.css",
+        "./src/styles/layout.css",
+        "./src/styles/content.css",
+        "./src/styles/home.css",
+      ],
+      // Code blocks take their frame colors from src/styles/tokens.css, so they sit on the page's
+      // sheet like any other card and follow the theme toggle.
+      expressiveCode: {
+        themes: ["github-dark-default", "github-light-default"],
+        styleOverrides: {
+          borderRadius: "0.625rem",
+          borderColor: "var(--ask-border)",
+          codeBackground: "var(--ask-code-bg)",
+          codeFontSize: "0.8125rem",
+          codeLineHeight: "1.7",
+          codePaddingBlock: "0.875rem",
+          codePaddingInline: "1.125rem",
+          uiFontSize: "0.8125rem",
+          scrollbarThumbColor: "var(--ask-border-strong)",
+          scrollbarThumbHoverColor: "var(--ask-text-subtle)",
+          frames: {
+            frameBoxShadowCssValue: "none",
+            editorBackground: "var(--ask-code-bg)",
+            editorTabBarBackground: "var(--ask-surface-2)",
+            editorTabBarBorderBottomColor: "var(--ask-border)",
+            editorActiveTabBackground: "var(--ask-surface-2)",
+            editorActiveTabForeground: "var(--ask-text-muted)",
+            editorActiveTabBorderColor: "transparent",
+            editorActiveTabIndicatorTopColor: "transparent",
+            editorActiveTabIndicatorBottomColor: "transparent",
+            terminalBackground: "var(--ask-code-bg)",
+            terminalTitlebarBackground: "var(--ask-surface-2)",
+            terminalTitlebarBorderBottomColor: "var(--ask-border)",
+            terminalTitlebarForeground: "var(--ask-text-muted)",
+            terminalTitlebarDotsOpacity: "0",
+            inlineButtonBackground: "var(--ask-text-muted)",
+            inlineButtonForeground: "var(--ask-text-muted)",
+            inlineButtonBorder: "var(--ask-border-strong)",
+            tooltipSuccessBackground: "var(--ask-text)",
+            tooltipSuccessForeground: "var(--ask-surface)",
+          },
+          textMarkers: {
+            markBackground: "color-mix(in srgb, var(--ask-accent) 12%, transparent)",
+            markBorderColor: "var(--ask-accent)",
+            insBackground: "rgb(46 160 67 / 0.15)",
+            insBorderColor: "rgb(46 160 67 / 0.6)",
+            delBackground: "rgb(248 81 73 / 0.13)",
+            delBorderColor: "rgb(248 81 73 / 0.6)",
+          },
+        },
+      },
+      routeMiddleware: "./src/routeData.ts",
       components: {
         Header: "./src/components/overrides/Header.astro",
         Hero: "./src/components/overrides/Hero.astro",
+        PageTitle: "./src/components/overrides/PageTitle.astro",
         ThemeSelect: "./src/components/ThemeSelect.astro",
         Footer: "./src/components/overrides/Footer.astro",
+        // Starlight's skip link, after a sentence that tells an AI agent where the Markdown is.
+        SkipLink: "./src/components/overrides/SkipLink.astro",
       },
       editLink: {
         baseUrl: "https://github.com/Ygilany/AskDB/edit/main/apps/docs-site/",
@@ -95,16 +158,8 @@ export default defineConfig({
         },
       ],
       plugins: [
-        starlightLlmsTxt({
-          details:
-            "AskDB is an open-source NL-to-SQL toolkit: `ask({ question, schema, model, dialect })` from `@askdb/core` takes a schema artifact and a Vercel AI SDK `LanguageModel`, and returns SQL that has passed heuristic checks. It never executes SQL — the host application runs it through its own connection. The same pipeline powers the CLI, the `@askdb/client` library, `@askdb/http-api`, and Studio.\n" +
-            "\n" +
-            "The docs site is organized as Start (overview, quickstart, install, Studio tour); Guides, in five groups: Build (embed in a Node app, enrich your schema, introspect without a connection, bring your own model, switch engines, connect to SQL Server, RAG for large schemas, rerun a query with new values, plan a chart for a query result (experimental), bundle an app), Run in production (run safely, cap the rows a query returns, keep sensitive columns out of prompts, match your server's string settings, deploy as an HTTP service, enable Studio execute), Tenancy (scope queries to a tenant, tenant hierarchies, enforce tenancy in the database), Maintain (upgrade AskDB, fix common errors) and Integrations (Prisma, expose AskDB as an agent tool); Concepts (how AskDB works, the schema artifact, safety boundaries, modes and dialects, privacy model, tenant isolation); and Reference (CLI, HTTP API, configuration, Studio, the schema artifact and tenant policy formats, the SQL checks, packages, the upgrade notes by release, and the core, client, client/charts (experimental), config, ai, rag and introspection APIs). The full per-page index is in the linked documentation sets below.\n" +
-            "\n" +
-            "Two things worth knowing before implementing: (1) wiring the AI model is a two-path choice — config-driven `@askdb/client`/`@askdb/ai` (built-in providers; install the matching `@ai-sdk/*` package) vs. a raw Vercel AI SDK model passed to `ask()` — decided by who owns provider config in the host app; see /guides/bring-your-own-model/. (2) Tenant scope and sensitive-field handling are host-application responsibilities. AskDB validates the scope shape, binds tenant IDs, and runs heuristic checks, but never originates scope and isn't the enforcement boundary; see /concepts/safety-boundaries/, and /guides/enforce-tenancy-in-the-database/ for Postgres row-level security.\n" +
-            "\n" +
-            "For a project-onboarding map written specifically for coding agents implementing AskDB elsewhere, see /AGENTS.md.",
-        }),
+        // What /llms.txt says, and how its documentation sets are cut: src/utils/llms-txt.mjs.
+        starlightLlmsTxt(llmsTxtOptions(`${site}${normalizedBase}`)),
       ],
       sidebar: [
         {
@@ -130,7 +185,7 @@ export default defineConfig({
                 { label: "Connect to SQL Server", slug: "guides/connect-to-sql-server" },
                 { label: "RAG for large schemas", slug: "guides/rag-for-large-schemas" },
                 { label: "Rerun a query with new values", slug: "guides/rerun-a-query-with-new-values" },
-                { label: "Plan a chart (experimental)", slug: "guides/plan-a-chart" },
+                { label: "Plan a chart", slug: "guides/plan-a-chart", badge: { text: "Experimental", variant: "caution" } },
                 { label: "Bundle an app that uses AskDB", slug: "guides/bundle-your-app" },
               ],
             },
@@ -227,7 +282,7 @@ export default defineConfig({
                   ],
                 },
                 { label: "@askdb/client API", slug: "reference/client-api" },
-                { label: "@askdb/client/charts API", slug: "reference/client-charts-api" },
+                { label: "@askdb/client/charts API", slug: "reference/client-charts-api", badge: { text: "Experimental", variant: "caution" } },
                 { label: "@askdb/config API", slug: "reference/config-api" },
                 { label: "@askdb/ai API", slug: "reference/ai-api" },
                 { label: "@askdb/rag API", slug: "reference/rag-api" },

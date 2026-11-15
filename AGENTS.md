@@ -59,7 +59,7 @@ Every PR needs an independent review before it leaves draft, and always when an 
 
 ### Docs house style
 
-Docs follow the house style in `apps/docs-site/STYLE.md`.
+Docs follow the house style in `apps/docs-site/STYLE.md`. Before you write or restyle a docs-site page, use the `docs-site` skill: it has the page steps, the design rules and a screenshot tool for checking a page in both themes.
 
 ## Where product/architecture decisions live
 

@@ -3,9 +3,7 @@ title: "@askdb/core API reference: bindPreparedQuery()"
 description: "bindPreparedQuery(): rebind a stored preparedQuery with new values, re-checked under today's schema and scope, without a model call."
 ---
 
-<p class="doc-eyebrow">Reference · @askdb/core</p>
-
-<p class="doc-lede"><code>bindPreparedQuery()</code> reruns a query <code>ask()</code> returned, with new values and no model call. It checks the stored template again under the schema and scope you pass now. <a href="/guides/rerun-a-query-with-new-values/">Rerun a query with new values</a> walks through it.</p>
+`bindPreparedQuery()` reruns a query `ask()` returned, with new values and no model call. It checks the stored template again under the schema and scope you pass now. [Rerun a query with new values](/guides/rerun-a-query-with-new-values/) walks through it.
 
 ## `bindPreparedQuery(prepared, values, guardrails)`
 
@@ -25,14 +23,14 @@ await pool.query(rebound.sql, rebound.tenantParams ?? []);
 
 The third argument, `BindGuardrails`, is required:
 
-| Field | Type | Required | Default | Description |
-| --- | --- | --- | --- | --- |
-| `schema` | `AnyNormalizedSchema` | yes | — | The schema to check the template under: its tenant policy and its `sensitive` markers. |
-| `tenantScope` | `TenantScope` | with a tenant policy | — | The caller's scope, as for `ask()`. Tenant IDs are rendered from it. A `subtree` scope must be expanded first with [`expandTenantScope()`](/reference/core-api/tenancy/#expandtenantscopepolicy-scope-resolvetenantdescendants). |
-| `sensitiveGuardrailMode` | `"warn" \| "strict" \| "off"` | no | `"warn"` | As for `ask()`: `"warn"` binds and reports sensitive references in `verdict`; `"strict"` refuses them. |
-| `acceptWarnings` | `ReadonlyArray<"tenant">` | no | — | With a policy whose `enforcement` is `warn`, a template that fails the tenant check is refused unless this includes `"tenant"`. |
-| `tenantSqlMode` | `TenantSqlOutputMode` | no | `"sql-params"` | As for `ask()`: `"sql-params"` puts tenant markers in `sql` and the IDs in `tenantParams`, with the markers of the template's built-in dialect (a rebind always has one, so `ask()`'s custom-dialect rule never applies); `"sql-only"` inlines them as escaped literals and refuses a tenant ID that isn't printable ASCII or contains a backslash. Any other value throws `TenantScopeError` (`TENANT_SQL_MODE_REQUIRED`). |
-| `dialect` | `DialectSpec \| BuiltInDialectId` | for a `"host"` template, or one stored without `dialectRules` | the built-in spec | The dialect rules to check and render under: the `DialectSpec` you passed to `ask()`, or a built-in id. Its `id` must be the template's `dialect`. |
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `schema` | `AnyNormalizedSchema` | required | The schema to check the template under: its tenant policy and its `sensitive` markers. |
+| `tenantScope` | `TenantScope` | required with a tenant policy | The caller's scope, as for `ask()`. Tenant IDs are rendered from it. A `subtree` scope must be expanded first with [`expandTenantScope()`](/reference/core-api/tenancy/#expandtenantscopepolicy-scope-resolvetenantdescendants). |
+| `sensitiveGuardrailMode` | `"warn" \| "strict" \| "off"` | `"warn"` | As for `ask()`: `"warn"` binds and reports sensitive references in `verdict`; `"strict"` refuses them. |
+| `acceptWarnings` | `ReadonlyArray<"tenant">` | — | With a policy whose `enforcement` is `warn`, a template that fails the tenant check is refused unless this includes `"tenant"`. |
+| `tenantSqlMode` | `TenantSqlOutputMode` | `"sql-params"` | As for `ask()`: `"sql-params"` puts tenant markers in `sql` and the IDs in `tenantParams`, with the markers of the template's built-in dialect (a rebind always has one, so `ask()`'s custom-dialect rule never applies); `"sql-only"` inlines them as escaped literals and refuses a tenant ID that isn't printable ASCII or contains a backslash. Any other value throws `TenantScopeError` (`TENANT_SQL_MODE_REQUIRED`). |
+| `dialect` | `DialectSpec \| BuiltInDialectId` | required for a `"host"` template, or one stored without `dialectRules`; else the built-in spec | The dialect rules to check and render under: the `DialectSpec` you passed to `ask()`, or a built-in id. Its `id` must be the template's `dialect`. |
 
 **Which dialect rules a rebind uses.** `ask()` records them in `preparedQuery.dialectRules`: `"builtin"` when it ran with a built-in id or the exported constant (`POSTGRES_DIALECT` and the others), `"host"` for any other `DialectSpec` object, such as `{ ...POSTGRES_DIALECT, backslashEscapes: true }`. A `"builtin"` template rebinds under the built-in spec unless you pass `dialect`. A `"host"` template needs the same spec as `dialect`, so your `backslashEscapes`, `blockedFunctions`, `extraForbiddenKeywords` and `extraValidate` apply at rebind too. A template stored by a beta release without `dialectRules` ([upgrade note](/reference/upgrade-notes/#update-your-bindpreparedquery-and-askdbbind-calls)) needs `dialect` as well: pass the spec `ask()` ran with, or the built-in id, such as `"postgres"`, if it ran with the built-in rules. If your app loads two copies of `@askdb/core`, such as ESM beside CJS, a constant from the other copy is a different object, so its templates are `"host"`: pass `dialect` ([ADR 0032](https://github.com/Ygilany/AskDB/blob/main/docs/adrs/0032-rebind-checks-under-the-hosts-dialect-spec.md)).
 
@@ -64,8 +62,6 @@ A refused value or template throws `QueryParameterError`; [`QueryParameterError`
 
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/guides/rerun-a-query-with-new-values/"><strong>Rerun a query with new values</strong><span>Store <code>preparedQuery</code> and rebind it, step by step.</span></a>
-  <a href="/reference/core-api/ask/"><strong>ask()</strong><span>Where <code>preparedQuery</code> comes from, and how to run each SQL form.</span></a>
-  <a href="/reference/core-api/tenancy/"><strong>Tenant scope</strong><span><code>TenantScope</code> and <code>expandTenantScope()</code> for a rebind.</span></a>
-</div>
+- [Rerun a query with new values](/guides/rerun-a-query-with-new-values/): Store `preparedQuery` and rebind it, step by step.
+- [ask()](/reference/core-api/ask/): Where `preparedQuery` comes from, and how to run each SQL form.
+- [Tenant scope](/reference/core-api/tenancy/): `TenantScope` and `expandTenantScope()` for a rebind.

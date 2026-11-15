@@ -76,8 +76,8 @@ test("a fence that isn't a diagram type pele knows fails with unsupported-diagra
   assert.throws(() => remarkMermaid()(tree, file), (error) => error instanceof DiagramRenderError && error.code === "unsupported-diagram");
 });
 
-test("the plugin measures labels in the site's fonts: --sl-font and --sl-font-mono in custom.css", () => {
-  const css = readFileSync(new URL("../src/styles/custom.css", import.meta.url), "utf8");
+test("the plugin measures labels in the site's fonts: --sl-font and --sl-font-mono in tokens.css", () => {
+  const css = readFileSync(new URL("../src/styles/tokens.css", import.meta.url), "utf8");
   const token = (name) => new RegExp(`${name}:\\s*([^;]+);`).exec(css)[1].replace(/\s+/g, " ").trim();
   assert.equal(DIAGRAM_FONT, token("--sl-font"));
   assert.equal(DIAGRAM_FONT_MONO, token("--sl-font-mono"));

@@ -3,9 +3,7 @@ title: "SQL checks reference"
 description: "The read-only, tenant and sensitive checks AskDB runs on generated SQL: when each runs, how each reads SQL on every engine, and what each rejects."
 ---
 
-<p class="doc-eyebrow">Reference · SQL checks</p>
-
-<p class="doc-lede">AskDB runs up to three checks on the SQL a model returns: the read-only check, the tenant check and the sensitive check. This page says when each runs, how each reads SQL on every engine, and what each rejects. They're heuristics, not a parser: <a href="/concepts/safety-boundaries/">Safety boundaries</a> explains why your database stays the boundary.</p>
+AskDB runs up to three checks on the SQL a model returns: the read-only check, the tenant check and the sensitive check. This page says when each runs, how each reads SQL on every engine, and what each rejects. They're heuristics, not a parser: [Safety boundaries](/concepts/safety-boundaries/) explains why your database stays the boundary.
 
 ## The two forms of the model's SQL
 
@@ -156,8 +154,6 @@ It can miss a table in some `FROM` forms, so a wildcard over it goes unreported:
 
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/concepts/safety-boundaries/"><strong>Safety boundaries</strong><span>Why the checks are defense in depth, and what keeps you safe when they miss.</span></a>
-  <a href="/reference/tenant-policy/#what-the-tenant-check-requires"><strong>What the tenant check requires</strong><span>The predicate each tenant-scoped table needs.</span></a>
-  <a href="/reference/core-api/errors/"><strong>Errors</strong><span>Every rule and reason, with the error that carries it.</span></a>
-</div>
+- [Safety boundaries](/concepts/safety-boundaries/): Why the checks are defense in depth, and what keeps you safe when they miss.
+- [What the tenant check requires](/reference/tenant-policy/#what-the-tenant-check-requires): The predicate each tenant-scoped table needs.
+- [Errors](/reference/core-api/errors/): Every rule and reason, with the error that carries it.

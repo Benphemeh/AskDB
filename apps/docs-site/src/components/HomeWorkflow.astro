@@ -23,10 +23,10 @@ const steps = [
 ];
 ---
 
-<ol class="home-workflow" aria-label="The four steps of using AskDB">
+<ol class="home-steps" aria-label="The four steps of using AskDB">
   {steps.map((step) => (
-    <li class="home-workflow-step">
-      <span class="home-workflow-number" aria-hidden="true">{step.number}</span>
+    <li class="home-step">
+      <span class="home-step-number" aria-hidden="true">{step.number}</span>
       <h3>{step.title}</h3>
       <p>{step.body}</p>
     </li>

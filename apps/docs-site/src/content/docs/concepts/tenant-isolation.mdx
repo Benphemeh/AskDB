@@ -5,9 +5,32 @@ description: "How AskDB keeps generated SQL to the caller's tenants: it prompts 
 
 import { Aside } from "@astrojs/starlight/components";
 
-<p class="doc-eyebrow">Tenancy</p>
+With a tenant policy, AskDB helps the model write the tenant filter, checks that the filter is there, and binds the caller's tenant IDs. It doesn't make the database return only the caller's rows: that's the database's job. This page explains the split.
 
-<p class="doc-lede">With a tenant policy, AskDB helps the model write the tenant filter, checks that the filter is there, and binds the caller's tenant IDs. It doesn't make the database return only the caller's rows: that's the database's job. This page explains the split.</p>
+<figure>
+
+```mermaid
+flowchart TB
+  %% AskDB's three tenant steps, then the database as the boundary. Source of truth:
+  %% packages/core/src/ask.ts (the tenant policy and scope go to the generator; enforceGuardrails
+  %% checks the model's forms with the :tenant_<root>_ids placeholders still in place; the tenant
+  %% rendering then binds the IDs), packages/core/src/sql/tenant-guardrail.ts.
+  policy["tenant-policy.md,<br/>in the schema artifact"]
+  scope["your application:<br/>authorizes the caller,<br/>passes tenantScope"]
+  subgraph askdb["ask()"]
+    prompt["1. prompt: filter with<br/>:tenant_organization_ids"]
+    check["2. check: a tenant predicate<br/>on each scoped table"]
+    bind["3. bind: the caller's<br/>tenant IDs"]
+  end
+  db[("the database: row-level<br/>security returns only<br/>the caller's rows")]
+  policy --> prompt
+  scope --> prompt
+  prompt --> check --> bind
+  bind -- "your application<br/>runs the SQL" --> db
+```
+
+<figcaption>AskDB prompts for the tenant filter, checks the SQL while the placeholder is in place, and binds the caller's tenant IDs. The database, with row-level security or per-tenant views, is what keeps the rows to the caller's tenants.</figcaption>
+</figure>
 
 ## How AskDB scopes a query
 
@@ -59,8 +82,6 @@ This recipe is for Postgres. On every engine, AskDB's tenant check stays a heuri
 
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/guides/enforce-tenancy-in-the-database/"><strong>Enforce tenancy in the database</strong><span>Make Postgres row-level security the tenant boundary for generated SQL.</span></a>
-  <a href="/guides/multi-tenancy/"><strong>Scope queries to a tenant</strong><span>Write the policy, pass the caller's scope, and run the SQL.</span></a>
-  <a href="/reference/tenant-policy/"><strong>Tenant policy format</strong><span>Every policy field, and what the tenant check requires.</span></a>
-</div>
+- [Enforce tenancy in the database](/guides/enforce-tenancy-in-the-database/): Make Postgres row-level security the tenant boundary for generated SQL.
+- [Scope queries to a tenant](/guides/multi-tenancy/): Write the policy, pass the caller's scope, and run the SQL.
+- [Tenant policy format](/reference/tenant-policy/): Every policy field, and what the tenant check requires.

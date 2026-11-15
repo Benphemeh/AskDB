@@ -5,10 +5,9 @@ description: "Bundle a Node service that uses AskDB with esbuild or webpack 5: w
 
 import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
 import InstallTabs from "../../../components/InstallTabs.astro";
+import AgentPrompt from "../../../components/AgentPrompt.astro";
 
-<p class="doc-eyebrow">Integrator guide</p>
-
-<p class="doc-lede">AskDB bundles into a Node service like most libraries, with one exception: from inside a bundle, <code>@askdb/config</code> can't load a TypeScript <code>askdb.config.ts</code>. Write the config in JavaScript, keep <code>@askdb/config</code> out of the bundle, or use no config file. This guide covers esbuild and webpack 5.</p>
+AskDB bundles into a Node service like most libraries, with one exception: from inside a bundle, `@askdb/config` can't load a TypeScript `askdb.config.ts`. Write the config in JavaScript, keep `@askdb/config` out of the bundle, or use no config file. This guide covers esbuild and webpack 5.
 
 ## Before you start
 
@@ -48,6 +47,12 @@ Install `ai` and the AI SDK package of your provider, such as `@ai-sdk/openai`:
 `@askdb/ai` loads each provider's SDK only when it first builds a model. esbuild leaves out the SDKs you don't install; webpack 5 needs them listed in `externals`, as step 3 shows. The Vercel AI Gateway needs none. See [Provider SDKs](/reference/ai-api/#provider-sdks).
 
 ## 3. Bundle
+
+| | esbuild | webpack 5 |
+| --- | --- | --- |
+| TypeScript config | `--external:@askdb/config` | an `externals` entry for `@askdb/config` |
+| An `@ai-sdk/*` package you didn't install | The build succeeds. A provider whose SDK is missing fails when it first builds a model. | An `externals` entry for each, or the build stops with `Module not found` |
+| ESM output | A `createRequire` banner | `externalsType: "module"` and the bare package names |
 
 <Tabs syncKey="bundler">
   <TabItem label="esbuild">
@@ -168,10 +173,22 @@ It brings `jiti` and `dotenv`, which load the config. Start the service from tha
 `@askdb/config` caches each TypeScript config it compiles in `node_modules/.cache/jiti`. A bundle run next to a `node_modules` holding that cache can load `askdb.config.ts` on your machine and then fail where you deploy. Test the bundle in a directory that holds only what you deploy.
 </Aside>
 
+## Use with your agent
+
+<AgentPrompt>
+
+Bundle this project's Node service, which uses AskDB. Follow https://askdb.tools/guides/bundle-your-app.md.
+
+Goal: a bundle that starts and loads the schema from one JSON file made by `npx askdb bundle`.
+
+- With a TypeScript `askdb.config.ts`, keep `@askdb/config` out of the bundle and install it next to it. Otherwise write the config as plain JavaScript that reads `process.env`.
+- Test the bundle in a directory that holds only what you deploy.
+- AskDB returns SQL and never runs it. The service runs the SQL.
+
+</AgentPrompt>
+
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/reference/ai-api/"><strong>@askdb/ai API reference</strong><span>The registry, the built-in providers and their SDKs.</span></a>
-  <a href="/reference/config-api/"><strong>@askdb/config API reference</strong><span>How <code>bootstrapAskDbEnv()</code> finds and loads the config.</span></a>
-  <a href="/guides/run-safely-in-prod/"><strong>Run safely in production</strong><span>The read-only role, timeouts and audit logging your service needs.</span></a>
-</div>
+- [@askdb/ai API reference](/reference/ai-api/): The registry, the built-in providers and their SDKs.
+- [@askdb/config API reference](/reference/config-api/): How `bootstrapAskDbEnv()` finds and loads the config.
+- [Run safely in production](/guides/run-safely-in-prod/): The read-only role, timeouts and audit logging your service needs.

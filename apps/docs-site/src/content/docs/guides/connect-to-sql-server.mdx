@@ -4,10 +4,9 @@ description: "Point AskDB at a SQL Server database: write the connection string,
 ---
 
 import { Aside } from "@astrojs/starlight/components";
+import AgentPrompt from "../../../components/AgentPrompt.astro";
 
-<p class="doc-eyebrow">Engine setup</p>
-
-<p class="doc-lede">Connect AskDB to a SQL Server database and introspect it. You write one connection string, run <code>askdb introspect</code>, and fix the error a self-signed certificate causes. Then you connect your own <code>mssql</code> pool to run the SQL AskDB returns.</p>
+Connect AskDB to a SQL Server database and introspect it. You write one connection string, run `askdb introspect`, and fix the error a self-signed certificate causes. Then you connect your own `mssql` pool to run the SQL AskDB returns.
 
 ## Before you start
 
@@ -58,7 +57,7 @@ If introspection fails with `self-signed certificate`, go to step 3.
 
 SQL Server encrypts connections by default. When the server's certificate is self-signed, as on many development servers, Node.js rejects it:
 
-```
+```text
 Failed to connect to localhost:1433 - self-signed certificate
 ```
 
@@ -123,10 +122,21 @@ To share one `DATABASE_URL` between AskDB and your pool, write it in ADO.NET for
 
 Give this pool a read-only login too. [Run safely in production](/guides/run-safely-in-prod/) covers the database role, timeouts and row limits.
 
+## Use with your agent
+
+<AgentPrompt>
+
+Connect this project to SQL Server and introspect it. Follow https://askdb.tools/guides/connect-to-sql-server.md.
+
+Goal: `npx askdb introspect` writes `askdb/schema.json` for the SQL Server database, and the application's own `mssql` pool can run the SQL AskDB returns.
+
+- Use `trustServerCertificate` in development only. In production, give Node.js the CA with `NODE_EXTRA_CA_CERTS`.
+- AskDB returns SQL and never runs it. The application's pool runs it under a read-only login.
+
+</AgentPrompt>
+
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/guides/switch-engines/"><strong>Switch engines</strong><span>What changes when you move to SQL Server from another engine.</span></a>
-  <a href="/guides/run-safely-in-prod/"><strong>Run safely in production</strong><span>The database role and limits for the pool that runs AskDB's SQL.</span></a>
-  <a href="/reference/introspect-api/#askdbsqlserver"><strong>@askdb/sqlserver reference</strong><span>The connection formats, the brace rules, and the catalog runner.</span></a>
-</div>
+- [Switch engines](/guides/switch-engines/): What changes when you move to SQL Server from another engine.
+- [Run safely in production](/guides/run-safely-in-prod/): The database role and limits for the pool that runs AskDB's SQL.
+- [@askdb/sqlserver reference](/reference/introspect-api/#askdbsqlserver): The connection formats, the brace rules, and the catalog runner.

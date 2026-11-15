@@ -3,9 +3,7 @@ title: "@askdb/core API reference: logging"
 description: "createAskDbLogger() and its sinks, the AskDbLogEvent names, the log levels, the minimum log contract, and how to pass your own logger to ask()."
 ---
 
-<p class="doc-eyebrow">Reference · @askdb/core</p>
-
-<p class="doc-lede"><code>ask()</code> logs a structured event at each stage when you pass it a logger. Build one with <code>createAskDbLogger()</code>, or pass your own.</p>
+`ask()` logs a structured event at each stage when you pass it a logger. Build one with `createAskDbLogger()`, or pass your own.
 
 ## `createAskDbLogger(options)`
 
@@ -21,13 +19,13 @@ const logger = createAskDbLogger({
 
 Returns an `AskDbLogger` that emits structured JSON for each pipeline stage. Pass it to `ask()` via `options.logger`.
 
-| Option | Type | Required | Default | Description |
-| --- | --- | --- | --- | --- |
-| `correlationId` | `string` | yes | — | Attached to every log line. Pass the request id. |
-| `level` | `AskDbLogLevel` | no | `"silent"` | Pino log level. `"silent"` suppresses all output. |
-| `stderr` | `boolean` | no | `true` | Write JSON logs to stderr. Set `false` to log only to `logFile` or stdout. A logger with no output left is silent. |
-| `logFile` | `string` | no | — | Append JSON logs to this path. Parent directories are created automatically. Loggers with the same path share one open file, which stays open for the life of the process: rotate it with `copytruncate`, or restart the process after a rotate. |
-| `logStdout` | `boolean` | no | `false` | Duplicate logs to stdout in addition to stderr/file. |
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `correlationId` | `string` | required | Attached to every log line. Pass the request id. |
+| `level` | `AskDbLogLevel` | `"silent"` | Pino log level. `"silent"` suppresses all output. |
+| `stderr` | `boolean` | `true` | Write JSON logs to stderr. Set `false` to log only to `logFile` or stdout. A logger with no output left is silent. |
+| `logFile` | `string` | — | Append JSON logs to this path. Parent directories are created automatically. Loggers with the same path share one open file, which stays open for the life of the process: rotate it with `copytruncate`, or restart the process after a rotate. |
+| `logStdout` | `boolean` | `false` | Duplicate logs to stdout in addition to stderr/file. |
 
 **`AskDbLogLevel`:** `"fatal"` | `"error"` | `"warn"` | `"info"` | `"debug"` | `"trace"` | `"silent"`
 
@@ -51,8 +49,6 @@ A run of `askdb ask` or one `askdb-http` request that logs emits at least the ev
 
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/guides/run-safely-in-prod/"><strong>Run safely in production</strong><span>Audit logging with <code>createAskDbLogger()</code>, next to the read-only role.</span></a>
-  <a href="/reference/core-api/ask/"><strong>ask()</strong><span>Pass the logger as <code>options.logger</code>.</span></a>
-  <a href="/reference/cli/"><strong>CLI reference</strong><span>The CLI's <code>--log-level</code> and log file flags.</span></a>
-</div>
+- [Run safely in production](/guides/run-safely-in-prod/): Audit logging with `createAskDbLogger()`, next to the read-only role.
+- [ask()](/reference/core-api/ask/): Pass the logger as `options.logger`.
+- [CLI reference](/reference/cli/): The CLI's `--log-level` and log file flags.

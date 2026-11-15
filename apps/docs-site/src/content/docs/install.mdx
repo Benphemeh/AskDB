@@ -3,20 +3,42 @@ title: "Install AskDB"
 description: "Choose the AskDB packages for your use case."
 ---
 
-<p class="doc-eyebrow">Start · Install</p>
+import AgentPrompt from "../../components/AgentPrompt.astro";
 
-<p class="doc-lede">AskDB is a set of focused packages — install only what your use case needs. Pick your path below; each guide starts with the exact install commands, and the <a href="/reference/packages/">package reference</a> covers every package individually.</p>
+AskDB is a set of focused packages — install only what your use case needs. Pick your path below; each guide starts with the exact install commands, and the [package reference](/reference/packages/) covers every package individually.
 
 Upgrading from an earlier release? [Upgrade AskDB](/guides/upgrading/) shows the steps, and [Upgrade notes by release](/reference/upgrade-notes/) lists what to change for each release.
 
-On the day an AskDB version is published, `pnpm dlx askdb@latest` and `yarn dlx askdb@latest` install an older one. pnpm 11 and later, and Yarn 4.18, skip versions less than a day old by default (pnpm's `minimumReleaseAge`, Yarn's `npmMinimalAgeGate`). npm installs the new version at once. Step 2 of the [Quickstart](/quickstart/#2-install-askdb-and-scaffold-the-config) shows the setting that lets pnpm and Yarn install AskDB's newest release.
-
 ## What to install — by use case
 
-<div class="home-path-grid">
-  <a href="/quickstart/"><strong>Just trying it out</strong><span><code>askdb</code> and your database's driver (<code>pg</code>, <code>mysql2</code>, <code>better-sqlite3</code> or <code>mssql</code>) are enough to introspect, enrich, and ask from the CLI. <code>askdb init</code> installs the driver for you.</span></a>
-  <a href="/guides/embed-in-node/"><strong>Embedding in a Node service</strong><span><code>@askdb/client</code> + <code>@askdb/core</code> + <code>@askdb/config</code> + <code>ai</code> + an AI SDK provider package such as <code>@ai-sdk/openai</code>.</span></a>
-  <a href="/guides/deploy-as-http-service/"><strong>Standing up an HTTP service</strong><span>Add <code>@askdb/http-api</code> on top of the embedding install.</span></a>
-  <a href="/guides/rag-for-large-schemas/"><strong>Working with a large schema</strong><span>Add <code>@askdb/rag</code> and a vector store (pgvector recommended).</span></a>
-  <a href="/guides/integrations/prisma/#install"><strong>Reading a Prisma schema file</strong><span>Add <code>@askdb/prisma</code> next to <code>askdb</code>. It brings in Prisma, whose build pnpm 11 must approve.</span></a>
-</div>
+| Use case | What to install |
+| --- | --- |
+| [Just trying it out](/quickstart/) | `askdb` and your database's driver (`pg`, `mysql2`, `better-sqlite3` or `mssql`) are enough to introspect, enrich, and ask from the CLI. `askdb init` installs the driver for you. |
+| [Embedding in a Node service](/guides/embed-in-node/) | `@askdb/client` + `@askdb/core` + `@askdb/config` + `ai` + an AI SDK provider package such as `@ai-sdk/openai`. |
+| [Standing up an HTTP service](/guides/deploy-as-http-service/) | Add `@askdb/http-api` on top of the embedding install. |
+| [Working with a large schema](/guides/rag-for-large-schemas/) | Add `@askdb/rag` and a vector store (pgvector recommended). |
+| [Reading a Prisma schema file](/guides/integrations/prisma/#install) | Add `@askdb/prisma` next to `askdb`. It brings in Prisma, whose build pnpm 11 must approve. |
+
+Each use case links to the guide that has its install commands.
+
+## Install on the day of a release
+
+On the day an AskDB version is published, `pnpm dlx askdb@latest` and `yarn dlx askdb@latest` install an older one. pnpm 11 and later, and Yarn 4.18, skip versions less than a day old by default (pnpm's `minimumReleaseAge`, Yarn's `npmMinimalAgeGate`). npm installs the new version at once. Step 2 of the [Quickstart](/quickstart/#2-install-askdb-and-scaffold-the-config) shows the setting that lets pnpm and Yarn install AskDB's newest release.
+
+## Use with your agent
+
+<AgentPrompt>
+
+Install AskDB in this project, choosing the packages from https://askdb.tools/install.md for what the project needs: the CLI only, embedding in a Node service, an HTTP service, a large schema, or a Prisma schema file.
+
+- Install only the packages that use case lists, with the project's package manager, following the install commands in the linked guide.
+- AskDB returns SQL and never runs it. The project runs the SQL with its own database driver, under a read-only role.
+- pnpm 11 and later, and Yarn 4.18, skip versions less than a day old by default. If the project needs a release from today, follow step 2 of https://askdb.tools/quickstart.md for the setting.
+
+</AgentPrompt>
+
+## Read next
+
+- [Quickstart](/quickstart/): Create a sample database, ask a question from the CLI, and run the SQL.
+- [Package reference](/reference/packages/): Every AskDB package, and what each one is for.
+- [Upgrade AskDB](/guides/upgrading/): The steps to move to a newer release.

@@ -3,7 +3,7 @@ title: "AskDB"
 description: "AskDB is an open-source NL-to-SQL toolkit for developers. Your LLM generates checked, schema-grounded SQL; your app reviews and runs it."
 template: "splash"
 hero:
-  title: '<span class="home-hero-title">Open-source <span class="home-hero-accent">NL-to-SQL</span><br/>for developers.</span>'
+  title: "Open-source NL-to-SQL for developers."
   tagline: 'Your LLM generates checked, schema-grounded SQL. Your app reviews, approves, logs, and runs it. BYO model, database, embedder, and vector store.'
   actions:
     - text: "Quickstart"
@@ -16,7 +16,6 @@ hero:
       icon: "open-book"
 ---
 
-import HomeCliStrip from "../../components/HomeCliStrip.astro";
 import HomeDifferentiators from "../../components/HomeDifferentiators.astro";
 import HomeWorkflow from "../../components/HomeWorkflow.astro";
 import HomeEngines from "../../components/HomeEngines.astro";
@@ -24,18 +23,19 @@ import HomePrivacyBoundary from "../../components/HomePrivacyBoundary.astro";
 
 <div class="home-landing">
 
-<HomeCliStrip />
+<ul class="home-facts">
+  <li>Postgres · MySQL · MariaDB · SQLite · SQL Server</li>
+  <li>SQL returned · Your app executes</li>
+  <li>Rows never reach the model</li>
+</ul>
 
-<div class="home-pill-row" role="list">
-  <span class="home-pill" role="listitem">Postgres · MySQL · MariaDB · SQLite · SQL Server</span>
-  <span class="home-pill" role="listitem">Open source · Apache 2.0</span>
-  <span class="home-pill" role="listitem">SQL returned · Your app executes</span>
-  <span class="home-pill" role="listitem">Rows never reach the model</span>
-</div>
+<section class="home-split">
 
 ## Why this toolkit exists
 
 NL-to-SQL isn't a new problem. Systems that answer English questions from a database go back to BASEBALL (1961) and LUNAR (1971), and studies of large language models such as OpenAI's Codex writing SQL began in early 2022. The hard part in production isn't the LLM call — it's capturing the business context behind your schema, getting the right enrichment into the prompt, wiring up RAG when the schema is too big to fit, and repeating that work for every new project. AskDB is the toolkit for *that* part.
+
+</section>
 
 ## What makes AskDB different
 
@@ -45,9 +45,13 @@ NL-to-SQL isn't a new problem. Systems that answer English questions from a data
 
 <HomeWorkflow />
 
+<section class="home-split">
+
 ## Embed it in your app
 
 There are two ways to call AskDB from TypeScript. `createAskDb()` from `@askdb/client` takes the model, the schema and the dialect from your `askdb.config.ts`, the same config the CLI and Studio use. `ask()` from `@askdb/core` takes a schema you loaded and any Vercel AI SDK model. Both return checked SQL, and your code runs it through your own connection. [Embed in a Node app](/guides/embed-in-node/) walks through both.
+
+</section>
 
 ## Works with the database you already have
 
@@ -59,11 +63,9 @@ There are two ways to call AskDB from TypeScript. `createAskDb()` from `@askdb/c
 
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/quickstart/"><strong>Quickstart</strong><span>Create a sample database, ask a question in plain English, and run the SQL AskDB returns.</span></a>
-  <a href="/concepts/how-askdb-works/"><strong>How AskDB works</strong><span>The end-to-end flow from question to checked SQL.</span></a>
-  <a href="/guides/embed-in-node/"><strong>Embed in a Node app</strong><span>The full TypeScript walkthrough, running the SQL through your own database driver.</span></a>
-  <a href="/reference/packages/"><strong>Package reference</strong><span>Every <code>@askdb/*</code> package and what it does.</span></a>
-</div>
+- [Quickstart](/quickstart/): Create a sample database, ask a question in plain English, and run the SQL AskDB returns.
+- [How AskDB works](/concepts/how-askdb-works/): The end-to-end flow from question to checked SQL.
+- [Embed in a Node app](/guides/embed-in-node/): The full TypeScript walkthrough, running the SQL through your own database driver.
+- [Package reference](/reference/packages/): Every `@askdb/*` package and what it does.
 
 </div>

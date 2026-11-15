@@ -3,9 +3,7 @@ title: "@askdb/core API reference: checks"
 description: "The SQL check functions in @askdb/core: validateSensitiveReferences() and its result, and the read-only and tenant check functions for SQL that doesn't come through ask()."
 ---
 
-<p class="doc-eyebrow">Reference · @askdb/core</p>
-
-<p class="doc-lede"><code>ask()</code> and <code>bindPreparedQuery()</code> run the read-only, tenant and sensitive checks for you, and report them in their <a href="/reference/core-api/ask/#guardrail-verdict">verdict</a>. These functions run one check on SQL that doesn't come through either.</p>
+`ask()` and `bindPreparedQuery()` run the read-only, tenant and sensitive checks for you, and report them in their [verdict](/reference/core-api/ask/#guardrail-verdict). These functions run one check on SQL that doesn't come through either.
 
 ## `validateSensitiveReferences(sql, schema, options?)`
 
@@ -93,9 +91,21 @@ The check is heuristic, not a SQL parser — a review and enforcement aid, not a
 
 ## `schemaHasSensitiveIdentifiers(schema)`
 
+```ts
+import { schemaHasSensitiveIdentifiers } from "@askdb/core";
+
+schemaHasSensitiveIdentifiers(schema: AnyNormalizedSchema): boolean
+```
+
 `true` when the schema marks at least one table or column `sensitive`. Cheap pre-check for hosts that want to skip the sensitive check entirely on schemas with no markers — `ask()` uses it for exactly that, which is why `result.sensitiveGuardrail` is absent on unmarked schemas.
 
 ## `formatSensitiveReference(ref)`
+
+```ts
+import { formatSensitiveReference } from "@askdb/core";
+
+formatSensitiveReference(ref: SensitiveReference): string
+```
 
 Renders a `SensitiveReference` as `schema.table.column` (or `table.column` when the artifact has no namespace). `askdb ask` uses it for its `Warning:` line, and `ask()` uses it for the `sensitiveColumns` field of the `askdb.pipeline.sensitive_sql_warning` log event, next to `sensitiveColumnCount`.
 
@@ -103,9 +113,26 @@ Renders a `SensitiveReference` as `schema.table.column` (or `table.column` when 
 
 ### `validateSelectSql(dialect, sql)`
 
+```ts
+import { validateSelectSql } from "@askdb/core";
+
+validateSelectSql(dialect: DialectSpec, sql: string): string
+```
+
 Runs the read-only check on `sql` under a `DialectSpec`'s rules. It returns the statement, trimmed, and throws `SqlValidationError` when it fails: [`SqlValidationError` rules](/reference/core-api/errors/#sqlvalidationerror-rules) lists each `rule`. `ask()` runs it for a built-in dialect or a `DialectSpec`, and a custom [`AskDialect`](/reference/core-api/dialects/#askdialect) calls it itself.
 
 ### `validateTenantGuardrails(sql, policy, scope, options?)`
+
+```ts
+import { validateTenantGuardrails } from "@askdb/core";
+
+validateTenantGuardrails(
+  sql: string,
+  policy: NormalizedTenantPolicy,
+  scope: TenantScope,
+  options?: ValidateTenantGuardrailsOptions, // { dialect?: Pick<DialectSpec, "id" | "backslashEscapes"> }
+): TenantGuardrailResult
+```
 
 Runs the tenant check on SQL that still has its `:tenant_<root>_ids` placeholders, and returns a `TenantGuardrailResult`: `{ passed, warnings }`. Under a `strict` policy, a failure throws `TenantGuardrailError` instead. [`TenantGuardrailError` rules](/reference/core-api/errors/#tenantguardrailerror-rules) lists each warning's `rule`, and [What the tenant check requires](/reference/tenant-policy/#what-the-tenant-check-requires) says what passes. `options` is a `ValidateTenantGuardrailsOptions`: `dialect`, a `DialectSpec` or its `id` and `backslashEscapes`, which `ask()` passes when it has one.
 
@@ -123,8 +150,6 @@ Runs the tenant check on SQL that still has its `:tenant_<root>_ids` placeholder
 
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/concepts/safety-boundaries/"><strong>Safety boundaries</strong><span>What the checks catch, and why the database stays the boundary.</span></a>
-  <a href="/guides/keep-sensitive-columns-out-of-prompts/"><strong>Keep sensitive columns out of prompts</strong><span>Mark columns sensitive, and check SQL you replay.</span></a>
-  <a href="/reference/core-api/errors/"><strong>Errors</strong><span>Every rule each check reports.</span></a>
-</div>
+- [Safety boundaries](/concepts/safety-boundaries/): What the checks catch, and why the database stays the boundary.
+- [Keep sensitive columns out of prompts](/guides/keep-sensitive-columns-out-of-prompts/): Mark columns sensitive, and check SQL you replay.
+- [Errors](/reference/core-api/errors/): Every rule each check reports.
