@@ -1,0 +1,5 @@
+node_modules/
+# Made by `node make-shop.mjs`.
+shop.db
+# Holds your API key.
+.env

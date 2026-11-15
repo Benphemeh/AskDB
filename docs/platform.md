@@ -13,7 +13,7 @@ For the package-level architecture, diagrams, dependency boundaries, install pro
 
 - **TypeScript** as the primary language for application code, shared libraries, and tooling.
 - **Monorepo** layout: separate packages for reusable core logic, AI providers, configuration, introspection and engines, RAG and enrichment, plus apps for the CLI, the HTTP API, Studio and the docs site.
-- **Example consumer applications** — `examples/` holds small consumer apps (`ask-question`, `express-server`), an install smoke test (`installable-smoke`) and the consumer lab, which tests installed AskDB as a black box (see `roadmap.md`).
+- **Example consumer applications** — `examples/` holds small consumer apps (`ask-question`, `express-server`), the Quickstart's finished files (`quickstart-shop`, outside the pnpm workspace), an install smoke test (`installable-smoke`) and the consumer lab, which tests installed AskDB as a black box (see `roadmap.md`).
   - **Workspace conventions** — libraries live under `packages/*` and first-party apps under `apps/*`; each one owns its `build` / `test` scripts. Root scripts invoke Turbo to run these consistently.
 
 ### Published packages
