@@ -78,7 +78,7 @@ export function askDatabaseTool(tenantScope?: AskOverrides["tenantScope"]) {
 }
 ```
 
-Adapt the object to your framework's tool shape: Vercel AI SDK tools, OpenAI function calls, Anthropic tool use and other agent frameworks all take a name, a JSON Schema for the input, and a function. When your host runs the SQL, it runs `sql` with `tenantParams ?? []`.
+Adapt the object to your framework's tool shape. Vercel AI SDK tools, OpenAI function calls, Anthropic tool use and other agent frameworks all take a name, a JSON Schema for the input, and a function. When your host runs the SQL, it runs `sql` with `tenantParams ?? []`.
 
 To serve MCP clients such as Claude Desktop or Cursor before AskDB ships its own server, put this tool behind an MCP server in your host. It keeps the same rules as below: your host decides the schema, the mode and the sensitive-column setting, never the client.
 

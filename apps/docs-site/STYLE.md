@@ -25,7 +25,7 @@ The site follows ASD-STE100 (Simplified Technical English) about 80% of the way.
 - **The main path first, the exceptions after.** Open each section with the common case, in one or two sentences a newcomer can act on. A default, a threshold, an edge case or a failure mode that most readers won't meet goes below it, in a short list, or on the reference page with a link. Every one of them stays in the docs: move it, don't drop it.
 - **The reader's goal before the mechanism.** Say what the reader wants or what goes wrong, then what the software does about it: "To keep one tenant from seeing another's rows, declare a tenant policy", not "`loadSchema()` reads `tenant-policy.md`".
 - **One example before the rule.** Show a real question, table, file or result, then state the general case. On a concept page, each idea gets one.
-- **Few names per sentence.** A sentence in a tutorial, guide or concept page has two code spans or fewer where it can, and never more than three. A sentence that needs more is a table, a list or a code block.
+- **Few names per sentence.** Outside the reference pages, a sentence has two code spans or fewer where it can, and never more than three. A sentence that needs more is a table, a list or a code block.
 - **Short sentences.** No sentence is over 30 words, on any page. Aim for about 20 in a step and 25 in a description.
 
 `scripts/check-prose.mjs` counts the last two, and `pnpm test` fails on a sentence over either limit. It can't judge the first three: the cold read in the `docs-site` skill does.

@@ -46,7 +46,11 @@ Install the AI SDK package for the provider your config selects, for example `@a
 | `reasoningEffort` | `ReasoningEffort` | optional | `"minimal"`, `"low"`, `"medium"` or `"high"`. The default reasoning effort for this client's `ask()` calls. It takes precedence over `ai.language.reasoning` in `askdb.config.ts` (see [Reasoning effort](/reference/config/#reasoning-effort)), and a per-call `reasoningEffort` takes precedence over it. |
 | `onResolve` | `(info: { dialect: DialectResolution; modelSource: "override" \| "registry" \| "mock" }) => void` | optional | Called on every `ask()` call after the schema, dialect and model resolve, before the model call. Useful for logging which dialect and model were chosen. `bind()` doesn't call it. |
 
-`modelSource` says where the model came from: `"override"` for a per-call `model`, `"mock"` for a per-call `deps.generateText` or `dev.mockSql` in `askdb.config.ts`, and `"registry"` for a model built from `ai` in the config.
+`modelSource` says where the model came from:
+
+- `"override"` for a per-call `model`
+- `"mock"` for a per-call `deps.generateText` or `dev.mockSql` in `askdb.config.ts`
+- `"registry"` for a model built from `ai` in the config
 
 ### `DialectResolution`
 

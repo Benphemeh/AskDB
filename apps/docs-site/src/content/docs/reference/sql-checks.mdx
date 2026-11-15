@@ -114,7 +114,7 @@ AskDB refuses the SQL if any of these appear as unquoted keywords: `INSERT`, `UP
 
 - **MySQL and MariaDB:** `OUTFILE` and `DUMPFILE`.
 - **SQLite:** `ATTACH`, `DETACH`, `PRAGMA` and `REINDEX`.
-- **SQL Server:** `EXEC`, `EXECUTE`, `OPENROWSET`, `OPENQUERY`, `WAITFOR`, `SHUTDOWN`, `SET`, `USE`, control-flow verbs such as `DECLARE`, `BEGIN`, `IF`, `WHILE` and `RETURN`, and other T-SQL statement verbs, because T-SQL runs a batch without semicolons. `SQLSERVER_DIALECT.extraForbiddenKeywords` lists all 46.
+- **SQL Server:** `EXEC`, `EXECUTE`, `OPENROWSET`, `OPENQUERY`, `WAITFOR`, `SHUTDOWN`, `SET`, `USE`, control-flow verbs such as `DECLARE`, `BEGIN`, `IF`, `WHILE` and `RETURN`, and other T-SQL statement verbs. SQL Server refuses them because T-SQL runs a batch without semicolons. `SQLSERVER_DIALECT.extraForbiddenKeywords` lists all 46.
 
 AskDB also refuses calls to known side-effecting functions, from each built-in spec's `blockedFunctions`. For example:
 

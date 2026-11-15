@@ -273,7 +273,7 @@ export async function askQuestion(question: string) {
 }
 ```
 
-On the `ask()` path, set `dialect: "mysql"` in `generate-sql.ts`, or `"mariadb"` for MariaDB. On MariaDB, also swap the timeout line for `max_statement_time`, as its comment says.
+On the `ask()` path, set `dialect: "mysql"` in `generate-sql.ts`. For MariaDB, set `"mariadb"` instead. On MariaDB, also swap the timeout line for `max_statement_time`, as its comment says.
 
   </TabItem>
   <TabItem label="SQLite">

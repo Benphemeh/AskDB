@@ -1,14 +1,14 @@
 // Checks the two prose limits in STYLE.md, "Writing rules", that a script can count:
 //
 //   - no sentence over 30 words, on every page;
-//   - no sentence with more than three code spans, on Start, guide and concept pages.
+//   - no sentence with more than three code spans, on every page outside reference/.
 //
 // Tables, code blocks, headings, link-card lists, diagrams and agent prompts aren't prose and are
 // skipped. The upgrade notes are a record of past releases and are exempt.
 //
 //   node scripts/check-prose.mjs            every page; exits 1 when a sentence is over a limit
 //   node scripts/check-prose.mjs <page…>    only these pages (paths under src/content/docs)
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -72,10 +72,14 @@ export function sentences(mdx) {
       .replace(/<[^>]+>/g, " ") // inline tags, such as <figcaption> and <code>
       .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1") // a link reads as its text
       .replace(/[*_]{1,2}/g, "");
-    // A sentence ends at ., ! or ? before a space and a capital, a backtick or a quote. A period
-    // inside a code span, a version or a file name is followed by none of those.
-    for (const sentence of text.split(/(?<=[.!?:])\s+(?=[A-Z`"“(])/)) {
-      const trimmed = sentence.trim();
+    // A sentence ends at ., ! or ? (and a closing quote or bracket after it) before a space and a
+    // capital, a backtick or a quote. Code spans
+    // are set aside first, so a period or a question mark inside one ends nothing. A colon doesn't
+    // end a sentence: what follows it is the same thought.
+    const spans = [];
+    const masked = text.replace(/`[^`]*`/g, (span) => `\u0000${spans.push(span) - 1}\u0000`);
+    for (const sentence of masked.split(/(?<=[.!?]["”)]?)\s+(?=[A-Z\u0000"“(])/)) {
+      const trimmed = sentence.replace(/\u0000(\d+)\u0000/g, (_, index) => spans[Number(index)]).trim();
       if (trimmed) found.push({ line: block.line, text: trimmed });
     }
   }
@@ -110,7 +114,7 @@ function pages(root) {
   return found;
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const root = fileURLToPath(new URL("../src/content/docs/", import.meta.url));
   const only = process.argv.slice(2);
   let total = 0;

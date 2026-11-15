@@ -29,7 +29,7 @@ Returns `NormalizedSchemaV2`. A path that doesn't exist throws Node's file syste
 - a hierarchy cycle
 - a root that `roots` doesn't declare
 
-Under `warn` these load, listed in `schema.tenantPolicy.warnings`. A table that `schema.json` doesn't have is a warning in both modes. See [When the policy and the schema disagree](/reference/tenant-policy/#when-the-policy-and-the-schema-disagree). `normalizeTenantPolicy(parsed, physicalTableIds, columnOwners)` runs the same check on a policy you parsed with `parseTenantPolicyMarkdown()`: `physicalTableIds` is the set of table IDs in `schema.json`, and `columnOwners` maps each column ID in `schema.json` to its table's ID.
+Under `warn` these load, listed in `schema.tenantPolicy.warnings`. A table that `schema.json` doesn't have is a warning in both modes. See [When the policy and the schema disagree](/reference/tenant-policy/#when-the-policy-and-the-schema-disagree). `normalizeTenantPolicy(parsed, physicalTableIds, columnOwners)` runs the same check on a policy you parsed with `parseTenantPolicyMarkdown()`. `physicalTableIds` is the set of table IDs in `schema.json`, and `columnOwners` maps each column ID in `schema.json` to its table's ID.
 
 Each table and column in the result has one effective `sensitive` flag, which prompt formatting, `validateSensitiveReferences()` and `@askdb/rag` chunking all read. [Sensitivity rules](/reference/schema-artifact-format/#sensitivity-rules) says how it's worked out. A column that is sensitive only because its table is also carries `sensitiveFromTable: true`; `@askdb/rag` uses it to count a mention of that column only when written as `table.column`. Problems that don't stop the load, in `tables/*.md` or a key `schema.json` doesn't define, are in `schema.warnings`, a `SchemaV2Warning[]`: [Loader warnings](/reference/schema-artifact-format/#loader-warnings) lists every kind. Two `tables/*.md` files with the same front-matter `id` make `loadSchema()` and `loadSchemaFromJson()` throw `SchemaParseError` naming both files.
 
@@ -44,7 +44,7 @@ const schema = loadSchemaFromJson(bundleJsonString);
 
 Parses a raw JSON string. Accepts the same formats as `loadSchema` (bundled JSON or bare `schema.json` blob). Useful when the schema is passed as a string over a network boundary (e.g., the HTTP API's `schemaJson` request field).
 
-The bundle's shape is exported as the `BundledSchemaV2` type: `{ bundled: true, physical, tables, concepts?, tenantPolicy? }`, where `physical` is the `schema.json` object, `tables` maps each `tables/` filename to its raw markdown, and `concepts` and `tenantPolicy` hold the raw `concepts.md` and `tenant-policy.md` when those files exist. `tables` is required (`{}` when there are no table files): a bundle without it, or whose `tables` isn't an object of strings, throws `SchemaParseError` naming `tables` and the bundle. `askdb bundle` writes it.
+The bundle's shape is exported as the `BundledSchemaV2` type: `{ bundled: true, physical, tables, concepts?, tenantPolicy? }`. In it, `physical` is the `schema.json` object, and `tables` maps each `tables/` filename to its raw markdown. `concepts` and `tenantPolicy` hold the raw `concepts.md` and `tenant-policy.md` when those files exist. `tables` is required (`{}` when there are no table files): a bundle without it, or whose `tables` isn't an object of strings, throws `SchemaParseError` naming `tables` and the bundle. `askdb bundle` writes it.
 
 ## `readSchemaDirectory(dir)`
 
