@@ -66,7 +66,7 @@ askdb init --yes --database sqlserver   # non-interactive, SQL Server
 askdb init --yes --database sqlite --sqlite-file SQLITE_FILE
 ```
 
-In a terminal, `askdb init` opens a short wizard: choose your database, AI provider, RAG store, and whether to enable Studio execute. It writes only the relevant config branches and installs only the packages for your chosen path (e.g. `mssql` for SQL Server, `better-sqlite3` for SQLite — not all drivers).
+In a terminal, `askdb init` opens a short wizard: choose your database, AI provider, RAG store, and whether to enable Studio execute. A flag you pass answers its question, and the wizard skips it. It writes only the relevant config branches and installs only the packages for your chosen path (e.g. `mssql` for SQL Server, `better-sqlite3` for SQLite — not all drivers).
 
 In CI or scripts, pass `--yes` and use flags instead of prompts. See `askdb init --help` for the full flag list.
 
