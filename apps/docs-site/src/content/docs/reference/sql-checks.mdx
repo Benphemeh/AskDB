@@ -25,24 +25,30 @@ AskDB checks both forms with every placeholder still in place. Only then does it
 
 <figure>
 
-```mermaid
-flowchart TB
-  %% The SQL checks: which run on the model's SQL, in order, and how their findings become one
-  %% outcome. Source of truth: packages/core/src/ask.ts (the enforceGuardrails call) and
-  %% sql/guardrails.ts (the decision: read-only always denies; tenant by enforcement; sensitive by
-  %% sensitiveGuardrailMode).
-  sql["the model's SQL<br/>and its sql-unbound block"]
-  readonly["read-only check<br/>built-in id or<br/>DialectSpec only"]
-  tenant["tenant check<br/>with a tenant policy"]
-  sensitive["sensitive check<br/>with sensitive marks"]
-  verdict["verdict<br/>every finding"]
-  allow["allow"]
-  warn["warn:<br/>returned, reported"]
-  deny["deny:<br/>throws"]
-  sql --> readonly --> tenant --> sensitive --> verdict
-  verdict --> allow
-  verdict --> warn
-  verdict --> deny
+```diagram
+flow
+title: The SQL checks run in order on the model's SQL, then one verdict decides the outcome.
+# The SQL checks: which run on the model's SQL, in order, and how their findings become one
+# outcome. Source of truth: packages/core/src/ask.ts (the enforceGuardrails call) and
+# sql/guardrails.ts (the decision: read-only always denies; tenant by enforcement; sensitive by
+# sensitiveGuardrailMode).
+lane model: Your model provider
+lane askdb: AskDB
+step sql @model: the SQL and its `sql-unbound` block
++ step readonly @askdb: read-only check: built-in id or `DialectSpec` only
+step tenant @askdb: tenant check: with a tenant policy
+step sensitive @askdb: sensitive check: with sensitive marks
+step verdict @askdb: verdict on every finding
+step allow @askdb: allow
+step warn @askdb: warn: returned, reported
+step deny @askdb: deny: throws
+sql -> readonly
+readonly -> tenant
+tenant -> sensitive
+sensitive -> verdict
+verdict -> allow
+verdict -> warn
+verdict -> deny
 ```
 
 <figcaption>The checks run in this order on the model's SQL. Every check runs, then one decision maps their findings to an outcome.</figcaption>

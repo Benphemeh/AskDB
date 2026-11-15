@@ -31,24 +31,28 @@ If this is new to you, start with the tutorial [Chart your first answer](/chart-
 
 <figure>
 
-```mermaid
-flowchart TB
-  %% Who holds what while a chart is planned. Source of truth: packages/client/src/charts/
-  %% (classify.ts, plan.ts, validate.ts, fallback.ts). The rows go from the application's own
-  %% query to classifyResult() and to its own charting library, and to nothing else.
-  ask["ask()<br/>returns checked SQL"]
-  run["your application runs it<br/>and keeps the rows"]
-  classify["classifyResult()<br/>in your process"]
-  plan["planChart()"]
-  model["your model"]
-  draw["your charting library<br/>draws the chart"]
-  ask -- "SQL" --> run
-  run -- "rows" --> classify
-  classify -- "column names and kinds,<br/>the row count" --> plan
-  plan -- "the question,<br/>the SQL with ? for values,<br/>column names and kinds" --> model
-  model -- "chart spec" --> plan
-  plan -- "checked chart spec" --> draw
-  run -- "rows" --> draw
+```diagram
+flow
+title: Who holds what while a chart is planned.
+# Who holds what while a chart is planned. Source of truth: packages/client/src/charts/
+# (classify.ts, plan.ts, validate.ts, fallback.ts). The rows go from the application's own
+# query to classifyResult() and to its own charting library, and to nothing else.
+lane app: Your application
+lane askdb: AskDB | runs in your process
+lane model: Your model
+step ask @askdb: `ask()` returns checked SQL
+step run @app: runs it and keeps the rows
+step classify @askdb: `classifyResult()`, in your process
+step plan @askdb: `planChart()`
++ step pick @model: your model
+step draw @app: your charting library draws the chart
+ask -> run: SQL
+run -> classify: rows
+classify -> plan: column names and kinds, the row count
+plan -> pick: the question, the SQL with `?` for values, column names and kinds
+pick ..> plan: chart spec
+plan -> draw: checked chart spec
+run -> draw: rows
 ```
 
 <figcaption>The rows go from your application's query to <code>classifyResult()</code>, which runs in your process, and to your own charting library. <code>planChart()</code> sends your model the question, the SQL with <code>?</code> for every value, and the column names and kinds. It checks the chart spec the model returns, and your application draws that spec.</figcaption>

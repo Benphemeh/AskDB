@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (2026-11-14). Decided by the agent that rebuilt the docs site's look and agent-readiness, under the maintainer's delegation for that work; the maintainer can reopen it. Supersedes nothing. Amends [ADR 0041](0041-docs-diagrams-are-mermaid-rendered-by-pele.md): the `--pele-*` mapping and the font stacks moved out of `custom.css`.
+Accepted (2026-11-14). Decided by the agent that rebuilt the docs site's look and agent-readiness, under the maintainer's delegation for that work; the maintainer can reopen it. Supersedes nothing. Amends [ADR 0041](0041-docs-diagrams-are-mermaid-rendered-by-pele.md): the `--pele-*` mapping and the font stacks moved out of `custom.css`. Amended 2026-11-15 by [ADR 0051](0051-docs-diagrams-are-askdbs-own.md): a `diagram` fence's twin prints the diagram's text alternative, where this ADR says each diagram is its Mermaid source; that holds only for the diagrams still in a `mermaid` fence.
 
 ## Context
 
@@ -12,7 +12,7 @@ The site has two readers: a developer looking at a page, and a coding agent that
 
 - **A. Keep HTML furniture, and serve only the site-wide `llms*.txt` files.** No new build step. But every page keeps layout markup in its source, and an agent that wants one page fetches all of them or parses HTML.
 - **B. A Markdown twin made from each page's MDX source.** The source is already Markdown. But a page's meaning is partly in its components: `InstallTabs`, `Tabs`, `FileTree` and `Aside` render nothing useful as raw MDX, and imports and JSX would reach the reader.
-- **C. Markdown furniture, and a twin made from the rendered page (chosen).** The source carries no layout HTML, and the twin shows what the page shows: each tab with its label, each code block with its language and title, each diagram as its Mermaid source and caption.
+- **C. Markdown furniture, and a twin made from the rendered page (chosen).** The source carries no layout HTML, and the twin shows what the page shows: each tab with its label, each code block with its language and title, each diagram as text and its caption (its Mermaid source at the time of this ADR; the text alternative of a `diagram` fence since ADR 0051).
 
 ## Decision
 

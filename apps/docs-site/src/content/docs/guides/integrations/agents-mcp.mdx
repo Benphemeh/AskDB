@@ -9,15 +9,21 @@ An agent asks AskDB for SQL through the same surfaces you use: the library, the 
 
 <figure>
 
-```mermaid
-flowchart TB
-  %% One agent tool call. Source of truth: the tool in "Wrap AskDB as a tool" below, and
-  %% packages/client/src/client.ts (askdb.ask returns sql and tenantParams, never rows).
-  agent["agent<br/>sends a question"]
-  handler["your tool handler<br/>adds tenantScope from your auth"]
-  ask["ask()<br/>returns checked SQL"]
-  run["your code runs sql with tenantParams<br/>under a read-only role"]
-  agent --> handler --> ask --> run
+```diagram
+flow
+title: One agent tool call, from the agent's question to SQL your code runs.
+# One agent tool call. Source of truth: the tool in "Wrap AskDB as a tool" below, and
+# packages/client/src/client.ts (askdb.ask returns sql and tenantParams, never rows).
+lane agent: Agent
+lane app: Your application
+lane askdb: AskDB
+step question @agent: sends a question
+step handler @app: your tool handler adds `tenantScope` from your auth
+step ask @askdb: `ask()` returns checked SQL
+step run @app: your code runs `sql` with `tenantParams` under a read-only role
+question -> handler
+handler -> ask
+ask -> run
 ```
 
 <figcaption>An agent calls your tool handler. The handler calls `ask()`, which returns checked SQL. Your code, not the agent, runs it.</figcaption>

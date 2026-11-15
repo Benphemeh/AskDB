@@ -28,7 +28,8 @@ All paths are under `apps/docs-site/`.
 | `src/components/AgentPrompt.astro` | The "Use with your agent" block |
 | `src/components/HomeHeroDiagram.astro` | The home page's hero art: one inline SVG colored from the tokens |
 | `plugins/remark-link-cards.mjs` | Marks `[Title](/path/): description` lists as link cards |
-| `plugins/remark-mermaid.mjs` | Renders `mermaid` fences to inline SVG with pele |
+| `plugins/remark-diagram.mjs`, `plugins/diagram/` | AskDB's own diagrams: parses a `diagram` fence, lays it out (lanes, or a stack on a phone) and draws inline SVG with the actor icons and AskDB's mark |
+| `plugins/remark-mermaid.mjs` | Renders the `mermaid` fences that remain (an entity-relationship diagram, a dependency graph) to inline SVG with pele |
 | `src/pages/[...slug].md.ts`, `src/utils/html-to-markdown.ts` | The Markdown twin of every page |
 | `src/routeData.ts` | Head entries per page: the Markdown alternate link and JSON-LD |
 | `src/utils/llms-txt.mjs` | What `/llms.txt` and the documentation sets say |
@@ -38,9 +39,11 @@ All paths are under `apps/docs-site/`.
 
 - **Tokens only.** A stylesheet rule or a component reads `var(--ask-*)` or `var(--sl-*)`. A literal color, font name or shadow appears in `tokens.css` and nowhere else, once per theme.
 - **Styles are unlayered.** Starlight's own CSS sits in cascade layers, so a plain rule in these files wins without `!important`. Component-scoped `<style>` blocks are for a component's own parts, with tokens.
-- **Diagram fonts match the site's.** `plugins/remark-mermaid.mjs` passes the font stacks to pele, which measures labels with them. Its test compares them with `--sl-font` and `--sl-font-mono` in `tokens.css`, so change both together.
-- **Diagram colors come from the theme.** `content.css` maps `--pele-*` to tokens. Nodes are neutral surfaces with a hairline border, and only pele's accent carries color.
-- **Markup the twin reads stays stable.** `html-to-markdown.ts` reads Starlight's tab, aside, code-frame and heading markup, the `link-card-sep` span and `figure > svg.pele`. Rename or restructure one and the twin changes: its tests in `src/utils/` and `scripts/check-markdown-twins.mjs` say how.
+- **A diagram shows ownership.** Each actor has a lane, an icon and a fixed place; AskDB's lane carries the mark and the accent, and no other lane or step does. A new kind of diagram keeps that grammar: add a layout to `plugins/diagram/`, not a second look.
+- **Diagram text is measured, not guessed.** `plugins/diagram/text.mjs` estimates each line's width from a table of the fonts' advance widths, a little wide on purpose, and wraps to the box. Its tests assert that no line in either layout is wider than its box. Change the fonts in `tokens.css` and that table goes with them.
+- **Diagram colors come from the theme.** `content.css` styles the kit's `dg-*` classes from the tokens, and maps pele's `--pele-*` variables for the Mermaid diagrams that remain. The plugin writes no color. `plugins/remark-mermaid.mjs` passes pele the font stacks, and its test compares them with `--sl-font` and `--sl-font-mono` in `tokens.css`.
+- **AskDB's mark is one drawing.** `plugins/diagram/icons.mjs` holds it as vector, redrawn from `docs/assets/brand/light-icon.png`. Reuse it from there.
+- **Markup the twin reads stays stable.** `html-to-markdown.ts` reads Starlight's tab, aside, code-frame and heading markup, the `link-card-sep` span and `figure > svg.pele`, and the `dg-text-alt` list inside `.askdb-diagram`. Rename or restructure one and the twin changes: its tests in `src/utils/` and `scripts/check-markdown-twins.mjs` say how.
 - **The hidden agent hint stays first in `<body>`,** `aria-hidden`, with no links in it.
 - **No new runtime JavaScript for looks.** The page actions, the copy buttons and the theme control are the only scripts. A visual effect is CSS.
 - **Phone first for anything wide.** A table or a code block scrolls inside itself. The page never scrolls sideways at 390 px.

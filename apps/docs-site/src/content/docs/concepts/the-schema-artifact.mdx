@@ -11,27 +11,32 @@ This page explains how the artifact is put together and why. The [Schema artifac
 
 <figure>
 
-```mermaid
-flowchart TB
-  %% Where each layer comes from, and how the artifact reaches the model. Source of truth:
-  %% apps/cli/src/introspect.ts (writes only schema.json), apps/cli/src/bundle.ts
-  %% (bundleSchemaDirectory refuses what loadSchema() refuses), packages/core/src/schema/v2/loader.ts
-  %% (loadSchema, loadSchemaFromJson), packages/core/src/schema/v2/format.ts (formatSchemaV2ForNlToSql).
-  db[("your database")]
-  introspect["askdb introspect"]
-  team["your team, in Studio<br/>or by hand"]
-  subgraph artifact["the schema artifact, in version control"]
-    physical["schema.json:<br/>the physical layer"]
-    enrichment["tables/*.md, concepts.md,<br/>tenant-policy.md:<br/>the enrichment layer"]
-  end
-  bundle["askdb bundle:<br/>one JSON file"]
-  load["loadSchema()"]
-  model["one annotated schema<br/>text for the model"]
-  db --> introspect --> physical
-  team --> enrichment
-  artifact -- "to ship it" --> bundle --> load
-  artifact -- "as a folder" --> load
-  load -- "ask()" --> model
+```diagram
+flow
+title: Where each layer of the schema artifact comes from, and how the artifact reaches the model.
+# Where each layer comes from, and how the artifact reaches the model. Source of truth:
+# apps/cli/src/introspect.ts (writes only schema.json), apps/cli/src/bundle.ts
+# (bundleSchemaDirectory refuses what loadSchema() refuses), packages/core/src/schema/v2/loader.ts
+# (loadSchema, loadSchemaFromJson), packages/core/src/schema/v2/format.ts (formatSchemaV2ForNlToSql).
+lane database: Your database
+lane askdb: AskDB
+lane artifact files: Schema artifact | in version control
+lane team person: Your team
+step db @database: your database
++ step introspect @askdb: `askdb introspect`
++ step physical @artifact: `schema.json`: the physical layer
++ step author @team: in Studio or by hand
+step enrichment @artifact: `tables/*.md`, `concepts.md`, `tenant-policy.md`: the enrichment layer
+step bundle @askdb: `askdb bundle`: one JSON file
+step load @askdb: `loadSchema()`
+step text @askdb: one annotated schema text for the model
+db -> introspect
+introspect -> physical
+author -> enrichment
+enrichment -> bundle: the artifact, to ship it
+enrichment -> load: the artifact, as a folder
+bundle -> load
+load -> text: `ask()`
 ```
 
 <figcaption><code>askdb introspect</code> writes the physical layer from your database, and your team writes the enrichment layer. AskDB loads the folder, or the one JSON file <code>askdb bundle</code> packs it into, and at generation time merges both layers into one schema text for the model.</figcaption>

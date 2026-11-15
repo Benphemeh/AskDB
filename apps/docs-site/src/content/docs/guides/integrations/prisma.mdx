@@ -11,16 +11,22 @@ If you already maintain a Prisma schema file, `@askdb/prisma` reads it directly 
 
 <figure>
 
-```mermaid
-flowchart TB
-  %% The file-only introspection path. Source of truth: packages/prisma/src/prisma.ts
-  %% (createPrismaConnector reads the .prisma file and records the dialect id) and
-  %% the "askdb introspect" flow in apps/cli/src/introspect.ts.
-  file[".prisma file or directory"]
-  prisma["@askdb/prisma<br/>reads the file, no database"]
-  artifact["schema artifact<br/>(records the dialect id)"]
-  ask["ask() with the matching dialect id"]
-  file --> prisma --> artifact --> ask
+```diagram
+flow
+title: The file-only path from a Prisma schema to ask().
+# The file-only introspection path. Source of truth: packages/prisma/src/prisma.ts
+# (createPrismaConnector reads the .prisma file and records the dialect id) and
+# the "askdb introspect" flow in apps/cli/src/introspect.ts.
+lane prisma files: Prisma schema
+lane askdb: AskDB
+lane artifact files: Schema artifact
+step file @prisma: `.prisma` file or directory
++ step read @askdb: `@askdb/prisma` reads the file, no database
++ step written @artifact: records the dialect id
+step ask @askdb: `ask()` with the matching dialect id
+file -> read
+read -> written
+written -> ask
 ```
 
 <figcaption>The `.prisma` file goes through `@askdb/prisma` into a schema artifact, which `ask()` reads with the matching `dialect` id.</figcaption>

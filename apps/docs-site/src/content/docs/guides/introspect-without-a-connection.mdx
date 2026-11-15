@@ -26,19 +26,23 @@ It holds no table rows, no row counts, and no credentials: the connection string
 
 <figure>
 
-```mermaid
-flowchart TB
-  %% Source of truth: the steps below, and the export bundle format in
-  %% reference/introspect-api.mdx (askdb introspect templates, --from-export).
-  templates["askdb introspect templates<br/>12 catalog queries<br/>(you, steps 1 and 2)"]
-  psql["psql runs each query<br/>(person with database access, step 3)"]
-  export["export bundle:<br/>manifest.json and one CSV per query"]
-  introspect["askdb introspect --from-export<br/>(you, step 4)"]
-  artifact["schema artifact"]
-  templates --> psql
-  psql --> export
-  export --> introspect
-  introspect --> artifact
+```diagram
+flow
+title: The offline flow, from printed catalog queries to a schema artifact.
+# Source of truth: the steps below, and the export bundle format in
+# reference/introspect-api.mdx (askdb introspect templates, --from-export).
+lane you person: You
+lane dba person: Someone with database access
+lane files: Files
+step templates @you: `askdb introspect templates`: 12 catalog queries (steps 1 and 2)
+step psql @dba: `psql` runs each query (step 3)
+step export @files: export bundle: `manifest.json` and one CSV per query
+step introspect @you: `askdb introspect --from-export` (step 4)
+step artifact @files: schema artifact
+templates -> psql
+psql -> export
+export -> introspect
+introspect -> artifact
 ```
 
 <figcaption>The offline flow. You print the catalog queries, someone with database access runs them with <code>psql</code>, and you build the schema artifact from the CSV files they send back.</figcaption>

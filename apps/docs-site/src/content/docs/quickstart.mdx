@@ -11,17 +11,22 @@ In this tutorial, we'll create a small shop database, point AskDB at it, ask a q
 
 <figure>
 
-```mermaid
-flowchart TB
-  %% The files the tutorial makes, and which step makes each. AskDB reads the schema and
-  %% returns SQL; the reader's own code runs it. Top to bottom, so it fits a phone.
-  db["shop.db<br/>the sample database"]
-  schema["askdb/schema.json<br/>the schema artifact"]
-  sql["checked SQL<br/>on stdout"]
-  rows["the answer<br/>rows from shop.db"]
-  db -- "askdb introspect" --> schema
-  schema -- "askdb ask<br/>+ your question" --> sql
-  sql -- "piped to run-query.mjs<br/>(your code)" --> rows
+```diagram
+flow
+title: The files the tutorial makes, and the step that makes each.
+# The files the tutorial makes, and which step makes each. AskDB reads the schema and
+# returns SQL; the reader's own code runs it. Top to bottom, so it fits a phone.
+lane database: Your database
+lane files: Schema artifact
+lane askdb: AskDB
+lane app: Your application | `run-query.mjs`
+step db @database: `shop.db`, the sample database
+step schema @files: `askdb/schema.json`
+step sql @askdb: checked SQL on stdout
+step rows @app: the answer: rows from `shop.db`
+db -> schema: `askdb introspect`
+schema -> sql: `askdb ask` + your question
+sql -> rows: piped to `run-query.mjs`
 ```
 
 <figcaption>What we'll make, and the step that makes each. AskDB reads the schema and returns checked SQL. Our own code runs it.</figcaption>

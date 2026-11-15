@@ -2,6 +2,7 @@ import { unified } from "@astrojs/markdown-remark";
 import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
 import starlightLlmsTxt from "starlight-llms-txt";
+import { remarkDiagram } from "./plugins/remark-diagram.mjs";
 import { remarkLinkCards } from "./plugins/remark-link-cards.mjs";
 import { remarkMermaid } from "./plugins/remark-mermaid.mjs";
 import { llmsTxtOptions } from "./src/utils/llms-txt.mjs";
@@ -56,7 +57,7 @@ export default defineConfig({
     // pages ship no diagram JavaScript. src/styles/content.css maps pele's color variables to
     // Starlight's, so a diagram follows the theme toggle. remarkLinkCards marks a list of
     // `[Title](/path/): description` items so the same stylesheet lays it out as cards.
-    processor: unified({ remarkPlugins: [remarkRebaseLinks, remarkMermaid, remarkLinkCards] }),
+    processor: unified({ remarkPlugins: [remarkRebaseLinks, remarkDiagram, remarkMermaid, remarkLinkCards] }),
   },
   integrations: [
     starlight({

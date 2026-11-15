@@ -53,20 +53,23 @@ The [Quickstart](/quickstart/)'s three tables need no enrichment, because the mo
 
 <figure>
 
-```mermaid
-flowchart TB
-  %% Source of truth: the steps below, and the schema artifact layout in
-  %% reference/schema-artifact-format.mdx (askdb introspect writes only schema.json).
-  introspect["askdb introspect<br/>writes schema.json"]
-  enrich["Enrich in Studio<br/>writes tables/*.md and concepts.md"]
-  ask["askdb ask --question"]
-  check{"Is the SQL right?"}
-  commit["Commit the schema artifact"]
-  introspect --> enrich
-  enrich --> ask
-  ask --> check
-  check -- "no: add the missing meaning" --> enrich
-  check -- "yes" --> commit
+```diagram
+flow
+title: The enrich-and-test loop, from introspection to a committed schema artifact.
+# Source of truth: the steps below, and the schema artifact layout in
+# reference/schema-artifact-format.mdx (askdb introspect writes only schema.json).
+lane askdb: AskDB
+lane you person: You
+step introspect @askdb: `askdb introspect` writes `schema.json`
+step enrich @you: enrich in Studio, which writes `tables/*.md` and `concepts.md`
+step ask @askdb: `askdb ask --question`
+decide check @you: is the SQL right?
+step commit @you: commit the schema artifact
+introspect -> enrich
+enrich -> ask
+ask -> check
+check -> enrich: no: add the missing meaning
+check -> commit: yes
 ```
 
 <figcaption>The enrich-and-test loop. Introspect once, then enrich and ask until the SQL is right, then commit the artifact.</figcaption>

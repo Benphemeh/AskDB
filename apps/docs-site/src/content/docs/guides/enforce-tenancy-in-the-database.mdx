@@ -10,15 +10,23 @@ AskDB's tenant check is a heuristic. It catches a model that forgot the tenant f
 
 <figure>
 
-```mermaid
-flowchart TB
-  %% Source of truth: this page's SQL; see also apps/docs-site/src/content/docs/concepts/tenant-isolation.mdx (what enforces isolation).
-  app["your application<br/>authorizes the tenant IDs"]
-  tx["BEGIN READ ONLY<br/>SET LOCAL app.organization_ids"]
-  role["askdb_reader<br/>runs the generated SQL"]
-  rls["row-level security policy<br/>reads app.organization_ids"]
-  rows["only the caller's rows"]
-  app --> tx --> role --> rls --> rows
+```diagram
+flow
+title: How the database keeps a query to the caller's tenants.
+# Source of truth: this page's SQL; see also apps/docs-site/src/content/docs/concepts/tenant-isolation.mdx (what enforces isolation).
+lane app: Your application
+lane database: Your database
+step authorize @app: authorizes the tenant IDs
+step begin @app: `BEGIN READ ONLY`
+step set @app: `SET LOCAL app.organization_ids`
+step role @database: `askdb_reader` runs the generated SQL
+step rls @database: row-level security policy reads `app.organization_ids`
+step rows @database: only the caller's rows
+authorize -> begin
+begin -> set
+set -> role
+role -> rls
+rls -> rows
 ```
 
 <figcaption>How the database keeps a query to its tenants. The application sets the tenant IDs in the transaction. The role's policies filter every row, whatever SQL arrives.</figcaption>

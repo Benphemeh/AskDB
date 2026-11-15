@@ -118,7 +118,7 @@ A list with any other item shape stays a plain list. `plugins/remark-link-cards.
 Agents are the site's second reader, so each page must read well as plain Markdown.
 
 - Every page has a Markdown twin at its URL with the trailing slash replaced by `.md` (`/guides/embed-in-node.md`; the home page's is `/index.md`). `src/pages/[...slug].md.ts` builds it from the rendered page, and `scripts/check-markdown-twins.mjs` checks every page has one.
-- The twin prints tabs as labelled blocks, code with its language and `title`, asides as labelled quotes, link cards as their Markdown lines, and a diagram as its Mermaid source plus its caption. So tab labels, code titles, captions and node labels must make sense as text.
+- The twin prints tabs as labelled blocks, code with its language and `title`, asides as labelled quotes, link cards as their Markdown lines, and a diagram as its text alternative plus its caption: each step with its owner and where it leads, or each message with who sends it. A Mermaid diagram prints as its source. So tab labels, code titles, captions and step labels must make sense as text.
 - Don't carry meaning in layout alone. A fact that only a color, an icon or a position shows is missing from the twin: say it in words too.
 - `/llms.txt`, `/llms-full.txt`, `/llms-small.txt` and the per-section sets come from `starlight-llms-txt`. `public/AGENTS.md` is the map for an agent that implements AskDB in another project. Keep both accurate when a page moves or an API changes.
 
@@ -144,7 +144,7 @@ Agents are the site's second reader, so each page must read well as plain Markdo
 - `AgentPrompt` (`src/components/AgentPrompt.astro`) for the "Use with your agent" block of a task guide, under a `## Use with your agent` heading, before "Read next". The slot is the prompt: plain paragraphs and lists, with blank lines inside the tags. Name pages by their absolute `.md` URL (`https://askdb.tools/guides/multi-tenancy.md`), state the goal, and repeat the constraints the guide sets (AskDB returns SQL, the application runs it).
 - `ExampleLink` to point at a runnable example in the repo.
 - A chart that an example drew is a static SVG for each theme, in `src/assets/charts/`. Show it in a `<figure class="doc-chart">` with two `Image`s from `astro:assets`: the light file with `class="dark:sl-hidden"` and the dark file with `class="light:sl-hidden"`, each with the same `alt`. Say in the `<figcaption>` what drew it and from which run. `guides/plan-a-chart.mdx` has the pattern; `examples/chart-a-result/draw-recorded.mjs` draws its two files.
-- Diagrams are [Mermaid](https://mermaid.js.org/), written in a `mermaid` fence and rendered to inline SVG at build time by [pele](https://pele.run). Pages ship no diagram JavaScript, and CI and the Pages deploy need no binary or browser. See "Diagrams" below.
+- Diagrams are AskDB's own: a `diagram` fence, drawn as inline SVG at build time by `plugins/remark-diagram.mjs`, with a lane for each actor and AskDB's mark on its own. Pages ship no diagram JavaScript, and CI and the Pages deploy need no binary or browser. See "Diagrams" below.
 
 ## Visuals
 
@@ -170,17 +170,39 @@ Tables:
 
 ## Diagrams
 
-- Draw a diagram when the page explains a flow, a boundary or an ownership split that takes more than three sentences to say. One diagram carries one idea, in nine nodes or fewer. A second idea is a second diagram.
-- Write the diagram in a ```` ```mermaid ```` fence in the page, inside a `<figure>`. `plugins/remark-mermaid.mjs` renders it with pele, which reads Mermaid 12.1's syntax but lays diagrams out its own way, so check the built page rather than Mermaid's live editor.
-- End the figure with a `<figcaption>` that says what the diagram shows. It is the diagram's text alternative. Leave a blank line before and after the fence, or MDX doesn't render it.
-- The SVG keeps its natural width and shrinks to fit a narrower column, so the figure needs no width. Keep the natural width (the `width` of the built `<svg>`) at 720 px or less, the content column at its widest. With the table of contents showing, the column is narrower (632 px in a 1280 px window).
-- Draw a flow of four or more steps top to bottom (`flowchart TB`), so the text stays near full size on a phone. Check the page at 390 px wide, in both themes.
-- Leave colors to the theme. `src/styles/content.css` maps pele's `--pele-*` variables to the site's colors, so a diagram follows the light and dark toggle. A color set in the source (`style`, `classDef`, `linkStyle`) stays the same in both themes.
-- Use the same words in node labels as on the page: command names, package names and terms from "Terminology". Break a long label with `<br/>` where it reads best, rather than leaving pele to wrap it.
-- Put notes for maintainers, such as the source of truth for what a diagram shows, on `%%` comment lines inside the fence. They don't reach the page.
-- A diagram pele can't render fails the build. The error names the page and line, and pele's error code: `syntax`, `semantic`, `unsupported-diagram` or `limit`.
-- The page's Markdown twin prints the fence's source and the caption, so both must read well as text.
-- The home page's hero art (`src/components/HomeHeroDiagram.astro`) is a hand-drawn inline SVG, colored from the design tokens. Every other diagram is Mermaid.
+A diagram shows who owns what: each actor (your application, AskDB, your model provider, your database, files on disk) has a lane with its icon, each step sits in its owner's lane, and a labelled link carries data from one step to the next. AskDB's lane carries its mark and the accent color, so every diagram on the site reads the same way.
+
+- Draw a diagram when the page explains a flow, a boundary or an ownership split that takes more than three sentences to say. One diagram carries one idea, in nine steps or fewer. A second idea is a second diagram.
+- Write the diagram in a ```` ```diagram ```` fence in the page, inside a `<figure>`, and end the figure with a `<figcaption>` that says what the diagram shows. Leave a blank line before and after the fence, or MDX doesn't render it.
+- The first line is the kind. `flow` is steps in order, each owned by an actor. `sequence` is messages between actors.
+- `title:` is the diagram's accessible name: one sentence. It is required.
+- `lane <id> [<kind>]: Label | note` declares an actor, left to right. The kind picks the icon and defaults to the id: `app`, `askdb`, `model`, `database`, `files`, `person`, `agent`, `service`. A flow has four lanes at most, and a sequence five. Keep one actor in one lane across a page's diagrams. A lane and a step can't share an id. The note is what follows the first ` | ` outside backticks.
+- `boundary Label: <lane> <lane>` frames neighbouring lanes, for "Your stack" and what is outside it.
+- In a flow, `step <id> @<lane>: Label` puts a step on a new row. Start the line with `+` to put it on the previous step's row, for two inputs or for a call across two lanes. `group Label: <step> <step>` frames steps of one lane that are next to each other in it, such as the ones inside `ask()`; to frame whole lanes, use `boundary`. A long group label wraps and keeps every word.
+- `decide <id> @<lane>: Question?` is a step that asks a question. Each link out of it is an answer, so each needs a label (`check -> commit: yes`).
+- `a -> b: data` links two steps (or, in a sequence, sends a message between two lanes). `..>` draws it dashed: a reply, or an optional path. In a sequence, `a -> a: Label` is the actor's own step. In a flow, a link between two steps on one row can't have a third step between them: put one of the three on another row.
+- Labels take `code` in backticks. Use the same words as the page: command names, package names and terms from "Terminology". Keep a step label under about 40 characters: the kit wraps it to its lane, and a long label makes a tall box. Write `\n` where a line must break, such as between two code names.
+- A link's label sits on its own link, clear of every step and every other label, and wraps when it is long. Give each of two links out of one step its own label.
+- Never write a coordinate, a size or a color. The kit lays the diagram out, and `src/styles/content.css` colors it from the design tokens, so it follows the light and dark toggle.
+- Put notes for maintainers, such as the source file that proves what the diagram shows, on `#` lines inside the fence. They don't reach the page.
+- A diagram the kit can't draw fails the build. The error names the page, the line and the reason: an undeclared lane, a link to a missing step, a missing title.
+- The kit draws each diagram twice, and the page shows one by the column's width: lanes side by side, or on a phone one stack of steps, each tagged with its owner. Check the page at 390 px wide, in both themes.
+- The page's Markdown twin prints the diagram in words and then the caption: each boundary with the lanes it holds, each lane's note, then each step with its owner and where it leads (a decision with its answers). So lane notes, step labels and link labels must read well as text.
+
+```diagram
+flow
+title: Where AskDB stops and your application takes over.
+# Source of truth: packages/core/src/ask.ts.
+lane app: Your application
+lane askdb: AskDB
+step question @app: asks a question
+step sql @askdb: generates and checks the SQL
+step run @app: runs it under a read-only role
+question -> sql
+sql -> run: checked SQL
+```
+
+Two kinds of diagram have no actors, and stay [Mermaid](https://mermaid.js.org/) in a `mermaid` fence, rendered at build time by [pele](https://pele.run) (`plugins/remark-mermaid.mjs`): an entity-relationship diagram (the Quickstart's) and a dependency graph (the package reference's). For those, leave colors to the theme, keep the built SVG at 720 px wide or less, and put maintainer notes on `%%` lines. The home page's hero art (`src/components/HomeHeroDiagram.astro`) is a hand-drawn inline SVG.
 
 ## Code samples
 

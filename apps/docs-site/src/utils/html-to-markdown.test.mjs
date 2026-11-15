@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { htmlToMarkdown, mermaidSources, pageMarkdown } from "./html-to-markdown.ts";
+import { renderDiagram } from "../../plugins/diagram/render.mjs";
 
 const pageUrl = "https://askdb.tools/guides/multi-tenancy/";
 const convert = (html, options = {}) => htmlToMarkdown(html, { pageUrl, ...options });
@@ -30,6 +31,26 @@ test("a code block becomes a fence with its language, and its file name as the t
 test("a code block with inserted and deleted lines becomes a diff", async () => {
   const html = codeBlock("ts", [["const a = 1;"], ["const b = 2;", "del"], ["const b = 3;", "ins"]]);
   assert.equal(await convert(html), "```diff\n const a = 1;\n-const b = 2;\n+const b = 3;\n```");
+});
+
+test("an AskDB diagram is written as its text alternative, then its caption", async () => {
+  // The kit's real output, so a change to the text alternative's markup shows up here.
+  const sequence = renderDiagram(
+    "sequence\ntitle: One request.\nlane handler app: Your handler\nlane askdb: AskDB | never opens a connection\nboundary Your stack: handler askdb\nhandler -> askdb: `ask(question)`\naskdb -> askdb: run the SQL checks\naskdb ..> handler: `sql`",
+    "diagram-0",
+  );
+  assert.equal(
+    await convert(`<figure>${sequence}<figcaption>One request.</figcaption></figure>`),
+    "- **Your stack** holds: Your handler, AskDB\n- **AskDB:** never opens a connection\n\n1. **Your handler → AskDB:** `ask(question)`\n2. **AskDB:** run the SQL checks\n3. **AskDB → Your handler (reply):** `sql`\n\n*Figure: One request.*",
+  );
+  const flow = renderDiagram(
+    "flow\ntitle: A loop.\nlane askdb: AskDB\nlane you person: You\nstep ask @askdb: `askdb ask`\ndecide check @you: is the SQL right?\nstep commit @you: commit\ngroup Each try: ask\nask -> check\ncheck -> ask: no\ncheck -> commit: yes",
+    "diagram-1",
+  );
+  assert.equal(
+    await convert(`<figure>${flow}<figcaption>A loop.</figcaption></figure>`),
+    "- **AskDB (Each try):** `askdb ask`\n  - → is the SQL right?\n\n- **You:** Decision: is the SQL right?\n\n  - no → `askdb ask`\n  - yes → commit\n\n- **You:** commit\n\n*Figure: A loop.*",
+  );
 });
 
 test("an image with a copy per theme is written once, as its light copy", async () => {

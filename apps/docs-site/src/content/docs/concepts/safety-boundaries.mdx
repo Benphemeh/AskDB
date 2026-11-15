@@ -11,21 +11,25 @@ The database role your application uses to run the SQL is the boundary.
 
 <figure>
 
-```mermaid
-flowchart TB
-  %% A typical production stack: AskDB's checks, then the layers in the host's runtime that hold
-  %% when a query gets past them. Source of truth: packages/core/src/ask.ts (enforceGuardrails runs
-  %% the checks before ask() returns), this page and guides/run-safely-in-prod.mdx.
-  q["question"]
-  ask["ask(), in @askdb/core<br/>its SQL checks catch<br/>common model mistakes"]
-  subgraph runtime["your runtime"]
-    app["your app<br/>logs the SQL, can show it"]
-    db["read-only database role,<br/>RLS policies and a<br/>statement timeout:<br/>the boundary"]
-  end
-  rows["paginated result"]
-  q --> ask
-  ask -- "checked SQL" --> app
-  app --> db --> rows
+```diagram
+flow
+title: AskDB's checks, then the layers in your runtime that hold when a query gets past them.
+# A typical production stack: AskDB's checks, then the layers in the host's runtime that hold
+# when a query gets past them. Source of truth: packages/core/src/ask.ts (enforceGuardrails runs
+# the checks before ask() returns), this page and guides/run-safely-in-prod.mdx.
+lane askdb: AskDB | `@askdb/core`
+lane app: Your application
+lane database: Your database
+boundary Your runtime: app database
+step question @app: question
+step ask @askdb: `ask()`: its SQL checks catch common model mistakes
+step log @app: logs the SQL, can show it
+step limits @database: the boundary: read-only role, RLS policies and a statement timeout
+step rows @app: paginated result
+question -> ask
+ask -> log: checked SQL
+log -> limits
+limits -> rows
 ```
 
 <figcaption>AskDB's checks catch common model mistakes. The read-only role, RLS policies, the statement timeout and pagination in your runtime hold when a query gets past them.</figcaption>

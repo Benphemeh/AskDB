@@ -38,7 +38,7 @@ test("twinProblems reports a missing twin, a missing or wrong alternate link, an
     { page: "/no-link/index.html", problem: 'no <link rel="alternate" type="text/markdown"> in its head' },
     { page: "/wrong-link/index.html", problem: "its Markdown alternate is https://askdb.tools/elsewhere.md, not /wrong-link.md" },
     { page: "/dirty.md", problem: "doesn't start with the page title as a heading" },
-    { page: "/dirty.md", problem: "holds an SVG; a diagram should be its Mermaid source or its caption" },
+    { page: "/dirty.md", problem: "holds an SVG; a diagram should be its text alternative or its Mermaid source, with its caption" },
     { page: "/dirty.md", problem: "links to /install/ without the site's origin" },
   ]);
 });

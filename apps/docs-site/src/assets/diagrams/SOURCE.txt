@@ -1,16 +1,13 @@
-New diagrams are Mermaid, written in a ```mermaid fence in the page itself and
-rendered to inline SVG at build time by pele (see STYLE.md, "Diagrams", and
-ADR 0041). Pages with a Mermaid diagram:
+A flow or a sequence is a ```diagram fence in the page itself, drawn to inline
+SVG at build time by AskDB's own diagram kit (plugins/remark-diagram.mjs; see
+STYLE.md, "Diagrams", and ADR 0051). No diagram is a file in this folder.
 
-  src/content/docs/quickstart.mdx
-  src/content/docs/concepts/how-askdb-works.mdx
-  src/content/docs/concepts/safety-boundaries.mdx
-  src/content/docs/guides/deploy-as-http-service.mdx
-  src/content/docs/reference/packages.mdx
-  src/content/docs/reference/ai-api.mdx
-  src/content/docs/reference/config-api.mdx
-  src/content/docs/reference/sql-checks.mdx
-  src/content/docs/guides/rag-for-large-schemas.mdx
+Two diagrams are Mermaid, in a ```mermaid fence rendered by pele (ADR 0041):
+
+  src/content/docs/quickstart.mdx              the entity-relationship diagram, by design
+  src/content/docs/reference/packages.mdx      the package dependency graph, by design
+
+To list them: git grep -c '```mermaid' -- apps/docs-site/src/content/docs
 
 The home page's hero art is not a file here: it is one inline SVG, drawn in
 `src/components/HomeHeroDiagram.astro` and colored from the tokens in

@@ -45,23 +45,23 @@ Requests go straight from your environment to the model provider you wired in. A
 
 <figure>
 
-```mermaid
-flowchart TB
-  %% The two crossings: ask() sends the prompt to the provider the host wired in, and the provider
-  %% returns SQL. ask() checks it and returns it; the host runs it on its own connection. Rows and
-  %% credentials stay in the stack. Source of truth: packages/core/src/ask.ts (generateSelectSqlForAsk
-  %% builds the prompt, enforceGuardrails checks the SQL); ask() opens no database connection.
-  subgraph stack["Your stack"]
-    app["your application<br/>holds the DB credentials"]
-    core["@askdb/core<br/>ask()"]
-    db[("your database<br/>and its rows")]
-  end
-  provider["your model provider"]
-  app -- "question" --> core
-  core -- "question +<br/>schema text" --> provider
-  provider -- "SQL" --> core
-  core -- "checked SQL" --> app
-  app -- "runs the SQL,<br/>reads the rows" --> db
+```diagram
+sequence
+title: What crosses from your stack to your model provider, and what comes back.
+# The two crossings: ask() sends the prompt to the provider the host wired in, and the provider
+# returns SQL. ask() checks it and returns it; the host runs it on its own connection. Rows and
+# credentials stay in the stack. Source of truth: packages/core/src/ask.ts (generateSelectSqlForAsk
+# builds the prompt, enforceGuardrails checks the SQL); ask() opens no database connection.
+lane db database: Your database | and its rows
+lane app: Your application | holds the DB credentials
+lane core askdb: `@askdb/core` | `ask()`
+lane provider model: Your model provider
+boundary Your stack: db app core
+app -> core: question
+core -> provider: question + schema text
+provider ..> core: SQL
+core ..> app: checked SQL
+app -> db: runs the SQL, reads the rows
 ```
 
 <figcaption>Two things cross the boundary: <code>ask()</code> sends the question and schema text to your model provider, and the provider sends back SQL. <code>ask()</code> checks the SQL and returns it to your application, which runs it on your database. The credentials and rows never leave your stack.</figcaption>

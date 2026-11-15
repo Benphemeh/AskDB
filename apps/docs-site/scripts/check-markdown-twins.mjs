@@ -42,7 +42,7 @@ export function twinProblems(files, base = "/") {
       problems.push({ page, problem: `its Markdown alternate is ${href}, not ${basePath}${twin}` });
     }
     if (!markdown.startsWith("# ")) problems.push({ page: twin, problem: "doesn't start with the page title as a heading" });
-    if (/<svg[\s>]/i.test(markdown)) problems.push({ page: twin, problem: "holds an SVG; a diagram should be its Mermaid source or its caption" });
+    if (/<svg[\s>]/i.test(markdown)) problems.push({ page: twin, problem: "holds an SVG; a diagram should be its text alternative or its Mermaid source, with its caption" });
     const relativeLink = /\]\((\/[^)\s]*)\)/.exec(markdown.replace(/```[\s\S]*?```/g, ""));
     if (relativeLink) problems.push({ page: twin, problem: `links to ${relativeLink[1]} without the site's origin` });
   }
