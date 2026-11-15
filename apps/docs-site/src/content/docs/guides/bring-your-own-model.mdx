@@ -4,24 +4,51 @@ description: "Use OpenAI, Anthropic, Azure OpenAI, Google — any provider that 
 ---
 
 import { Tabs, TabItem } from "@astrojs/starlight/components";
+import AgentPrompt from "../../../components/AgentPrompt.astro";
 import InstallTabs from "../../../components/InstallTabs.astro";
 
-<p class="doc-eyebrow">Model providers</p>
+Give AskDB a model from your own provider account, either through `askdb.config.ts` or as a Vercel AI SDK model your code builds. AskDB doesn't host inference: it calls the model you wire in, and the model's response goes back through your provider — billed to your account.
 
-<p class="doc-lede">AskDB doesn't host inference. You wire a model in, AskDB calls it, and the model's response goes back through your provider — billed to your account.</p>
+## Before you start
+
+- An API key from your model provider, such as OpenAI, Anthropic, Google or Azure OpenAI.
+- A schema artifact from `askdb introspect`. The [Quickstart](/quickstart/) makes one.
 
 ## Two ways to wire a model
 
-| | What you do | Best for |
+| | In your config | In your code |
 | --- | --- | --- |
-| **In your config** | Set `ai.provider` in `askdb.config.ts`. The CLI, Studio and the HTTP API resolve the model for you. In your own code, `createAskDb({ config })` from `@askdb/client` does the same: schema, model and dialect come from config. No model code. | CLI workflows, Studio, the bundled HTTP service, and embeds where `askdb.config.ts` owns provider and model selection |
-| **In your code** | Pass any Vercel AI SDK `LanguageModel` to `ask()`. Full control. | Embedding `@askdb/core` in your own service |
+| **What you do** | Set `ai.provider` in `askdb.config.ts`. The CLI, Studio and the HTTP API resolve the model for you. In your own code, `createAskDb({ config })` from `@askdb/client` does the same: schema, model and dialect come from config. | Pass any Vercel AI SDK `LanguageModel` to `ask()`. |
+| **Model code** | None. | Yours, with full control. |
+| **Who owns provider config** | `askdb.config.ts`. | Your app: env vars, a secrets manager, feature flags. |
+| **Best for** | CLI workflows, Studio, the bundled HTTP service, and embeds where `askdb.config.ts` owns provider and model selection. | Embedding `@askdb/core` in your own service. |
 
 Same providers, same keys — pick per surface. You can use both in one project (for example: Studio uses your config, your embedding service constructs the model directly).
 
 ## Which should I use?
 
 `ask()`'s actual contract is `model: LanguageModel` — a plain Vercel AI SDK model object. Every path below ends up building one of those; `@askdb/ai` and `@askdb/client` are a convenience layer on top, not a separate mechanism. Neither path is more "correct." Pick based on who owns provider configuration:
+
+<figure>
+
+```mermaid
+flowchart TB
+  %% Source of truth: ask() takes model: LanguageModel (packages/core/src/ask.ts, AskPipelineOptions);
+  %% createAskDb builds it with createAiRegistry (packages/client/src/client.ts).
+  owner{"Who owns provider config?"}
+  config["askdb.config.ts<br/>ai.provider"]
+  registry["@askdb/ai registry<br/>(createAskDb or createAiRegistry)"]
+  app["Your app<br/>env vars, secrets manager, flags"]
+  sdk["An AI SDK provider package<br/>such as @ai-sdk/openai"]
+  model["A plain AI SDK LanguageModel"]
+  ask["ask()"]
+  owner -- "askdb.config.ts" --> config --> registry --> model
+  owner -- "your app" --> app --> sdk --> model
+  model --> ask
+```
+
+<figcaption>Both paths end in the same object. The config path builds a plain AI SDK <code>LanguageModel</code> with <code>@askdb/ai</code>'s registry; the code path builds it with the provider's AI SDK package. <code>ask()</code> takes that model either way.</figcaption>
+</figure>
 
 - **Use `@askdb/client` (built on `@askdb/ai`)** when you want `askdb.config.ts` to drive provider/model selection — one config file, no provider code, and the CLI/Studio/your app all resolve the same way. This is the right default when you're embedding AskDB as a standalone service and don't already have a provider-config system.
 - **Construct a `LanguageModel` directly with the AI SDK** when your app already owns provider/config resolution (env vars, a secrets manager, feature flags), so provider config doesn't live in two systems.
@@ -34,8 +61,7 @@ If you're an agent implementing this integration: check whether the host app alr
 
 Set `ai.provider` in `askdb.config.ts` and supply the matching env var. The CLI, Studio, and the HTTP service pass the config's `ai.language` section to `@askdb/ai`'s registry, which builds the model.
 
-```ts
-// askdb.config.ts
+```ts title="askdb.config.ts"
 import { defineConfig, env } from "@askdb/config";
 
 export default defineConfig({
@@ -50,7 +76,15 @@ export default defineConfig({
 });
 ```
 
-For another built-in provider, change `provider` and key its connection by the same id: `anthropic`, `google`, `azure` or `gateway`. Azure's connection also takes `resourceName`, and its model is your deployment name. The gateway ships with `ai`, so it needs no `@ai-sdk/*` package, and its model ids are `<upstream>/<model>`. Anthropic has no embeddings API: for RAG, set `ai.embedding.provider` to another provider.
+For another built-in provider, change `provider` and key its connection by the same id:
+
+| Provider id | AI SDK package | Notes |
+| --- | --- | --- |
+| `openai` | `@ai-sdk/openai` | |
+| `anthropic` | `@ai-sdk/anthropic` | Anthropic has no embeddings API: for RAG, set `ai.embedding.provider` to another provider. |
+| `google` | `@ai-sdk/google` | |
+| `azure` | `@ai-sdk/azure` | Azure's connection also takes `resourceName`, and its model is your deployment name. |
+| `gateway` | None: the gateway ships with `ai` | Its model ids are `<upstream>/<model>`. |
 
 `ai.providerConfig` holds only the connection (key, endpoint, resource), and [its reference](/reference/config/#aiproviderconfig) lists each provider's fields. The model goes in `ai.language`, whose [reference](/reference/config/#ailanguage) lists each provider's default model, and the embedding model for RAG in `ai.embedding`, which can use the same provider or another one. [Environment variables](/reference/config/#environment-variables) lists the names `askdb init` writes, and [A provider that isn't built in](#a-provider-that-isnt-built-in) covers any other provider.
 
@@ -223,7 +257,7 @@ The built-in providers are `openai`, `azure` (with the aliases `azure-openai` an
 
 **Any other provider:** `ai.provider`, and a section's `provider`, take any id. Key the provider's connection by that id in `ai.providerConfig` (`apiKey` and `baseUrl`), and put its model in `ai.language.model`:
 
-```ts
+```ts title="askdb.config.ts"
 import { defineConfig, env } from "@askdb/config";
 
 export default defineConfig({
@@ -349,10 +383,23 @@ You're billed by your model provider for every `ask()` call. Cost scales with:
 
 AskDB itself is Apache 2.0-licensed and free.
 
+## Use with your agent
+
+<AgentPrompt>
+
+Wire a model into this project's AskDB integration by following https://askdb.tools/guides/bring-your-own-model.md.
+
+The goal: AskDB generates SQL with a model from the project's own provider account.
+
+- First check whether the app already builds Vercel AI SDK models. If it does, pass one of those `LanguageModel` objects to `ask()` from `@askdb/core`. If it doesn't, set `ai.provider` in `askdb.config.ts` and use `createAskDb()` from `@askdb/client`. Don't keep provider config in two systems.
+- Keep the API key in the environment, not in the schema artifact or in code.
+- Add `ai` and the `@ai-sdk/*` package for the provider to the app's own `package.json`, so the app controls their versions.
+- AskDB returns SQL and never runs it. The app runs it.
+
+</AgentPrompt>
+
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/guides/embed-in-node/"><strong>Embed in a Node app</strong><span>The full TypeScript walkthrough including model wiring.</span></a>
-  <a href="/guides/rag-for-large-schemas/"><strong>RAG for large schemas</strong><span>Cut your token bill by sending only the relevant schema slice per question.</span></a>
-  <a href="/concepts/privacy-model/"><strong>Privacy model</strong><span>What the model sees and what it doesn't.</span></a>
-</div>
+- [Embed in a Node app](/guides/embed-in-node/): The full TypeScript walkthrough including model wiring.
+- [RAG for large schemas](/guides/rag-for-large-schemas/): Cut your token bill by sending only the relevant schema slice per question.
+- [Privacy model](/concepts/privacy-model/): What the model sees and what it doesn't.

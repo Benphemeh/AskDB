@@ -4,16 +4,37 @@ description: "Add natural-language SQL to a TypeScript service: get checked SQL 
 ---
 
 import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+import AgentPrompt from "../../../components/AgentPrompt.astro";
 import ExampleLink from "../../../components/ExampleLink.astro";
 import InstallTabs from "../../../components/InstallTabs.astro";
 
-<p class="doc-eyebrow">Integrator guide</p>
-
-<p class="doc-lede">Add AskDB to a TypeScript service. It generates checked SQL from a question and hands it back. Your service runs it through its own database connection, read-only.</p>
+Add AskDB to a TypeScript service. At the end, you have a handler that gets checked SQL for a question from AskDB and runs it through your service's own database connection, read-only.
 
 ## Wire it into a handler
 
 A handler has two parts. The first gets SQL for a question from AskDB, and the second runs that SQL against your database. How you give AskDB a model changes the first part. Your database engine changes the second part, and with `ask()` it also sets the `dialect` you pass in the first.
+
+<figure>
+
+```mermaid
+sequenceDiagram
+  %% Source of truth: ask() in packages/core/src/ask.ts. dialect.generate() calls the model,
+  %% then enforceGuardrails() runs the SQL checks; a deny throws. AskDB opens no connection.
+  participant handler as Your handler
+  participant askdb as AskDB
+  participant model as Model provider
+  participant driver as Your driver
+  handler->>askdb: ask(question)
+  askdb->>model: question, schema
+  model-->>askdb: SQL
+  askdb->>askdb: run the SQL checks
+  askdb-->>handler: sql, tenantParams
+  handler->>driver: run sql (read-only)
+  driver-->>handler: rows
+```
+
+<figcaption>One request. Your handler calls AskDB's <code>ask()</code>, AskDB calls your model provider and runs the SQL checks on what comes back, and your handler runs the checked SQL through its own database driver. AskDB never opens a database connection.</figcaption>
+</figure>
 
 You can give AskDB a model in two ways, and both are first-party and return the same result:
 
@@ -22,7 +43,13 @@ You can give AskDB a model in two ways, and both are first-party and return the 
 
 If your app already builds AI SDK models, building this one yourself keeps all model configuration in one place. If it doesn't, `askdb.config.ts` already holds it. [Bring your own model](/guides/bring-your-own-model/#which-should-i-use) compares the two.
 
-### 1. Install the packages
+## Before you start
+
+- A schema artifact from `askdb introspect`, in `./askdb` unless `introspection.outputDir` in `askdb.config.ts` names another folder. The [Quickstart](/quickstart/) makes one.
+- Your model provider's API key in the environment. The examples read it from `.env`.
+- A read-only, least-privilege database role for the generated SQL.
+
+## 1. Install the packages
 
 Both ways need `ai` and the AI SDK package for your provider, such as `@ai-sdk/openai`, because your app owns the AI SDK version. `createAskDb()` adds `@askdb/client` and `@askdb/config`.
 
@@ -78,15 +105,14 @@ For TypeScript types, add `@types/mssql` as a dev dependency.
   </TabItem>
 </Tabs>
 
-### 2. Get SQL for a question
+## 2. Get SQL for a question
 
 Create `generate-sql.ts`. It sets up AskDB once at startup and exports `generateSql(question)`, which returns checked SQL:
 
 <Tabs syncKey="wiring">
   <TabItem label="AskDB builds the model">
 
-```ts
-// generate-sql.ts
+```ts title="generate-sql.ts"
 import { createAskDb } from "@askdb/client";
 import { bootstrapAskDbEnv, getAskDbRuntimeConfig } from "@askdb/config";
 
@@ -110,8 +136,7 @@ On `askdb.ask(question, overrides)`, the question is the first argument and the 
   </TabItem>
   <TabItem label="Your app builds the model">
 
-```ts
-// generate-sql.ts
+```ts title="generate-sql.ts"
 import { ask, loadSchema } from "@askdb/core";
 import { openai } from "@ai-sdk/openai";
 
@@ -137,15 +162,14 @@ Set `dialect` to the engine you introspected: `"postgres"`, `"cockroachdb"`, `"m
 
 `./askdb` is the folder `askdb introspect` writes the schema artifact to, unless `introspection.outputDir` in `askdb.config.ts` names another one.
 
-### 3. Run the SQL in a handler
+## 3. Run the SQL in a handler
 
 Create `ask-handler.ts`. It calls `generateSql()`, logs the SQL and runs it read-only. It's the same for both ways of building the model:
 
 <Tabs syncKey="engine">
   <TabItem label="PostgreSQL">
 
-```ts
-// ask-handler.ts
+```ts title="ask-handler.ts"
 import { Pool } from "pg";
 import { generateSql } from "./generate-sql.js";
 
@@ -193,8 +217,7 @@ export async function askQuestion(question: string) {
   </TabItem>
   <TabItem label="MySQL">
 
-```ts
-// ask-handler.ts
+```ts title="ask-handler.ts"
 import mysql from "mysql2/promise";
 import { generateSql } from "./generate-sql.js";
 
@@ -235,8 +258,7 @@ On the `ask()` path, set `dialect: "mysql"` in `generate-sql.ts`, or `"mariadb"`
   </TabItem>
   <TabItem label="SQLite">
 
-```ts
-// ask-handler.ts
+```ts title="ask-handler.ts"
 import Database from "better-sqlite3";
 import { generateSql } from "./generate-sql.js";
 
@@ -267,8 +289,7 @@ SQLite has no statement timeout, and `better-sqlite3` runs each query synchronou
   </TabItem>
   <TabItem label="SQL Server">
 
-```ts
-// ask-handler.ts
+```ts title="ask-handler.ts"
 import mssql from "mssql";
 import { generateSql } from "./generate-sql.js";
 
@@ -310,12 +331,11 @@ SQL Server has no read-only transaction, and `mssql` runs a whole batch. So the 
   </TabItem>
 </Tabs>
 
-### 4. Try it
+## 4. Try it
 
 Call the handler from a short script:
 
-```ts
-// try-it.ts
+```ts title="try-it.ts"
 import { askQuestion } from "./ask-handler.js";
 
 askQuestion("How much has each customer spent in total, highest first?").then(({ rows }) => console.table(rows));
@@ -333,7 +353,14 @@ It logs the question and the SQL, then prints the rows as a table. If it fails w
 
 AskDB returns checked SQL; your handler logs it, runs it, and returns the result. `runReadOnly` reads every row the query returns. To cap the rows, use `runCapped` from [Cap the rows a query returns](/guides/cap-the-rows-a-query-returns/), as the [Express example](#complete-example-express-server) below does.
 
-`askdb.ask()` and `ask()` both return the query in two forms, each with its own array. Run `sql` with `tenantParams`, the tenant IDs for its markers, which it has only when you pass a tenant scope. Or run `unboundSql` with `params`, which binds every value as a parameter. Never mix the two arrays. `unboundSql` comes with `parameterize` on, the default; set `parameterize: false` to save the output tokens it costs. The result also has `verdict`, what AskDB's SQL checks found, and `usage`, the token counts when your provider reports them. [Result — `AskPipelineResult`](/reference/core-api/ask/#result--askpipelineresult) lists every field.
+`askdb.ask()` and `ask()` both return the query in two forms, each with its own array. Run one pair, and never mix the two arrays:
+
+| Run | With | What the array holds |
+| --- | --- | --- |
+| `sql` | `tenantParams` | The tenant IDs for its markers. It has them only when you pass a tenant scope. |
+| `unboundSql` | `params` | Every value, bound as a parameter. `unboundSql` comes with `parameterize` on, the default; set `parameterize: false` to save the output tokens it costs. |
+
+The result also has `verdict`, what AskDB's SQL checks found, and `usage`, the token counts when your provider reports them. [Result — `AskPipelineResult`](/reference/core-api/ask/#result--askpipelineresult) lists every field.
 
 <Aside type="note">
 These examples use `pg`, `mysql2`, `better-sqlite3` and `mssql` to run the SQL, but the driver is your choice — AskDB never opens a connection. If you already use an ORM or query builder (Prisma, Drizzle, Sequelize, Knex, …), skip the driver and pass the returned `sql` string and its values (`tenantParams ?? []`) to your existing client, e.g. `prisma.$queryRawUnsafe(sql, ...values)` or `db.execute(sql, values)`.
@@ -357,8 +384,9 @@ The `/ask` endpoint accepts an optional `execute` flag: `false` (default) return
 
 The server runs its SQL on PostgreSQL, like the runnable example it mirrors. For another engine, replace `pg` and `runCapped` with that engine's helper from [Cap the rows a query returns](/guides/cap-the-rows-a-query-returns/). The helper opens its own connection, so also give that connection a statement timeout, as your engine's handler in step 3 does.
 
-```ts
-// server.ts
+The marked lines in `server.ts` are what `runCapped` adds to the PostgreSQL `runReadOnly` from step 3: the row cap, and a cursor that reads at most `ROW_CAP` rows. The marked lines in `askdb.config.ts` set `host.schemaPath`, so `createAskDb()` needs no `schema`.
+
+```ts title="server.ts" ins={24,35-38}
 import { randomUUID } from "node:crypto";
 import { createAskDb } from "@askdb/client";
 import { bootstrapAskDbEnv, getAskDbRuntimeConfig } from "@askdb/config";
@@ -458,8 +486,7 @@ app.get("/health", (_req: Request, res: Response) => {
 app.listen(3000, () => console.log("listening on http://localhost:3000"));
 ```
 
-```ts
-// askdb.config.ts
+```ts title="askdb.config.ts" ins={12-14}
 import { defineConfig, env, type AskDbConfig } from "@askdb/config";
 
 export default defineConfig({
@@ -479,11 +506,23 @@ export default defineConfig({
 
 The full working package (with `package.json`, `tsconfig.json`, and `.env` instructions) lives in <ExampleLink path="examples/express-server" /> in the repo.
 
+## Use with your agent
+
+<AgentPrompt>
+
+Add AskDB to this project's TypeScript service by following https://askdb.tools/guides/embed-in-node.md.
+
+The goal: a handler that gets checked SQL for a question from AskDB and runs it through the service's existing database driver.
+
+- AskDB returns SQL and never runs it. The service runs it under a read-only, least-privilege role, with a statement timeout and, where the engine has one, a read-only transaction.
+- Pick the model wiring by who owns provider config. If the app already builds Vercel AI SDK models, pass one to `ask()` from `@askdb/core`. Otherwise use `createAskDb()` from `@askdb/client` with `askdb.config.ts`.
+- Run `sql` with `tenantParams`, or `unboundSql` with `params`. Never mix the two arrays.
+
+</AgentPrompt>
+
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/guides/run-safely-in-prod/"><strong>Run safely in production</strong><span>The operator checklist: roles, timeouts, audit, approval.</span></a>
-  <a href="/guides/deploy-as-http-service/"><strong>Deploy as HTTP service</strong><span>Use @askdb/http-api instead of rolling your own.</span></a>
-  <a href="/guides/author-your-schema/"><strong>Enrich your schema</strong><span>Make generation better by enriching the artifact.</span></a>
-  <a href="/reference/packages/"><strong>Package reference</strong><span>The full API surface for every @askdb/* package.</span></a>
-</div>
+- [Run safely in production](/guides/run-safely-in-prod/): The operator checklist: roles, timeouts, audit, approval.
+- [Deploy as HTTP service](/guides/deploy-as-http-service/): Use @askdb/http-api instead of rolling your own.
+- [Enrich your schema](/guides/author-your-schema/): Make generation better by enriching the artifact.
+- [Package reference](/reference/packages/): The full API surface for every @askdb/* package.

@@ -5,9 +5,7 @@ description: "Every export of @askdb/config: write a config with defineConfig(),
 
 import InstallTabs from "../../../components/InstallTabs.astro";
 
-<p class="doc-eyebrow">Reference · @askdb/config</p>
-
-<p class="doc-lede"><code>@askdb/config</code> loads <code>.env</code> and <code>askdb.config.*</code>, checks the config, and keeps the result as one snapshot for the process. The CLI, Studio and the HTTP API read their settings from it, and so does <code>createAskDb()</code> in your own service. The keys you can set are in the <a href="/reference/config/">Configuration reference</a>.</p>
+`@askdb/config` loads `.env` and `askdb.config.*`, checks the config, and keeps the result as one snapshot for the process. The CLI, Studio and the HTTP API read their settings from it, and so does `createAskDb()` in your own service. The keys you can set are in the [Configuration reference](/reference/config/).
 
 <InstallTabs pkgs="@askdb/config" />
 
@@ -45,6 +43,12 @@ flowchart TB
 
 ### `defineConfig(config)`
 
+```ts
+import { defineConfig } from "@askdb/config";
+
+function defineConfig<const T extends AskDbConfig>(config: T): AskDbEnvProjection;
+```
+
 Takes an `AskDbConfig`, the object you write in `askdb.config.ts`, and returns the `AskDbEnvProjection` the file exports. It checks the config the way loading does, so a config that can't load throws an `askdb.config:` error, such as `askdb.config: modes.omitSensitiveFromPrompt must be a boolean (got "false").`
 
 ```ts
@@ -60,6 +64,13 @@ A plain `export default { … }` loads too: the loader runs it through `defineCo
 
 ### `env(name)` and `requiredEnv(name)`
 
+```ts
+import { env, requiredEnv } from "@askdb/config";
+
+function env(name: string): string | undefined;
+function requiredEnv(name: string): string;
+```
+
 Both read `process.env[name]` and trim it. Call them in the config file, where they run once, when the file loads.
 
 - **`env(name)`** returns `undefined` when the variable is missing or blank, so the field takes its default.
@@ -72,6 +83,10 @@ Both read `process.env[name]` and trim it. Call them in the config file, where t
 ```ts
 import { bootstrapAskDbEnv } from "@askdb/config";
 
+function bootstrapAskDbEnv(options?: BootstrapAskDbEnvOptions): { dotenvPath?: string; configPath?: string };
+```
+
+```ts
 const { dotenvPath, configPath } = bootstrapAskDbEnv({ cwd: process.cwd() });
 ```
 
@@ -111,15 +126,34 @@ It throws:
 
 Each location tries the extensions in this order: `ts`, `mts`, `cts`, `js`, `mjs`, `cjs`. The first file found wins, so any `askdb.config.*` comes before `.config/askdb.*`. JSON config files aren't supported. Every extension loads synchronously, `.mjs` included, so the file can't use top-level `await`. A JavaScript config (`js`, `mjs`, `cjs`) loads with Node's own loader, by Node's rules: `.js` is CommonJS or an ES module according to the nearest `package.json`. A TypeScript config (`ts`, `mts`, `cts`) loads with jiti, which compiles it, so only a JavaScript config loads from inside an app's bundle ([Bundle an app that uses AskDB](/guides/bundle-your-app/)).
 
+```ts
+import { discoverAskDbConfigPath } from "@askdb/config";
+
+function discoverAskDbConfigPath(cwd: string): string | undefined;
+```
+
 `discoverAskDbConfigPath(cwd)` returns the path this finds, or `undefined`. Its extension's type is `AskDbConfigExtension`.
 
 ### `loadAskDbConfigProjection(cwd)` and `loadAskDbConfigProjectionSync(cwd)`
+
+```ts
+import { loadAskDbConfigProjection, loadAskDbConfigProjectionSync } from "@askdb/config";
+
+function loadAskDbConfigProjection(cwd: string): Promise<{ path?: string; projection?: AskDbEnvProjection }>;
+function loadAskDbConfigProjectionSync(cwd: string): { path?: string; projection?: AskDbEnvProjection };
+```
 
 Load and check the config file in `cwd`, without reading `.env` or installing a snapshot. They return `{ path, projection }`, or `{}` when `cwd` has no config file; the first one returns it in a `Promise`. `projection` is an `AskDbEnvProjection`: `config`, the config as written; `deprecations`, one message per deprecated key it uses; and `entries` (see [Internal](#internal)). They throw the same `AskDB config at <path>:` errors as `bootstrapAskDbEnv()`.
 
 ## Read it
 
 ### `getAskDbRuntimeConfig()`
+
+```ts
+import { getAskDbRuntimeConfig } from "@askdb/config";
+
+function getAskDbRuntimeConfig(): AskDbRuntimeConfig;
+```
 
 Returns the snapshot as an `AskDbRuntimeConfig`: every setting checked, with its default filled in. Before any snapshot is installed, it throws `AskDB runtime is not initialized. Call bootstrapAskDbEnv() from @askdb/config after startup, typically with the project cwd, and ensure askdb.config.* exists.`
 
@@ -165,11 +199,23 @@ const embeddingModel = rt.ai.embedding
 
 ### `isAskDbRuntimeInitialized()`
 
+```ts
+import { isAskDbRuntimeInitialized } from "@askdb/config";
+
+function isAskDbRuntimeInitialized(): boolean;
+```
+
 Returns `true` once a snapshot is installed. Code that may run before or after its host's bootstrap can call `bootstrapAskDbEnv()` only when this is `false`, as `createAskDbHttpServer()` does.
 
 The snapshot is process-wide. It lives on `globalThis` under a registered symbol, so when two versions of `@askdb/config` are installed, both read the one your process bootstrapped.
 
 ### `isAskDbDebugEnabled()`
+
+```ts
+import { isAskDbDebugEnabled } from "@askdb/config";
+
+function isAskDbDebugEnabled(): boolean;
+```
 
 Returns `true` when the `ASKDB_DEBUG` shell variable is `1` or `true`, in any case. It reads `process.env` directly, so it works when the config is missing or fails to load. The first-party binaries use it to print the stack trace of an unexpected error.
 
@@ -232,8 +278,6 @@ These are exported, but they serve AskDB's own packages and tools. Don't build o
 
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/reference/config/"><strong>Configuration reference</strong><span>Every <code>askdb.config.ts</code> key, its type and its default.</span></a>
-  <a href="/reference/client-api/"><strong>@askdb/client API</strong><span><code>createAskDb()</code>, which takes the snapshot as <code>config</code>.</span></a>
-  <a href="/guides/bring-your-own-model/"><strong>Bring your own model</strong><span>Build a model from the config's <code>ai.language</code> section, or without a config.</span></a>
-</div>
+- [Configuration reference](/reference/config/): Every `askdb.config.ts` key, its type and its default.
+- [@askdb/client API](/reference/client-api/): `createAskDb()`, which takes the snapshot as `config`.
+- [Bring your own model](/guides/bring-your-own-model/): Build a model from the config's `ai.language` section, or without a config.

@@ -3,12 +3,11 @@ title: "Quickstart"
 description: "Create a small SQLite database, point AskDB at it, ask a question in plain English, and run the SQL that AskDB returns."
 ---
 
-import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+import { Aside, FileTree, Tabs, TabItem } from "@astrojs/starlight/components";
+import AgentPrompt from "../../components/AgentPrompt.astro";
 import ExampleLink from "../../components/ExampleLink.astro";
 
-<p class="doc-eyebrow">From zero to first query</p>
-
-<p class="doc-lede">In this tutorial, we'll create a small shop database, point AskDB at it, ask a question in plain English, and run the SQL that AskDB returns.</p>
+In this tutorial, we'll create a small shop database, point AskDB at it, ask a question in plain English, and run the SQL that AskDB returns. At the end, we have an AskDB config, a schema artifact for our database, and the answer to a question, from SQL that our own code ran.
 
 <figure>
 
@@ -36,9 +35,10 @@ You need:
 
 - Node.js 22.23.4 or newer, with npm, pnpm or Yarn 4. Run `node --version` to check.
 - An OpenAI, Anthropic or Google API key. The steps use OpenAI because it's `askdb init`'s default, so the commands need no extra flag. Step 2 says what to change for Anthropic or Google.
-- macOS 11 or newer, Windows, or Linux with glibc 2.34 or newer, on x64 or arm64. The SQLite driver ships prebuilt binaries for these.
+- macOS 11 or newer, Windows, or Linux with glibc 2.34 or newer, on x64 or arm64. The SQLite driver ships prebuilt binaries for these. On an older Linux, see [If SQLite won't install](#if-sqlite-wont-install-use-postgres-in-docker).
+- For pnpm or Yarn, Corepack: run `corepack enable` first. Node 25 and newer don't include Corepack, so there, run `npm install -g corepack` before it.
 
-<Aside type="note">Where npm, pnpm and Yarn commands differ, each step has a tab for each. To use pnpm or Yarn, run `corepack enable` first. Node 25 and newer don't include Corepack, so there, run `npm install -g corepack` before it. On an older Linux, see [If SQLite won't install](#if-sqlite-wont-install-use-postgres-in-docker).</Aside>
+Where npm, pnpm and Yarn commands differ, each step has a tab for each.
 
 ## 1. Create a sample database
 
@@ -150,9 +150,15 @@ Run it:
 node make-shop.mjs
 ```
 
-It prints `Created shop.db`, and a new `shop.db` file appears in the folder. That's our database. On Node 22, Node also prints an `ExperimentalWarning` about SQLite, which is safe to ignore here. To start over, delete `shop.db` first: running the script twice fails with `table customers already exists`.
+It prints one line:
 
-<Aside type="note" title="Prefer a browser?">Studio, AskDB's local web app, can do steps 2 to 4 from a setup wizard: install the CLI as in step 2, then run `npx askdb studio` instead of `askdb init`. See [Guided setup](/studio/#guided-setup). Studio is experimental, so this tutorial uses the CLI.</Aside>
+```
+Created shop.db
+```
+
+A new `shop.db` file appears in the folder. That's our database. On Node 22, Node also prints an `ExperimentalWarning` about SQLite, which is safe to ignore here. To start over, delete `shop.db` first: running the script twice fails with `table customers already exists`.
+
+Prefer a browser? Studio, AskDB's local web app, can do steps 2 to 4 from a setup wizard: install the CLI as in step 2, then run `npx askdb studio` instead of `askdb init`. See [Guided setup](/studio/#guided-setup). Studio is experimental, so this tutorial uses the CLI.
 
 ## 2. Install AskDB and scaffold the config
 
@@ -216,7 +222,7 @@ yarn askdb init --yes --database sqlite --sqlite-file ./shop.db
 
 `--yes` skips the setup questions and picks OpenAI as the model provider.
 
-<Aside type="tip" title="Using Anthropic or Google?">Add `--ai-provider anthropic` or `--ai-provider google` to the `askdb init` command. The config then names that provider, and in step 3 you fill in `ANTHROPIC_API_KEY` or `GOOGLE_GENERATIVE_AI_API_KEY` instead of `OPENAI_API_KEY`. For other providers, see [Bring your own model](/guides/bring-your-own-model/).</Aside>
+Using Anthropic or Google? Add `--ai-provider anthropic` or `--ai-provider google` to the `askdb init` command. The config then names that provider, and in step 3 you fill in `ANTHROPIC_API_KEY` or `GOOGLE_GENERATIVE_AI_API_KEY` instead of `OPENAI_API_KEY`. For other providers, see [Bring your own model](/guides/bring-your-own-model/).
 
 The output lists the files it wrote, the packages it installed, and the next steps:
 
@@ -392,6 +398,25 @@ Wrote askdb/schema.json: 3 tables (sqlite).
 ```
 
 `askdb/schema.json` is the **schema artifact**. It lists our three tables, their columns and types, and the two links from `orders` to `customers` and `products`.
+
+The project folder now holds the files from steps 1 to 4:
+
+<FileTree>
+
+- askdb-shop/
+  - askdb/
+    - **schema.json** (the schema artifact, written by `askdb introspect` in step 4)
+  - .env (your API key, from step 3; keep it out of version control)
+  - .env.example (written by `askdb init` in step 2)
+  - askdb.config.ts (written by `askdb init` in step 2; holds no secrets)
+  - make-shop.mjs (step 1)
+  - package.json
+  - shop.db (the sample database, made in step 1)
+  - shop.sql (step 1)
+  - node_modules/
+  - …
+
+</FileTree>
 
 The schema artifact is what AskDB gives the model. When we ask a question, AskDB sends the model our question and this schema, never the rows in `shop.db`. [Privacy model](/concepts/privacy-model/) lists everything that's sent.
 
@@ -629,13 +654,25 @@ The SQLite driver, `better-sqlite3`, has prebuilt binaries only for the systems 
 
 7. When you're done, remove the container: `docker rm -f askdb-shop-db`.
 
+## Use with your agent
+
+<AgentPrompt>
+
+Set up AskDB in this project by following the Quickstart at https://askdb.tools/quickstart.md, against this project's own database instead of the sample shop database.
+
+The goal: `askdb init` for the project's engine, `askdb introspect` to write the schema artifact, and `askdb ask` returning SQL for a question about the project's data.
+
+- AskDB returns SQL and never runs it. Run the SQL with the project's own code, under a read-only, least-privilege database role.
+- Put secrets (the model provider's API key, a database server's `DATABASE_URL`) in `.env`, and keep `.env` out of version control. `askdb.config.ts` holds no secrets.
+- Use the project's package manager, and install the `askdb` CLI as a dev dependency.
+
+</AgentPrompt>
+
 ## Read next
 
 The files this tutorial had you type are in <ExampleLink path="examples/quickstart-shop" />. The "Skip the typing" tip at the top of this page has the command that fetches them.
 
-<div class="home-path-grid">
-  <a href="/studio/"><strong>Studio</strong><span>Describe tables and columns, and test questions in your browser, to improve the SQL the model writes.</span></a>
-  <a href="/guides/embed-in-node/"><strong>Embed in a Node app</strong><span>Call AskDB from a TypeScript service and run the SQL through your own database driver.</span></a>
-  <a href="/guides/deploy-as-http-service/"><strong>Deploy as an HTTP service</strong><span>Let Python, browsers or agents ask questions over HTTP.</span></a>
-  <a href="/concepts/how-askdb-works/"><strong>How AskDB works</strong><span>The whole flow, step by step.</span></a>
-</div>
+- [Studio](/studio/): Describe tables and columns, and test questions in your browser, to improve the SQL the model writes.
+- [Embed in a Node app](/guides/embed-in-node/): Call AskDB from a TypeScript service and run the SQL through your own database driver.
+- [Deploy as an HTTP service](/guides/deploy-as-http-service/): Let Python, browsers or agents ask questions over HTTP.
+- [How AskDB works](/concepts/how-askdb-works/): The whole flow, step by step.

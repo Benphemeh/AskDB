@@ -3,9 +3,7 @@ title: "Tenant policy format"
 description: "Every field of tenant-policy.md, what happens when the policy and the schema disagree, what the tenant check requires, and the SQL output modes."
 ---
 
-<p class="doc-eyebrow">Reference · Tenant policy</p>
-
-<p class="doc-lede"><code>tenant-policy.md</code> declares how a schema represents tenancy: the tables that are tenants, the tables that belong to one, and the shared ones. This page lists its fields, what happens when it no longer matches the schema, and the rules the tenant check applies. <a href="/guides/multi-tenancy/">Scope queries to a tenant</a> walks through using it.</p>
+`tenant-policy.md` declares how a schema represents tenancy: the tables that are tenants, the tables that belong to one, and the shared ones. This page lists its fields, what happens when it no longer matches the schema, and the rules the tenant check applies. [Scope queries to a tenant](/guides/multi-tenancy/) walks through using it.
 
 ## The file
 
@@ -14,6 +12,38 @@ description: "Every field of tenant-policy.md, what happens when the policy and 
 The front-matter is YAML, validated strictly when the schema artifact loads — unknown keys are rejected, and every table or column reference uses the **stable IDs** from `schema.json` (`table:public.projects`, `table:public.projects#organization_id`), never bare names.
 
 The markdown body below the front-matter is free-form business context. The prompt's tenant block is built from the front-matter, not the body. With RAG, the index chunks the body: one chunk for each recognized H2 section (`Hierarchy`, `Scope rules`, `Sensitive interactions`), or one for the whole body when it has none, and retrieval can put those chunks in the prompt.
+
+A minimal policy, with one tenant level, two scoped tables and two shared tables:
+
+```yaml title="tenant-policy.md"
+---
+schemaId: my-app            # must match schema.json
+enforcement: strict         # strict throws; warn returns the SQL, with findings
+
+roots:                      # the tables that are tenants (at least one)
+  - id: table:public.organizations
+    tenantIdColumn: table:public.organizations#id
+    label: Organization     # gives the placeholder :tenant_organization_ids
+
+scopedTables:               # rows that belong to a tenant
+  - id: table:public.projects
+    scopeThrough:
+      - root: table:public.organizations
+        column: table:public.projects#organization_id
+  - id: table:public.documents
+    scopeThrough:
+      - root: table:public.organizations
+        column: table:public.documents#organization_id
+
+globalTables:               # shared lookups, never tenant-filtered
+  - table:public.plan_tiers
+  - table:public.countries
+---
+
+# Tenant Policy
+
+Free-form business context. The prompt's tenant block doesn't read this body.
+```
 
 ## What a policy declares
 
@@ -165,8 +195,6 @@ If you deploy a bundle (`askdb bundle`), the policy travels inside it as the `te
 
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/guides/multi-tenancy/"><strong>Scope queries to a tenant</strong><span>Write the policy, pass the caller's scope, and run the SQL.</span></a>
-  <a href="/concepts/tenant-isolation/"><strong>Tenant isolation</strong><span>What the policy and the check do, and why the database stays the boundary.</span></a>
-  <a href="/reference/core-api/tenancy/#tenantscope"><strong><code>TenantScope</code></strong><span>Every scope shape <code>ask()</code> takes.</span></a>
-</div>
+- [Scope queries to a tenant](/guides/multi-tenancy/): Write the policy, pass the caller's scope, and run the SQL.
+- [Tenant isolation](/concepts/tenant-isolation/): What the policy and the check do, and why the database stays the boundary.
+- [`TenantScope`](/reference/core-api/tenancy/#tenantscope): Every scope shape `ask()` takes.

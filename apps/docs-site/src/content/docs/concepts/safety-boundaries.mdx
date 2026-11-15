@@ -5,9 +5,31 @@ description: "Why AskDB's SQL checks are defense in depth and not a security bou
 
 import { Aside } from "@astrojs/starlight/components";
 
-<p class="doc-eyebrow">SQL checks</p>
+AskDB checks every SQL string the model returns before handing it back to your application. The checks are heuristics that catch common model mistakes. They are defense in depth, not a security boundary.
 
-<p class="doc-lede">AskDB checks every SQL string the model returns before handing it back to your application. The checks are heuristics that catch common model mistakes. They are defense in depth, not a security boundary. The database role your application uses to run the SQL is the boundary.</p>
+The database role your application uses to run the SQL is the boundary.
+
+<figure>
+
+```mermaid
+flowchart TB
+  %% A typical production stack: AskDB's checks, then the layers in the host's runtime that hold
+  %% when a query gets past them. Source of truth: packages/core/src/ask.ts (enforceGuardrails runs
+  %% the checks before ask() returns), this page and guides/run-safely-in-prod.mdx.
+  q["question"]
+  ask["ask(), in @askdb/core<br/>its SQL checks catch<br/>common model mistakes"]
+  subgraph runtime["your runtime"]
+    app["your app<br/>logs the SQL, can show it"]
+    db["read-only database role,<br/>RLS policies and a<br/>statement timeout:<br/>the boundary"]
+  end
+  rows["paginated result"]
+  q --> ask
+  ask -- "checked SQL" --> app
+  app --> db --> rows
+```
+
+<figcaption>AskDB's checks catch common model mistakes. The read-only role, RLS policies, the statement timeout and pagination in your runtime hold when a query gets past them.</figcaption>
+</figure>
 
 <Aside type="caution" title="Generated SQL is untrusted input">
 AskDB does not parse SQL. Its checks are token- and pattern-based and can be bypassed by unusual or adversarial SQL. Before you execute anything AskDB returns, follow [Run generated SQL safely](#run-generated-sql-safely) below.
@@ -49,33 +71,10 @@ AskDB returns SQL. It does not run it. If your application executes that SQL, th
 
 AskDB's checks and your execution boundary are separate layers. AskDB's checks catch the common ways a model gets it wrong: a write statement, a stacked second statement, a forgotten tenant filter, a sensitive column. The database role, RLS policies, and timeouts in your runtime hold even when a query gets past those checks.
 
-A typical production stack looks like:
-
-<figure>
-
-```mermaid
-flowchart TB
-  %% A typical production stack: AskDB's checks, then the layers in the host's runtime that hold
-  %% when a query gets past them. Source of truth: this page and Run safely in production.
-  q["question"]
-  ask["ask(), in @askdb/core<br/>its SQL checks catch<br/>common model mistakes"]
-  app["your app<br/>logs the SQL, can show it"]
-  db["read-only database role<br/>with a statement timeout:<br/>the boundary"]
-  rows["paginated result"]
-  q --> ask
-  ask -- "checked SQL" --> app
-  app --> db --> rows
-```
-
-<figcaption>AskDB's checks catch common model mistakes. The read-only role, the statement timeout and pagination in your runtime hold when a query gets past them.</figcaption>
-</figure>
-
-Each layer does one job, and no single layer is the only protection.
+The diagram at the top of this page shows a typical production stack. Each layer does one job, and no single layer is the only protection.
 
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/reference/sql-checks/"><strong>SQL checks reference</strong><span>Each check's rules, and how it reads SQL on each engine.</span></a>
-  <a href="/guides/run-safely-in-prod/"><strong>Run safely in production</strong><span>The full operator checklist for the execution side.</span></a>
-  <a href="/guides/enforce-tenancy-in-the-database/"><strong>Enforce tenancy in the database</strong><span>Row-level security, so the generated SQL can't change its own tenant.</span></a>
-</div>
+- [SQL checks reference](/reference/sql-checks/): Each check's rules, and how it reads SQL on each engine.
+- [Run safely in production](/guides/run-safely-in-prod/): The full operator checklist for the execution side.
+- [Enforce tenancy in the database](/guides/enforce-tenancy-in-the-database/): Row-level security, so the generated SQL can't change its own tenant.

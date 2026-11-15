@@ -3,11 +3,11 @@ title: "@askdb/client/charts API reference"
 description: "Experimental API reference for @askdb/client/charts: classifyResult(), planChart(), validateChartSpec(), the chart spec, the part-to-whole policy and the fallback."
 ---
 
-import { Aside } from "@astrojs/starlight/components";
+import { Aside, Badge } from "@astrojs/starlight/components";
 
-<p class="doc-eyebrow">Reference · @askdb/client/charts · Experimental</p>
+`@askdb/client/charts` plans a chart for a query result. The model sees the question, the SQL with its literals masked, and the result's column names and kinds. It never sees a row.
 
-<p class="doc-lede"><code>@askdb/client/charts</code> plans a chart for a query result. The model sees the question, the SQL with its literals masked, and the result's column names and kinds. It never sees a row.</p>
+<Badge text="Experimental" variant="caution" />
 
 <Aside type="caution" title="Experimental">
 This entry point is outside AskDB's stability promise: a minor release of `@askdb/client` may change it ([ADR 0030](https://github.com/Ygilany/AskDB/blob/main/docs/adrs/0030-1-0-promises-checked-sql-only.md), [ADR 0044](https://github.com/Ygilany/AskDB/blob/main/docs/adrs/0044-chart-planning-sends-no-rows.md)). The root `@askdb/client` export doesn't include it.
@@ -22,6 +22,10 @@ The entry point imports only `@askdb/client`'s peers, `@askdb/core` and `ai`. [P
 ## `classifyResult(input)`
 
 Classifies a result's columns in your process. It makes no model call. Returns a [`ClassifiedResult`](#classifiedresult).
+
+```ts
+classifyResult(input: ClassifyResultInput): ClassifiedResult
+```
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -57,6 +61,10 @@ Identifiers and years are never series. `measure`, `currency` and `percent` are 
 ## `planChart(options)`
 
 Asks the model for a chart and checks it. Returns `Promise<ChartPlan>`. It never rejects because of the model.
+
+```ts
+planChart(options: PlanChartOptions): Promise<ChartPlan>
+```
 
 | Option | Type | Description |
 | --- | --- | --- |
@@ -119,6 +127,14 @@ The model judges long labels from the column names and the question; it never se
 
 Checks a chart spec against a classified result. `planChart()` runs it on the model's charts; call it yourself for a spec you stored or edited. Pass `context.question` to refuse a pie for a ranking. Returns `{ ok: true }` or `{ ok: false, issues }`.
 
+```ts
+validateChartSpec(
+  spec: ChartSpec,
+  result: ClassifiedResult,
+  context?: { question?: string },
+): { ok: true } | { ok: false; issues: ChartSpecIssue[] }
+```
+
 | Issue `code` | When |
 | --- | --- |
 | `UNKNOWN_COLUMN` | The spec names a column the result doesn't have. |
@@ -162,7 +178,5 @@ Every type the entry point exports:
 
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/guides/plan-a-chart/"><strong>Plan a chart for a query result</strong><span>The planner end to end.</span></a>
-  <a href="/reference/client-api/"><strong>@askdb/client API</strong><span><code>createAskDb()</code> and <code>client.ask()</code>.</span></a>
-</div>
+- [Plan a chart for a query result](/guides/plan-a-chart/): The planner end to end.
+- [@askdb/client API](/reference/client-api/): `createAskDb()` and `client.ask()`.

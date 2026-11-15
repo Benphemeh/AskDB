@@ -3,9 +3,7 @@ title: "@askdb/core API reference: ask()"
 description: "ask() options and result, how to run the SQL it returns, the verdict of its checks, modes, and the lower-level functions ask() is built from."
 ---
 
-<p class="doc-eyebrow">Reference · @askdb/core</p>
-
-<p class="doc-lede"><code>ask()</code> turns a question into checked SQL with one model call. This page covers its options and result, how to run what it returns, the verdict of its checks, modes, and the lower-level functions it's built from.</p>
+`ask()` turns a question into checked SQL with one model call. This page covers its options and result, how to run what it returns, the verdict of its checks, modes, and the lower-level functions it's built from.
 
 ## `ask(options)`
 
@@ -24,27 +22,27 @@ const { sql } = await ask({
 
 ### Options
 
-| Field | Type | Required | Default | Description |
-| --- | --- | --- | --- | --- |
-| `question` | `string` | yes | — | The natural-language question. |
-| `schema` | `AnyNormalizedSchema` | yes | — | Loaded schema from `loadSchema()` or `loadSchemaFromJson()`. |
-| `model` | `AskDbLanguageModel` | yes | — | An AI SDK `LanguageModel` instance (e.g. `openai("gpt-4o-mini")`). |
-| `dialect` | `AskDialectInput` | yes | — | A built-in dialect id, a `DialectSpec` under a built-in id, or a custom `AskDialect`. See [Dialects](/reference/core-api/dialects/). |
-| `mode` | `AskDbModeV1` | no | `"schema_only"` | Trust boundary. See [Modes](#modes). |
-| `explain` | `boolean` | no | `false` | When `true`, populates `result.explain` with metadata on the read-only checks. |
-| `omitSensitiveIdentifiersFromNlToSqlPrompt` | `boolean` | no | `false` | When `true`, withholds sensitive columns from the NL→SQL prompt, along with any describable text that names one (a description, alias, enum value, common query language, or retrieved chunk text). A sensitive table stays as a one-line placeholder with its name. Default (`false`) includes them with a `(sensitive)` tag so the model can still ground queries. |
-| `tenantScope` | `TenantScope` | no | — | Required when the schema has a `tenant-policy.md`. The pipeline fails closed if a policy exists and this is absent. |
-| `tenantSqlMode` | `TenantSqlOutputMode` | no | `"sql-params"` | `"sql-params"` replaces the tenant placeholders with the dialect's driver markers (`$N` Postgres/CockroachDB, `?` MySQL/MariaDB/SQLite, `@pN` SQL Server) and returns the IDs as `tenantParams`. `"sql-only"` inlines them in `sql` as escaped literals, for a tool that takes one SQL string, and refuses a tenant ID that isn't printable ASCII or contains a backslash. A custom `AskDialect` has no default: with a tenant scope it must set this (`$N` markers in `"sql-params"`), or `ask()` throws `TenantScopeError` (`TENANT_SQL_MODE_REQUIRED`). With a tenant policy, any value other than these two throws the same error, on every dialect. See [Executing the result](#executing-the-result). |
-| `resolveTenantDescendants` | `ResolveTenantDescendants` | for `subtree` scopes | — | `(tenantRoot, seedIds) => TenantIdsByRoot \| Promise<TenantIdsByRoot>`, where `TenantIdsByRoot` is `Record<rootTableId, string[]>`. Returns the subtree's IDs grouped by tenant root: the seeds and same-table descendants under `tenantRoot`, each descendant root's IDs under that root, e.g. `{ "table:public.agencies": ["1"], "table:public.clients": ["5"] }`. `ask()` unions the seeds in and binds each root's IDs to its own placeholder (a `multi_root` scope). Without it, or when it returns a flat array or an invalid result, a `subtree` scope throws `TenantScopeError` (`SUBTREE_NOT_RESOLVABLE`). See [Hierarchical scope](/guides/tenant-hierarchy/). |
-| `parameterize` | `boolean` | no | `true` | Ask the model for unbound SQL + a parameter manifest. Still exactly one model call. Set `false` to save output tokens. Inert for custom `AskDialect` implementations. |
-| `sensitiveGuardrailMode` | `"warn" \| "strict" \| "off"` | no | `"warn"` | How to treat SQL that references identifiers marked `sensitive`. `"warn"` reports them in `result.verdict` and `result.sensitiveGuardrail` and logs; `"strict"` throws `SensitiveReferenceError`; `"off"` skips the check. Any other value refuses a sensitive reference, as `"strict"` does. See [Guardrail verdict](#guardrail-verdict) and [`validateSensitiveReferences`](/reference/core-api/checks/#validatesensitivereferencessql-schema-options). |
-| `retriever` | `Retriever` | no | — | RAG retriever from `@askdb/rag`. When supplied, retrieval replaces the full DDL in the prompt, unless `totalSchemaChunkCount` is at or below `retrievalThresholdChunks`. |
-| `retrievalK` | `number` | no | `8` | Top-k passed to the retriever. |
-| `retrievalThresholdChunks` | `number` | no | `30` | Chunk count at or below which the full DDL is used even if a retriever is supplied. Compared with `totalSchemaChunkCount`. |
-| `totalSchemaChunkCount` | `number` | no | `Infinity` | Total chunk count from `buildSchemaIndex`. Pass `result.stats.chunksTotal` here for the threshold check to be meaningful; omit to always use the retriever when one is supplied. |
-| `logger` | `AskDbLogger` | no | — | Structured logger. Attach one for observability — it emits `AskDbLogEvent` entries at each pipeline stage. |
-| `deps` | `AskGenerateDeps` | no | — | `{ generateText?, providerOptions? }`. `generateText` replaces the AI SDK's `generateText`, for unit tests. `providerOptions` is passed to the model call's `providerOptions` as is; core doesn't read or check it. Use it for provider settings such as reasoning effort, for example from an `@askdb/ai` registry's `resolveProviderOptions()` (see [Reasoning/latency effort](/guides/bring-your-own-model/#reasoninglatency-effort)). A custom `AskDialect` receives both in its `generate()` options. |
-| `abortSignal` | `AbortSignal` | no | — | Cancels the model call (`generateText({ abortSignal })`). Use `AbortSignal.timeout(ms)` for a per-request timeout. With a built-in dialect or `DialectSpec`, an aborted call rejects with `SqlGenerationError` whose `cause` is the abort reason. A custom `AskDialect` receives it as `options.abortSignal` and maps its own errors. |
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `question` | `string` | required | The natural-language question. |
+| `schema` | `AnyNormalizedSchema` | required | Loaded schema from `loadSchema()` or `loadSchemaFromJson()`. |
+| `model` | `AskDbLanguageModel` | required | An AI SDK `LanguageModel` instance (e.g. `openai("gpt-4o-mini")`). |
+| `dialect` | `AskDialectInput` | required | A built-in dialect id, a `DialectSpec` under a built-in id, or a custom `AskDialect`. See [Dialects](/reference/core-api/dialects/). |
+| `mode` | `AskDbModeV1` | `"schema_only"` | Trust boundary. See [Modes](#modes). |
+| `explain` | `boolean` | `false` | When `true`, populates `result.explain` with metadata on the read-only checks. |
+| `omitSensitiveIdentifiersFromNlToSqlPrompt` | `boolean` | `false` | When `true`, withholds sensitive columns from the NL→SQL prompt, along with any describable text that names one (a description, alias, enum value, common query language, or retrieved chunk text). A sensitive table stays as a one-line placeholder with its name. Default (`false`) includes them with a `(sensitive)` tag so the model can still ground queries. |
+| `tenantScope` | `TenantScope` | — | Required when the schema has a `tenant-policy.md`. The pipeline fails closed if a policy exists and this is absent. |
+| `tenantSqlMode` | `TenantSqlOutputMode` | `"sql-params"` | `"sql-params"` replaces the tenant placeholders with the dialect's driver markers (`$N` Postgres/CockroachDB, `?` MySQL/MariaDB/SQLite, `@pN` SQL Server) and returns the IDs as `tenantParams`. `"sql-only"` inlines them in `sql` as escaped literals, for a tool that takes one SQL string, and refuses a tenant ID that isn't printable ASCII or contains a backslash. A custom `AskDialect` has no default: with a tenant scope it must set this (`$N` markers in `"sql-params"`), or `ask()` throws `TenantScopeError` (`TENANT_SQL_MODE_REQUIRED`). With a tenant policy, any value other than these two throws the same error, on every dialect. See [Executing the result](#executing-the-result). |
+| `resolveTenantDescendants` | `ResolveTenantDescendants` | required for `subtree` scopes | `(tenantRoot, seedIds) => TenantIdsByRoot \| Promise<TenantIdsByRoot>`, where `TenantIdsByRoot` is `Record<rootTableId, string[]>`. Returns the subtree's IDs grouped by tenant root: the seeds and same-table descendants under `tenantRoot`, each descendant root's IDs under that root, e.g. `{ "table:public.agencies": ["1"], "table:public.clients": ["5"] }`. `ask()` unions the seeds in and binds each root's IDs to its own placeholder (a `multi_root` scope). Without it, or when it returns a flat array or an invalid result, a `subtree` scope throws `TenantScopeError` (`SUBTREE_NOT_RESOLVABLE`). See [Hierarchical scope](/guides/tenant-hierarchy/). |
+| `parameterize` | `boolean` | `true` | Ask the model for unbound SQL + a parameter manifest. Still exactly one model call. Set `false` to save output tokens. Inert for custom `AskDialect` implementations. |
+| `sensitiveGuardrailMode` | `"warn" \| "strict" \| "off"` | `"warn"` | How to treat SQL that references identifiers marked `sensitive`. `"warn"` reports them in `result.verdict` and `result.sensitiveGuardrail` and logs; `"strict"` throws `SensitiveReferenceError`; `"off"` skips the check. Any other value refuses a sensitive reference, as `"strict"` does. See [Guardrail verdict](#guardrail-verdict) and [`validateSensitiveReferences`](/reference/core-api/checks/#validatesensitivereferencessql-schema-options). |
+| `retriever` | `Retriever` | — | RAG retriever from `@askdb/rag`. When supplied, retrieval replaces the full DDL in the prompt, unless `totalSchemaChunkCount` is at or below `retrievalThresholdChunks`. |
+| `retrievalK` | `number` | `8` | Top-k passed to the retriever. |
+| `retrievalThresholdChunks` | `number` | `30` | Chunk count at or below which the full DDL is used even if a retriever is supplied. Compared with `totalSchemaChunkCount`. |
+| `totalSchemaChunkCount` | `number` | `Infinity` | Total chunk count from `buildSchemaIndex`. Pass `result.stats.chunksTotal` here for the threshold check to be meaningful; omit to always use the retriever when one is supplied. |
+| `logger` | `AskDbLogger` | — | Structured logger. Attach one for observability — it emits `AskDbLogEvent` entries at each pipeline stage. |
+| `deps` | `AskGenerateDeps` | — | `{ generateText?, providerOptions? }`. `generateText` replaces the AI SDK's `generateText`, for unit tests. `providerOptions` is passed to the model call's `providerOptions` as is; core doesn't read or check it. Use it for provider settings such as reasoning effort, for example from an `@askdb/ai` registry's `resolveProviderOptions()` (see [Reasoning/latency effort](/guides/bring-your-own-model/#reasoninglatency-effort)). A custom `AskDialect` receives both in its `generate()` options. |
+| `abortSignal` | `AbortSignal` | — | Cancels the model call (`generateText({ abortSignal })`). Use `AbortSignal.timeout(ms)` for a per-request timeout. With a built-in dialect or `DialectSpec`, an aborted call rejects with `SqlGenerationError` whose `cause` is the abort reason. A custom `AskDialect` receives it as `options.abortSignal` and maps its own errors. |
 
 ### Result — `AskPipelineResult`
 
@@ -195,8 +193,6 @@ For the quoting `quoteIdentifier` takes, see [`promptIdentifierQuoter()`](/refer
 
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/reference/core-api/rebind/"><strong>bindPreparedQuery()</strong><span>Rerun a stored query with new values, re-checked.</span></a>
-  <a href="/reference/core-api/errors/"><strong>Errors</strong><span>What <code>ask()</code> throws, with every rule and reason.</span></a>
-  <a href="/guides/embed-in-node/"><strong>Embed in a Node app</strong><span>Call <code>ask()</code> from a service, end to end.</span></a>
-</div>
+- [bindPreparedQuery()](/reference/core-api/rebind/): Rerun a stored query with new values, re-checked.
+- [Errors](/reference/core-api/errors/): What `ask()` throws, with every rule and reason.
+- [Embed in a Node app](/guides/embed-in-node/): Call `ask()` from a service, end to end.

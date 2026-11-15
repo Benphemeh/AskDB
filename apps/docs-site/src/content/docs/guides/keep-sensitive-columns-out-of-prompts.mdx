@@ -3,14 +3,23 @@ title: "Keep sensitive columns out of prompts"
 description: "Mark sensitive tables and columns in the schema artifact, leave them out of every prompt, check the generated SQL for them, and keep them out of the database role and the RAG index."
 ---
 
-<p class="doc-eyebrow">Run in production</p>
+import AgentPrompt from "../../../components/AgentPrompt.astro";
 
-<p class="doc-lede">Some columns, such as a social security number or an email address, shouldn't reach your model provider, even by name. Mark them sensitive in the schema artifact. AskDB can then leave them out of every prompt, flag the SQL that reads them, and keep them out of the RAG index. Their values never reach the model either way: AskDB doesn't read your rows.</p>
+Some columns, such as a social security number or an email address, shouldn't reach your model provider, even by name. Mark them sensitive in the schema artifact. AskDB can then leave them out of every prompt, flag the SQL that reads them, and keep them out of the RAG index. Their values never reach the model either way: AskDB doesn't read your rows.
 
 ## Before you start
 
 - **A schema artifact** for your database, from `askdb introspect`.
 - **A list of the tables and columns that are sensitive.**
+
+The steps set up four layers. Each does a different job:
+
+| Layer | Setting | What it does |
+| --- | --- | --- |
+| Prompt | `modes.omitSensitiveFromPrompt` | Leaves sensitive columns, and text that names them, out of what the model sees. By default the prompt keeps them, tagged `(sensitive)`. |
+| Sensitive check | `sensitiveGuardrailMode` | Reports SQL that reads a sensitive table or column in `result.sensitiveGuardrail`, or refuses it in `"strict"` mode. It is a heuristic. |
+| Database role | The read-only role's grants | Leaves sensitive tables out of what the role can read. Omitting and checking don't stop a query from reading a column. |
+| RAG index | `chunkOptions.includeSensitiveDescribable` | Keeps sensitive tables and columns out of the index your embedding provider receives. `true` puts them in. |
 
 ## 1. Mark the tables and columns
 
@@ -97,10 +106,20 @@ With `@askdb/rag`, sensitive tables and columns, and any text that names a sensi
 | `SensitiveReferenceError` | With `sensitiveGuardrailMode: "strict"`, the SQL reads a sensitive table or column (`rule` is `SENSITIVE_TABLE_REFERENCED` or `SENSITIVE_COLUMN_REFERENCED`), or the check couldn't tell which tables a column belongs to (`UNRESOLVED_TABLE_SCOPE`). Ask the question another way, or review the SQL and decide whether to run it. |
 | `SensitiveEnrichmentTargetError`, or Studio's **Suggest** disabled on a column | With omission on, AskDB won't ask the model to describe a sensitive column. Write that column's description yourself. |
 
+## Use with your agent
+
+<AgentPrompt>
+Keep the sensitive columns in this project's database out of AskDB's prompts. Follow https://askdb.tools/guides/keep-sensitive-columns-out-of-prompts.md.
+
+Constraints:
+
+- AskDB returns SQL and never runs it. This application runs it under a read-only role that leaves sensitive tables out of its grants.
+- Omitting a column from the prompt and the sensitive check are aids. The database role is what keeps a query from reading the column.
+- Run `validateSensitiveReferences()` on any SQL that reaches the database without `ask()` or a rebind, such as cached SQL.
+</AgentPrompt>
+
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/concepts/privacy-model/"><strong>Privacy model</strong><span>Everything that reaches your model provider, in each mode.</span></a>
-  <a href="/guides/run-safely-in-prod/"><strong>Run safely in production</strong><span>The read-only role, timeouts and audit logging.</span></a>
-  <a href="/reference/schema-artifact-format/#sensitivity-rules"><strong>Sensitivity rules</strong><span>How a table's or column's flag is worked out.</span></a>
-</div>
+- [Privacy model](/concepts/privacy-model/): Everything that reaches your model provider, in each mode.
+- [Run safely in production](/guides/run-safely-in-prod/): The read-only role, timeouts and audit logging.
+- [Sensitivity rules](/reference/schema-artifact-format/#sensitivity-rules): How a table's or column's flag is worked out.

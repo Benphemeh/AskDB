@@ -5,10 +5,9 @@ description: "Postgres, MySQL, MariaDB, SQLite and SQL Server are first-class. H
 
 import { Tabs, TabItem } from "@astrojs/starlight/components";
 import InstallTabs from "../../../components/InstallTabs.astro";
+import AgentPrompt from "../../../components/AgentPrompt.astro";
 
-<p class="doc-eyebrow">Engine migration</p>
-
-<p class="doc-lede">Most of AskDB is engine-agnostic. The dialect is the part that knows your SQL flavor — change the <code>dialect</code> id, and the same schema-author workflow and the same <code>ask()</code> call work against a different engine.</p>
+Most of AskDB is engine-agnostic. The dialect is the part that knows your SQL flavor — change the `dialect` id, and the same schema-author workflow and the same `ask()` call work against a different engine.
 
 ## What stays the same
 
@@ -22,7 +21,7 @@ import InstallTabs from "../../../components/InstallTabs.astro";
 - The engine package you install.
 - The dialect. A direct `ask()` call passes it; the CLI and `@askdb/client` infer it from the schema artifact (see [step 3](#3-update-the-dialect-value-in-ask-calls)).
 - The dialect's prompt brief, which tells the model the engine's SQL (`ILIKE` and `::type` on Postgres, `TOP` on SQL Server), and the read-only check's rules for the engine (extra forbidden keywords and blocked functions).
-- How the prompt `ask()` sends quotes names. A schema, table or column whose name is one of the engine's reserved words is listed quoted the engine's way, so the model copies it quoted: `billing."order"` on Postgres, ``billing.`order` `` on MySQL and MariaDB, `billing.[order]` on SQL Server, `"order"` on SQLite. On Postgres, which folds unquoted names to lowercase, a name with capitals is quoted too, so a Prisma table `Post` is listed as `public."Post"`. Where tables are listed with their schema, the prompt also tells the model that when it quotes a qualified name, it quotes each part separately (`"billing"."order"`, not `"billing.order"`).
+- How the prompt `ask()` sends quotes names. A schema, table or column whose name is one of the engine's reserved words is listed quoted the engine's way, so the model copies it quoted, as the table below shows. On Postgres, which folds unquoted names to lowercase, a name with capitals is quoted too, so a Prisma table `Post` is listed as `public."Post"`. Where tables are listed with their schema, the prompt also tells the model that when it quotes a qualified name, it quotes each part separately (`"billing"."order"`, not `"billing.order"`).
 - The driver your app uses to execute (`pg`, `mysql2`, `better-sqlite3`, `mssql`).
 - How the CLI introspects the database (connection-string format and catalog queries differ per engine).
 
@@ -36,9 +35,19 @@ import InstallTabs from "../../../components/InstallTabs.astro";
 | SQLite | `@askdb/sqlite` | `"sqlite"` | `better-sqlite3` |
 | SQL Server | `@askdb/sqlserver` | `"sqlserver"` | `mssql` |
 
-## Step by step
+| Engine | `introspection.schemas` lists | The reserved word `order` in the prompt | Connection string |
+| --- | --- | --- | --- |
+| PostgreSQL | schemas | `billing."order"` | `postgresql://user:pass@host/dbname` |
+| MySQL and MariaDB | databases | ``billing.`order` `` | `mysql://user:pass@host/dbname` |
+| SQLite | nothing: it has a single namespace and ignores the list | `"order"` | the file in `introspection.providerConfig.sqlite.file` |
+| SQL Server | schemas | `billing.[order]` | `mssql://user:pass@host:1433/dbname`, or [two other formats](/guides/connect-to-sql-server/#1-write-the-connection-string) |
 
-### 1. Install the new engine package
+## Before you start
+
+- An app that already uses AskDB. [Embed in a Node app](/guides/embed-in-node/) is the base integration that an engine swap modifies.
+- A schema artifact, or the database to introspect one from.
+
+## 1. Install the new engine package
 
 <Tabs syncKey="engine">
   <TabItem label="PostgreSQL">
@@ -81,7 +90,7 @@ If you plan to run live introspection, also add the driver:
 
 You can keep the old engine package installed during a transition. Each engine package is self-contained. Database drivers are optional peers used only by live introspection or by your own execution layer.
 
-### 2. Introspect the new database (if the schema differs)
+## 2. Introspect the new database (if the schema differs)
 
 If you are pointing at a different database instance — one that may have a different set of tables or columns — run introspection against it to regenerate the physical layer of the schema artifact:
 
@@ -182,7 +191,7 @@ npx -p askdb -p mssql askdb introspect --engine sqlserver --url "$SQLSERVER_URL"
 
 If the logical schema is identical and you are only swapping the engine package, the existing artifact is already valid — skip this step and go straight to step 3.
 
-### 3. Update the `dialect` value in `ask()` calls
+## 3. Update the `dialect` value in `ask()` calls
 
 The schema artifact records which engine it was introspected from. The CLI (`askdb ask`) and `@askdb/client` use it to infer the dialect, so those entry points need no update. A `dialect` set in `askdb.config.ts` takes precedence over the artifact's engine: remove it, or change it, when you switch.
 
@@ -201,7 +210,7 @@ const { sql } = await askdb.ask(question, {
 
 All six dialect specs (`postgres`, `cockroachdb`, `mysql`, `mariadb`, `sqlite`, `sqlserver`) ship inside `@askdb/core`. The engine packages (`@askdb/mysql`, `@askdb/postgres`, ...) supply the *introspection* connector for that engine (and re-export its dialect constant for convenience); you need them to introspect, not to generate.
 
-### 4. Update your driver
+## 4. Update your driver
 
 Swap the driver library for the one that matches the new engine. The execution layer is yours — AskDB doesn't open the connection — so this is a straight library swap.
 
@@ -288,10 +297,21 @@ const fromAnalytics = await askdb.ask(question, {
 });
 ```
 
+## Use with your agent
+
+<AgentPrompt>
+
+Switch this project's AskDB integration to another database engine. Follow https://askdb.tools/guides/switch-engines.md.
+
+Goal: install the new engine package, re-introspect the new database if its schema differs, and make the dialect resolve to the new engine.
+
+- Remove or change a `dialect` set in `askdb.config.ts`, so it doesn't override the artifact's engine.
+- AskDB returns SQL and never runs it. Swap the driver in the application's own execution layer.
+
+</AgentPrompt>
+
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/concepts/modes-and-dialects/"><strong>Modes and dialects</strong><span>The conceptual model behind dialects.</span></a>
-  <a href="/guides/embed-in-node/"><strong>Embed in a Node app</strong><span>The base integration that the engine swap modifies.</span></a>
-  <a href="/reference/packages/"><strong>Package reference</strong><span>The full per-engine package surface.</span></a>
-</div>
+- [Modes and dialects](/concepts/modes-and-dialects/): The conceptual model behind dialects.
+- [Embed in a Node app](/guides/embed-in-node/): The base integration that the engine swap modifies.
+- [Package reference](/reference/packages/): The full per-engine package surface.

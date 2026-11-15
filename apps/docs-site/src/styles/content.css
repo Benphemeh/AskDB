@@ -1,0 +1,714 @@
+/*
+ * Page content: prose, code, tabs, asides, tables, link cards, diagrams and images. Everything
+ * here styles plain Markdown or a Starlight component, so a page needs no class names of its own.
+ */
+
+/* --- Prose --- */
+.sl-markdown-content {
+  color: var(--ask-text-body);
+  font-size: 1rem;
+  line-height: var(--sl-line-height);
+}
+
+/* The page's first paragraph is its lede. */
+.sl-markdown-content > p:first-child {
+  color: var(--ask-text-muted);
+  font-size: 1.125rem;
+  line-height: 1.6;
+  margin-bottom: 0.5rem;
+  text-wrap: pretty;
+}
+
+@media (max-width: 40rem) {
+  .sl-markdown-content > p:first-child {
+    font-size: 1.0625rem;
+  }
+}
+
+.sl-markdown-content :is(h2, h3, h4, h5, h6):not(:where(.not-content *)) {
+  color: var(--ask-text);
+  font-family: var(--ask-font-display);
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+.sl-markdown-content h4:not(:where(.not-content *)),
+.sl-markdown-content h5:not(:where(.not-content *)) {
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+
+/*
+ * Starlight wraps each heading with its anchor link; the wrapper carries the spacing. `:where()`
+ * keeps these rules at one class of specificity, so a component can set its own heading margins.
+ */
+.sl-markdown-content :where(:not(h1, h2, h3, h4, h5, h6)) + :where(.sl-heading-wrapper, h1, h2, h3, h4, h5, h6):where(:not(.not-content *)) {
+  margin-top: 2rem;
+}
+
+.sl-markdown-content :where(* + .sl-heading-wrapper.level-h2, * + h2):where(:not(.not-content *)) {
+  margin-top: 3rem;
+}
+
+.sl-markdown-content :where(* + .sl-heading-wrapper.level-h3, * + h3):where(:not(.not-content *)) {
+  margin-top: 2.25rem;
+}
+
+.sl-markdown-content :is(strong, b):not(:where(.not-content *)) {
+  color: var(--ask-text);
+  font-weight: 600;
+}
+
+.sl-markdown-content a:not(:where(.not-content *)) {
+  color: var(--ask-text);
+  font-weight: 500;
+  text-decoration-color: var(--ask-accent);
+  text-decoration-line: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.2em;
+  transition: color 0.12s ease;
+}
+
+.sl-markdown-content a:hover:not(:where(.not-content *)) {
+  color: var(--ask-accent);
+}
+
+.sl-markdown-content :is(h2, h3, h4, h5, h6) a:not(:where(.not-content *)) {
+  font-weight: inherit;
+}
+
+.sl-markdown-content :is(ul, ol):not(:where(.not-content *)) {
+  padding-inline-start: 1.375rem;
+}
+
+.sl-markdown-content li:not(:where(.not-content *))::marker {
+  color: var(--ask-text-subtle);
+}
+
+.sl-markdown-content li + li:not(:where(.not-content *)) {
+  margin-top: 0.375rem;
+}
+
+.sl-markdown-content blockquote:not(:where(.not-content *)) {
+  border-inline-start: 2px solid var(--ask-border-strong);
+  color: var(--ask-text-muted);
+  padding-inline-start: 1.125rem;
+}
+
+.sl-markdown-content hr:not(:where(.not-content *)) {
+  border-bottom-color: var(--ask-border);
+  margin-block: 2.5rem;
+}
+
+.sl-markdown-content kbd:not(:where(.not-content *)) {
+  background-color: var(--ask-surface-2);
+  border: 1px solid var(--ask-border-strong);
+  border-bottom-width: 2px;
+  border-radius: var(--ask-radius-sm);
+  color: var(--ask-text);
+  font-family: var(--__sl-font-mono);
+  font-size: 0.75rem;
+  padding: 0.1rem 0.4rem;
+}
+
+/* Inline code: a small bordered chip. */
+.sl-markdown-content code:not(:where(.not-content *)) {
+  background-color: var(--ask-surface-2);
+  border: 1px solid var(--ask-border);
+  border-radius: 0.3125rem;
+  color: var(--ask-text);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  font-size: 0.8125em;
+  margin-block: 0;
+  overflow-wrap: anywhere;
+  padding: 0.1em 0.35em;
+}
+
+.sl-markdown-content a code:not(:where(.not-content *)) {
+  color: inherit;
+}
+
+/* Code in a heading is plain monospace: a chip that size would shout. */
+.sl-markdown-content :is(h2, h3, h4, h5, h6) code:not(:where(.not-content *)) {
+  background-color: transparent;
+  border: 0;
+  font-size: 0.9em;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  padding: 0;
+}
+
+/* <details>: a quiet bordered disclosure. */
+.sl-markdown-content details:not(:where(.not-content *)) {
+  border: 1px solid var(--ask-border);
+  border-radius: var(--ask-radius);
+  padding: 0.75rem 1rem;
+}
+
+.sl-markdown-content details:not([open]):hover:not(:where(.not-content *)),
+.sl-markdown-content details:has(> summary:hover):not(:where(.not-content *)) {
+  border-color: var(--ask-border-strong);
+}
+
+.sl-markdown-content summary:not(:where(.not-content *)) {
+  margin-inline-start: 0;
+  padding-inline-start: 0;
+}
+
+/* --- Code blocks (Expressive Code; colors and sizes are set in astro.config.mjs) --- */
+.expressive-code .frame.has-title:not(.is-terminal) .header .title {
+  background: transparent;
+  font-family: var(--__sl-font-mono);
+  font-size: 0.75rem;
+  padding-block: 0.5rem;
+}
+
+/* A terminal frame with no title needs no title bar. */
+.expressive-code .frame.is-terminal:not(.has-title) .header {
+  display: none;
+}
+
+.expressive-code .frame.is-terminal:not(.has-title) {
+  --button-spacing: 0.4rem;
+}
+
+.expressive-code .frame.is-terminal:not(.has-title) pre {
+  border-radius: calc(var(--ec-brdRad) + var(--ec-brdWd));
+  border-top: var(--ec-brdWd) solid var(--ec-brdCol);
+}
+
+.expressive-code .frame.is-terminal .header::before {
+  display: none;
+}
+
+.expressive-code .frame.is-terminal .header {
+  justify-content: flex-start;
+  padding-inline: 1.125rem;
+}
+
+.expressive-code .frame.is-terminal .header .title {
+  font-family: var(--__sl-font-mono);
+  font-size: 0.75rem;
+}
+
+/* The copy button stays visible: Expressive Code hides it until hover on a pointer device. */
+@media (hover: hover) {
+  .expressive-code .frame .copy button:not(:hover, :focus-visible) {
+    opacity: 0.7;
+  }
+}
+
+.expressive-code .copy button {
+  border-radius: var(--ask-radius-sm);
+  height: 1.875rem;
+  width: 1.875rem;
+}
+
+.expressive-code .copy button::after {
+  margin: 0.4rem;
+}
+
+/* --- Tabs: an underlined strip that sits on top of what it switches --- */
+starlight-tabs {
+  border: 1px solid var(--ask-border);
+  border-radius: var(--ask-radius);
+  overflow: hidden;
+}
+
+starlight-tabs .tablist-wrapper {
+  background-color: var(--ask-surface-2);
+  border-bottom: 1px solid var(--ask-border);
+}
+
+starlight-tabs [role="tablist"] {
+  border-bottom: 0;
+  gap: 0.25rem;
+  padding-inline: 0.625rem;
+}
+
+starlight-tabs .tab > [role="tab"] {
+  box-shadow: none;
+  color: var(--ask-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  padding: 0.625rem 0.625rem;
+  position: relative;
+  transition: color 0.12s ease;
+}
+
+starlight-tabs .tab > [role="tab"]:hover {
+  color: var(--ask-text);
+}
+
+starlight-tabs .tab > [role="tab"][aria-selected="true"] {
+  color: var(--ask-text);
+  font-weight: 600;
+}
+
+starlight-tabs .tab > [role="tab"][aria-selected="true"]::after {
+  background-color: var(--ask-accent);
+  border-radius: 1px;
+  bottom: 0;
+  content: "";
+  height: 2px;
+  inset-inline: 0.625rem;
+  position: absolute;
+}
+
+starlight-tabs .tablist-wrapper ~ [role="tabpanel"] {
+  margin-top: 0;
+  padding: 1rem 1.125rem;
+}
+
+/* A panel that holds only a code block: the block fills the panel, with no frame of its own. */
+starlight-tabs .tablist-wrapper ~ [role="tabpanel"]:has(> .expressive-code:only-child) {
+  padding: 0;
+}
+
+starlight-tabs [role="tabpanel"] > .expressive-code:only-child .frame :is(pre, .header) {
+  border-inline: 0;
+  border-radius: 0;
+}
+
+starlight-tabs [role="tabpanel"] > .expressive-code:only-child .frame pre {
+  border-bottom: 0;
+}
+
+starlight-tabs [role="tabpanel"] > .expressive-code:only-child .frame:not(.has-title) pre,
+starlight-tabs [role="tabpanel"] > .expressive-code:only-child .frame .header {
+  border-top: 0;
+}
+
+/* --- Asides: a tinted card per type --- */
+.starlight-aside {
+  --ask-aside: var(--ask-note);
+  --sl-color-asides-border: color-mix(in srgb, var(--ask-aside) 30%, var(--ask-border));
+  --sl-color-asides-text-accent: var(--ask-aside);
+  background-color: color-mix(in srgb, var(--ask-aside) 7%, var(--ask-surface));
+  border: 1px solid var(--sl-color-asides-border);
+  border-radius: var(--ask-radius);
+  color: var(--ask-text-body);
+  font-size: 0.9375rem;
+  padding: 0.875rem 1rem;
+}
+
+.starlight-aside--tip {
+  --ask-aside: var(--ask-tip);
+}
+
+.starlight-aside--caution {
+  --ask-aside: var(--ask-caution);
+}
+
+.starlight-aside--danger {
+  --ask-aside: var(--ask-danger);
+}
+
+.starlight-aside__title {
+  color: var(--ask-aside);
+  font-size: 0.8125rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+.starlight-aside__icon {
+  font-size: 1.125em;
+}
+
+.starlight-aside__title + .starlight-aside__content {
+  margin-top: 0.375rem;
+}
+
+.sl-markdown-content .starlight-aside a:not(:where(.not-content *)) {
+  color: var(--ask-text);
+  text-decoration-color: var(--ask-aside);
+}
+
+/* --- Tables: a rounded box that hugs a small table, fills the column for a wide one, and scrolls inside itself --- */
+.sl-markdown-content table:not(:where(.not-content *)) {
+  border: 1px solid var(--ask-border);
+  border-radius: var(--ask-radius);
+  font-size: 0.875rem;
+  line-height: 1.55;
+  max-width: 100%;
+  scrollbar-color: var(--ask-border-strong) transparent;
+  scrollbar-width: thin;
+  width: fit-content;
+}
+
+.sl-markdown-content :is(th, td):not(:where(.not-content *)) {
+  border-bottom: 1px solid var(--ask-border);
+  padding: 0.625rem 0.75rem;
+  vertical-align: top;
+}
+
+.sl-markdown-content :is(th:first-child, td:first-child):not(:where(.not-content *)) {
+  padding-inline-start: 1rem;
+}
+
+.sl-markdown-content :is(th:last-child, td:last-child):not(:where(.not-content *)) {
+  padding-inline-end: 1rem;
+}
+
+.sl-markdown-content th:not(:where(.not-content *)) {
+  background-color: var(--ask-surface-2);
+  color: var(--ask-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.sl-markdown-content tbody tr:last-child > :is(td, th):not(:where(.not-content *)) {
+  border-bottom: 0;
+}
+
+.sl-markdown-content tbody th:not(:where(.not-content *)) {
+  background-color: transparent;
+  color: var(--ask-text);
+  font-size: inherit;
+  letter-spacing: 0;
+  white-space: normal;
+}
+
+.sl-markdown-content td code:not(:where(.not-content *)) {
+  overflow-wrap: normal;
+}
+
+/*
+ * The first column holds names (a flag, an option, a field). It keeps room for a short name on one
+ * line, and a long name breaks rather than squeeze the description beside it.
+ */
+.sl-markdown-content td:first-child:has(> code:first-child):not(:where(.not-content *)) {
+  min-width: 10rem;
+}
+
+.sl-markdown-content td:first-child code:not(:where(.not-content *)) {
+  overflow-wrap: anywhere;
+}
+
+/*
+ * In a table of three or more columns the last one is the description. Its code may break too, so
+ * a long name in it doesn't push the table wider than the page; it keeps a floor of its own.
+ */
+.sl-markdown-content td:last-child:not(:nth-child(-n + 2)):not(:where(.not-content *)) {
+  min-width: 11rem;
+}
+
+.sl-markdown-content td:last-child:not(:nth-child(-n + 2)) code:not(:where(.not-content *)) {
+  overflow-wrap: anywhere;
+}
+
+/* --- Link cards: a list of `[Title](/path/): description` items (plugins/remark-link-cards.mjs) --- */
+.sl-markdown-content ul.link-cards {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  list-style: none;
+  padding: 0;
+}
+
+.sl-markdown-content ul.link-cards > li {
+  background-color: var(--ask-surface);
+  border: 1px solid var(--ask-border);
+  border-radius: var(--ask-radius);
+  box-shadow: var(--ask-shadow-card);
+  margin: 0;
+  padding: 0.875rem 2.5rem 0.9375rem 1rem;
+  position: relative;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.sl-markdown-content ul.link-cards > li:hover {
+  background-color: var(--ask-surface-2);
+  border-color: var(--ask-border-strong);
+}
+
+.sl-markdown-content ul.link-cards > li:focus-within {
+  border-color: var(--ask-accent);
+}
+
+/* The arrow in the card's corner. */
+.sl-markdown-content ul.link-cards > li::after {
+  color: var(--ask-text-subtle);
+  content: "\2192";
+  font-size: 0.9375rem;
+  inset-block-start: 0.8125rem;
+  inset-inline-end: 1rem;
+  line-height: 1.4;
+  position: absolute;
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.sl-markdown-content ul.link-cards > li:hover::after {
+  color: var(--ask-accent);
+  transform: translateX(2px);
+}
+
+.sl-markdown-content ul.link-cards a {
+  color: var(--ask-text);
+  display: block;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.4;
+  outline: none;
+  text-decoration: none;
+}
+
+/* The link covers the whole card. */
+.sl-markdown-content ul.link-cards a::after {
+  border-radius: var(--ask-radius);
+  content: "";
+  inset: 0;
+  position: absolute;
+}
+
+.sl-markdown-content ul.link-cards a:focus-visible::after {
+  outline: 2px solid var(--ask-accent);
+  outline-offset: 2px;
+}
+
+.link-cards .link-card-sep {
+  display: none;
+}
+
+.link-cards .link-card-desc {
+  color: var(--ask-text-muted);
+  display: block;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  margin-top: 0.25rem;
+}
+
+@media (max-width: 40rem) {
+  .sl-markdown-content ul.link-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+/*
+ * --- Diagrams ---
+ * A Mermaid fence becomes an inline pele SVG (plugins/remark-mermaid.mjs). pele colors a diagram
+ * from the variables below, so mapping them to the tokens makes it follow the theme toggle with
+ * no second render. Nodes are neutral surfaces with a hairline border; only the accent variable
+ * carries color. A color set in the diagram source (`style`, `classDef`, `linkStyle`) doesn't
+ * follow the theme, so leave colors to these variables. Fonts aren't set here: the plugin passes
+ * `--sl-font` and `--sl-font-mono` to pele, which sizes each node from them.
+ */
+.pele {
+  --pele-bg: var(--ask-surface-2);
+  --pele-fg: var(--ask-text);
+  --pele-muted: var(--ask-text-muted);
+  --pele-line: var(--ask-text-subtle);
+  --pele-surface: var(--ask-surface);
+  --pele-surface-alt: color-mix(in srgb, var(--ask-text) 3%, var(--ask-surface-2));
+  --pele-border: var(--ask-border-strong);
+  --pele-accent: var(--ask-accent);
+  --pele-critical: var(--ask-danger);
+  --pele-error: var(--ask-danger);
+}
+
+/* The figure is a framed canvas with a faint dot grid; the caption is a bar under it. */
+.sl-markdown-content figure:has(> svg.pele) {
+  background-color: var(--ask-surface-2);
+  background-image: radial-gradient(var(--ask-grid-dot) 1px, transparent 1px);
+  background-position: 8px 8px;
+  background-size: 16px 16px;
+  border: 1px solid var(--ask-border);
+  border-radius: var(--ask-radius);
+  margin-block: 1.5rem;
+  overflow: hidden;
+}
+
+/*
+ * pele writes the natural width on the <svg>, with `max-width: 100%` in its style attribute, so it
+ * never stretches. The canvas keeps 1rem clear on each side, which only `!important` can ask for
+ * over an inline style. Without it a wide diagram's last column is cut off on a phone.
+ */
+.sl-markdown-content figure > svg.pele {
+  display: block;
+  height: auto;
+  margin: 1.5rem auto;
+  max-width: calc(100% - 2rem) !important;
+}
+
+.sl-markdown-content figure:has(> svg.pele) > figcaption {
+  background-color: var(--ask-surface);
+  border-top: 1px solid var(--ask-border);
+  color: var(--ask-text-muted);
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  margin: 0;
+  padding: 0.75rem 1rem;
+}
+
+/* --- Images (the Studio screenshots) --- */
+.sl-markdown-content figure:has(> img, > p > img) {
+  margin-block: 1.5rem;
+}
+
+.sl-markdown-content figure:has(> img, > p > img) > figcaption {
+  color: var(--ask-text-muted);
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  margin-top: 0.65rem;
+  text-align: center;
+}
+
+.sl-markdown-content img:not(:where(.not-content *)) {
+  border: 1px solid var(--ask-border);
+  border-radius: var(--ask-radius);
+  box-shadow: var(--ask-shadow-sheet);
+}
+
+/* --- Starlight components, in the site's shape: Steps, FileTree, Card, LinkCard, LinkButton --- */
+.sl-markdown-content .sl-steps > li::before {
+  background-color: var(--ask-surface-2);
+  box-shadow: inset 0 0 0 1px var(--ask-border-strong);
+  color: var(--ask-text);
+  font-family: var(--__sl-font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.sl-markdown-content .sl-steps > li::after {
+  background-color: var(--ask-border);
+}
+
+starlight-file-tree {
+  background-color: var(--ask-code-bg);
+  border: 1px solid var(--ask-border);
+  border-radius: var(--ask-radius);
+  font-size: 0.8125rem;
+  line-height: 1.7;
+  padding: 0.875rem 1rem;
+}
+
+starlight-file-tree ul {
+  border-inline-start-color: var(--ask-border);
+}
+
+starlight-file-tree .highlight {
+  background-color: color-mix(in srgb, var(--ask-accent) 14%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ask-accent) 35%, transparent);
+  color: var(--ask-text);
+  font-weight: 600;
+}
+
+starlight-file-tree .highlight svg {
+  fill: var(--ask-accent);
+}
+
+starlight-file-tree .comment {
+  color: var(--ask-text-subtle);
+  font-family: var(--__sl-font);
+}
+
+.sl-markdown-content .card-grid {
+  gap: 0.75rem;
+}
+
+.sl-markdown-content .card {
+  background-color: var(--ask-surface);
+  border: 1px solid var(--ask-border);
+  border-radius: var(--ask-radius);
+  box-shadow: var(--ask-shadow-card);
+  gap: 0.5rem;
+  padding: 1.125rem 1.25rem 1.25rem;
+}
+
+.sl-markdown-content .card .title {
+  font-family: var(--ask-font-display);
+  font-size: 1rem;
+  gap: 0.625rem;
+  letter-spacing: -0.01em;
+}
+
+.sl-markdown-content .card .icon {
+  background-color: var(--ask-accent-soft);
+  border: 0;
+  border-radius: var(--ask-radius-sm);
+  color: var(--ask-accent);
+  height: 1.75rem;
+  padding: 0.375rem;
+  width: 1.75rem;
+}
+
+.sl-markdown-content .card .body {
+  color: var(--ask-text-muted);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.sl-markdown-content .sl-link-card {
+  background-color: var(--ask-surface);
+  border-color: var(--ask-border);
+  border-radius: var(--ask-radius);
+  box-shadow: var(--ask-shadow-card);
+  padding: 0.875rem 1rem;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.sl-markdown-content .sl-link-card:hover {
+  background-color: var(--ask-surface-2);
+  border-color: var(--ask-border-strong);
+}
+
+.sl-markdown-content .sl-link-card .stack {
+  gap: 0.25rem;
+}
+
+.sl-markdown-content .sl-link-card a {
+  color: var(--ask-text);
+  font-size: 0.9375rem;
+  text-decoration: none;
+}
+
+.sl-markdown-content .sl-link-card .description {
+  color: var(--ask-text-muted);
+  font-size: 0.8125rem;
+}
+
+.sl-markdown-content .sl-link-card:hover .icon {
+  color: var(--ask-accent);
+}
+
+.sl-markdown-content a.sl-link-button {
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  text-decoration: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.sl-markdown-content a.sl-link-button.primary {
+  background-color: var(--ask-accent);
+  border-color: var(--ask-accent);
+  color: var(--ask-accent-contrast);
+}
+
+.sl-markdown-content a.sl-link-button.primary:hover {
+  background-color: var(--ask-accent-hover);
+  border-color: var(--ask-accent-hover);
+}
+
+.sl-markdown-content a.sl-link-button.secondary {
+  background-color: var(--ask-surface);
+  border-color: var(--ask-border-strong);
+  color: var(--ask-text);
+}
+
+.sl-markdown-content a.sl-link-button.secondary:hover {
+  border-color: var(--ask-text-subtle);
+}
+
+.sl-markdown-content a.sl-link-button.minimal {
+  color: var(--ask-text);
+}
+
+.sl-markdown-content a.sl-link-button.minimal:hover {
+  color: var(--ask-accent);
+}

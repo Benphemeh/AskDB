@@ -1,0 +1,36 @@
+---
+/**
+ * Starlight's skip link, with a sentence for AI agents before it. The sentence is the first text in
+ * `<body>`, so an agent that reads the page's HTML learns where the Markdown is before it reads
+ * anything else. People don't see or hear it: it's clipped and `aria-hidden`, and it holds no link,
+ * so it isn't a focus stop.
+ */
+import Default from "@astrojs/starlight/components/SkipLink.astro";
+import { markdownPathFor } from "../../utils/markdown-twin";
+
+const base = import.meta.env.BASE_URL;
+const site = (path: string) => new URL(`${base.replace(/\/$/, "")}${path}`, Astro.site).href;
+const isNotFound = Astro.locals.starlightRoute.entry.id === "404";
+const twin = isNotFound ? undefined : new URL(markdownPathFor(Astro.url.pathname, base), Astro.site).href;
+---
+
+<p class="agent-hint" aria-hidden="true" data-pagefind-ignore>
+  For AI agents: the index of this documentation is at {site("/llms.txt")}. Every page has a Markdown version at its URL
+  with the trailing slash replaced by .md{twin && <Fragment>; this page's is {twin}</Fragment>}. To implement AskDB in a
+  project, read {site("/AGENTS.md")} first.
+</p>
+<Default><slot /></Default>
+
+<style>
+  .agent-hint {
+    border: 0;
+    clip: rect(0, 0, 0, 0);
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    padding: 0;
+    position: absolute;
+    white-space: nowrap;
+    width: 1px;
+  }
+</style>

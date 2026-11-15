@@ -1,0 +1,26 @@
+---
+/**
+ * The top of every docs page: a breadcrumb of the page's sidebar groups, the title, and the page
+ * actions (copy as Markdown, open in an AI assistant).
+ */
+import PageActions from "../PageActions.astro";
+import { sidebarTrail } from "../../utils/breadcrumbs";
+
+const PAGE_TITLE_ID = "_top";
+const { entry, sidebar } = Astro.locals.starlightRoute;
+const trail = sidebarTrail(sidebar);
+---
+
+{
+  trail.length > 0 && (
+    <nav class="page-breadcrumb" aria-label="Breadcrumb">
+      <ol>
+        {trail.map((label) => (
+          <li>{label}</li>
+        ))}
+      </ol>
+    </nav>
+  )
+}
+<h1 id={PAGE_TITLE_ID}>{entry.data.title}</h1>
+<PageActions />

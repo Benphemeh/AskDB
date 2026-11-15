@@ -3,9 +3,28 @@ title: "Scope queries to a tenant"
 description: "Declare your schema's tenancy in a tenant policy, pass each caller's tenant scope to ask(), and run the SQL with the tenant IDs bound."
 ---
 
-<p class="doc-eyebrow">Tenant-scoped generation</p>
+import AgentPrompt from "../../../components/AgentPrompt.astro";
 
-<p class="doc-lede">In a multi-tenant schema, each user should see only their own tenants' rows. Declare how your schema represents tenancy in a tenant policy, and pass the caller's tenant scope on each call. AskDB then has the model filter every scoped table by tenant, checks that the filter is there, and binds your tenant IDs. Keep the database as the tenant boundary: see <a href="/concepts/tenant-isolation/">Tenant isolation</a>.</p>
+In a multi-tenant schema, each user should see only their own tenants' rows. Declare how your schema represents tenancy in a tenant policy, and pass the caller's tenant scope on each call. AskDB then has the model filter every scoped table by tenant, checks that the filter is there, and binds your tenant IDs. Keep the database as the tenant boundary: see [Tenant isolation](/concepts/tenant-isolation/).
+
+<figure>
+
+```mermaid
+flowchart TB
+  %% Source of truth: packages/core/src/ask.ts (expandTenantScope, enforceGuardrails, then binding) and packages/core/src/sql/tenant-guardrail.ts.
+  app["your application<br/>authorizes the tenant IDs"]
+  policy["tenant policy<br/>in the schema artifact"]
+  ask["ask() with tenantScope<br/>the model writes tenant placeholders"]
+  check["tenant check<br/>looks for a predicate on each scoped table"]
+  bind["binds your tenant IDs<br/>result.sql, result.tenantParams"]
+  run["your application runs it<br/>the database is the<br/>boundary"]
+  app --> ask
+  policy --> ask
+  ask --> check --> bind --> run
+```
+
+<figcaption>The path of one request. Your application decides the tenant IDs and runs the SQL. AskDB prompts, checks and binds in between.</figcaption>
+</figure>
 
 ## Before you start
 
@@ -134,11 +153,21 @@ AskDB's tenant check is a heuristic over the SQL's tokens, so a query can get pa
 
 [`TenantScopeError` reasons](/reference/core-api/errors/#tenantscopeerror-reasons) lists the rest.
 
+## Use with your agent
+
+<AgentPrompt>
+Add tenant scoping to this project's AskDB integration. Follow https://askdb.tools/guides/multi-tenancy.md.
+
+Constraints:
+
+- AskDB returns SQL and never runs it. This application runs one of the two pairs the guide names, `result.unboundSql` with `result.params` or `result.sql` with `result.tenantParams`, and never concatenates the arrays.
+- Tenant scope comes from the application's own authorization: build `tenantScope` from the tenant IDs the signed-in user may see, never from the question.
+- AskDB's tenant check is a heuristic. Keep the database as the tenant boundary, and start the policy with `enforcement: strict`.
+</AgentPrompt>
+
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/guides/enforce-tenancy-in-the-database/"><strong>Enforce tenancy in the database</strong><span>Make Postgres row-level security the tenant boundary for generated SQL.</span></a>
-  <a href="/guides/tenant-hierarchy/"><strong>Scope to a tenant hierarchy</strong><span>Let a user see a tenant and everything beneath it.</span></a>
-  <a href="/reference/tenant-policy/"><strong>Tenant policy format</strong><span>Every policy field, and what the tenant check requires.</span></a>
-  <a href="/concepts/tenant-isolation/"><strong>Tenant isolation</strong><span>What the policy and the check do, and why the database stays the boundary.</span></a>
-</div>
+- [Enforce tenancy in the database](/guides/enforce-tenancy-in-the-database/): Make Postgres row-level security the tenant boundary for generated SQL.
+- [Scope to a tenant hierarchy](/guides/tenant-hierarchy/): Let a user see a tenant and everything beneath it.
+- [Tenant policy format](/reference/tenant-policy/): Every policy field, and what the tenant check requires.
+- [Tenant isolation](/concepts/tenant-isolation/): What the policy and the check do, and why the database stays the boundary.

@@ -5,9 +5,7 @@ description: "Every askdb command and flag — init, introspect, enrich, studio,
 
 import { Tabs, TabItem } from "@astrojs/starlight/components";
 
-<p class="doc-eyebrow">Reference · CLI</p>
-
-<p class="doc-lede">The <code>askdb</code> binary covers the full local workflow: scaffolding a project, introspecting a database, authoring schema artifacts, and asking questions. All commands use the same <code>@askdb/core</code> pipeline as the library.</p>
+The `askdb` binary covers the full local workflow: scaffolding a project, introspecting a database, authoring schema artifacts, and asking questions. All commands use the same `@askdb/core` pipeline as the library.
 
 ## Install
 
@@ -83,6 +81,16 @@ Commands that don't read the config work in any directory, including one with no
 `ask`, `introspect`, and the `rag` commands need `askdb.config.*` (or `.config/askdb.*`) in the current directory. Without one they print ``No askdb.config.* or .config/askdb.* found in <cwd>. Run `npx askdb init` to create one.`` and exit `1`.
 
 ## Commands
+
+| Command | What it does | Config |
+| --- | --- | --- |
+| [`askdb init`](#askdb-init) | Create `askdb.config.ts` tailored to your database and AI provider. | not read |
+| [`askdb introspect`](#askdb-introspect) | Read your database or a Prisma schema file, and write a schema artifact. | read, except `templates` |
+| [`askdb enrich`](#askdb-enrich) | Alias of `askdb studio`. | read if present |
+| [`askdb studio`](#askdb-studio) | Start the local browser UI for schema enrichment. | read if present |
+| [`askdb bundle`](#askdb-bundle) | Bundle a schema directory into a single JSON file. | not read |
+| [`askdb ask`](#askdb-ask) | Generate SQL from a schema artifact and a question. | read |
+| [`askdb rag`](#askdb-rag) | Chunk, embed and query a schema artifact directory. | read, except with no arguments |
 
 ### `askdb init`
 
@@ -346,6 +354,12 @@ Experimental: `@askdb/rag` stays 0.x, so a minor release of `askdb` may change t
 
 Chunks, embeds, and queries a schema artifact for [retrieval](/guides/rag-for-large-schemas/), with three commands: `setup-store`, `index`, and `query`.
 
+```text
+askdb rag index [schema-dir]   [--store memory|file|pgvector] [--embedder mock|ai] [--embedder-model <id>] [--dimensions <n>] [--force]
+askdb rag query [schema-dir]   --question "..." [-k 8] [--types <list>] [--store file|pgvector] [--embedder mock|ai] [--embedder-model <id>] [--dimensions <n>]
+askdb rag setup-store          --dimensions <n> [--pg-url <conn>] [--pg-table askdb_rag_chunks]
+```
+
 **It replaces `askdb-rag`.** `@askdb/rag` no longer ships the `askdb-rag` binary: run `askdb rag` from the `askdb` package. `askdb rag` reads its store from `askdb.config.*`, where `askdb-rag` always defaulted to the file store, so pass `--store file` or set `rag.store` to keep that store. See [Replace the `askdb-rag` binary with `askdb rag`](/reference/upgrade-notes/#replace-the-askdb-rag-binary-with-askdb-rag).
 
 ### Config and flags
@@ -456,7 +470,5 @@ An unexpected error, such as a config file that fails to load, prints its messag
 
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/reference/config/"><strong>Configuration</strong><span>defineConfig, env vars, and how the CLI resolves settings.</span></a>
-  <a href="/reference/packages/"><strong>Package reference</strong><span>What each @askdb/* package adds to the CLI.</span></a>
-</div>
+- [Configuration](/reference/config/): defineConfig, env vars, and how the CLI resolves settings.
+- [Package reference](/reference/packages/): What each @askdb/* package adds to the CLI.

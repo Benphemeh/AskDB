@@ -5,10 +5,26 @@ description: "Use @askdb/prisma to read your schema directly from a .prisma file
 
 import { Aside } from "@astrojs/starlight/components";
 import InstallTabs from "../../../../components/InstallTabs.astro";
+import AgentPrompt from "../../../../components/AgentPrompt.astro";
 
-<p class="doc-eyebrow">Integration · Prisma</p>
+If you already maintain a Prisma schema file, `@askdb/prisma` reads it directly and produces an AskDB schema artifact. It needs no live database connection during introspection.
 
-<p class="doc-lede">If you already maintain a Prisma schema file, <code>@askdb/prisma</code> reads it directly and produces an AskDB schema artifact. No live database connection during introspection.</p>
+<figure>
+
+```mermaid
+flowchart TB
+  %% The file-only introspection path. Source of truth: packages/prisma/src/prisma.ts
+  %% (createPrismaConnector reads the .prisma file and records the dialect id) and
+  %% the "askdb introspect" flow in apps/cli/src/introspect.ts.
+  file[".prisma file or directory"]
+  prisma["@askdb/prisma<br/>reads the file, no database"]
+  artifact["schema artifact<br/>(records the dialect id)"]
+  ask["ask() with the matching dialect id"]
+  file --> prisma --> artifact --> ask
+```
+
+<figcaption>The `.prisma` file goes through `@askdb/prisma` into a schema artifact, which `ask()` reads with the matching `dialect` id.</figcaption>
+</figure>
 
 ## When to use it
 
@@ -96,9 +112,19 @@ MongoDB is not supported — AskDB targets relational engines. The [`@askdb/pris
 
 `@askdb/prisma` is a file-only connector. It does not connect to a database, it does not execute generated SQL, and it does not include a SQL dialect. For SQL generation, pass `ask()` the dialect id from the table above.
 
+## Use with your agent
+
+<AgentPrompt>
+
+Introspect this project's Prisma schema into an AskDB schema artifact. Follow https://askdb.tools/guides/integrations/prisma.md.
+
+Install `@askdb/prisma` next to `askdb`, and run `askdb introspect --engine prisma` against the `.prisma` file.
+`@askdb/prisma` reads the file only: it connects to no database and includes no SQL dialect, so pass `ask()` the `dialect` id that matches the runtime database.
+AskDB returns SQL and never runs it: the application runs it.
+
+</AgentPrompt>
+
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/quickstart/"><strong>Quickstart</strong><span>A sample database, end to end: introspect, ask, and run the SQL AskDB returns.</span></a>
-  <a href="/guides/switch-engines/"><strong>Switch engines</strong><span>How to pair @askdb/prisma with each runtime engine.</span></a>
-</div>
+- [Quickstart](/quickstart/): A sample database, end to end: introspect, ask, and run the SQL AskDB returns.
+- [Switch engines](/guides/switch-engines/): How to pair @askdb/prisma with each runtime engine.

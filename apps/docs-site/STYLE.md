@@ -80,9 +80,47 @@ Page titles follow the type:
 - **Explanation:** a noun phrase that reads after "About" ("Safety boundaries", "The schema artifact").
 - **Reference:** the thing it describes ("CLI reference", "@askdb/core API reference").
 
-The sidebar is hand-written in `astro.config.mjs`; every new page needs an entry there. A page that moves or is deleted gets an entry in `redirects` in the same file, so old links and bookmarks still land. Links in the docs go to the new path, since a redirect drops the `#anchor`. Pages open with `<p class="doc-eyebrow">` and `<p class="doc-lede">` and end with a "Read next" section linking the natural next pages.
+The sidebar is hand-written in `astro.config.mjs`; every new page needs an entry there. A page that moves or is deleted gets an entry in `redirects` in the same file, so old links and bookmarks still land. Links in the docs go to the new path, since a redirect drops the `#anchor`.
 
-The `starlight-llms-txt` `details` string in `astro.config.mjs` summarises the site structure for LLMs — update it when sections change.
+`src/utils/llms-txt.mjs` holds what `/llms.txt` says: the site summary, the common tasks and the four documentation sets (Start, Guides, Concepts, Reference). Update it when sections change. A new top-level folder needs a set there, and a test fails until it has one.
+
+## Page anatomy
+
+Every page has the same parts, in this order. The page header (breadcrumb, title, "Copy as Markdown" and "Open in" actions) comes from the page's sidebar position and front matter, so the body starts at the lede.
+
+1. **Front matter.** `title`, and a `description` of one sentence that states what the reader gets. Search results, link previews, `/llms.txt` and the page's Markdown twin all print it.
+2. **Lede.** The first paragraph of the body, in plain Markdown, one to three sentences. Say what the page is for and what the reader has at the end. The site sets it larger, so nothing but imports may come before it: no heading, aside or component.
+3. **Body.** Follow the page's Diátaxis type:
+   - **Tutorial:** numbered `##` steps ("1. Create the database"), each ending on something the learner can see (output, a file, a screen). Close with what they built.
+   - **How-to guide:** "Before you start" (a short list), numbered `##` steps, a step that verifies the result, then "If it fails" when there are known failures.
+   - **Explanation:** one diagram or table for the central idea near the top, then prose sections.
+   - **Reference:** a signature or usage block, then tables and short entries. No narrative.
+4. **Use with your agent** (how-to guides and the tutorial; not lookup pages such as "Fix common errors"). A `## Use with your agent` heading, then an `<AgentPrompt>` with a prompt the reader hands to a coding agent. See [Components](#components).
+5. **Read next.** A `## Read next` heading and a link list of two to four pages. See [Link cards](#link-cards).
+
+Write page furniture in Markdown, not HTML. Raw HTML in a page is limited to `<figure>` and `<figcaption>` around a diagram or image, and `<details>` where a long block needs to fold.
+
+### Link cards
+
+A list in which every item is `[Title](/path/): One-sentence description.` renders as a grid of cards. Use it for "Read next" and for hub pages that route to other pages. It is the format `/llms.txt` uses, so the Markdown twin carries the same lines.
+
+```md
+## Read next
+
+- [Scope to a tenant hierarchy](/guides/tenant-hierarchy/): Let a user see a tenant and everything beneath it.
+- [Tenant policy format](/reference/tenant-policy/): Every policy field, and what the tenant check requires.
+```
+
+A list with any other item shape stays a plain list. `plugins/remark-link-cards.mjs` does the marking.
+
+## Machine-readable docs
+
+Agents are the site's second reader, so each page must read well as plain Markdown.
+
+- Every page has a Markdown twin at its URL with the trailing slash replaced by `.md` (`/guides/embed-in-node.md`; the home page's is `/index.md`). `src/pages/[...slug].md.ts` builds it from the rendered page, and `scripts/check-markdown-twins.mjs` checks every page has one.
+- The twin prints tabs as labelled blocks, code with its language and `title`, asides as labelled quotes, link cards as their Markdown lines, and a diagram as its Mermaid source plus its caption. So tab labels, code titles, captions and node labels must make sense as text.
+- Don't carry meaning in layout alone. A fact that only a color, an icon or a position shows is missing from the twin: say it in words too.
+- `/llms.txt`, `/llms-full.txt`, `/llms-small.txt` and the per-section sets come from `starlight-llms-txt`. `public/AGENTS.md` is the map for an agent that implements AskDB in another project. Keep both accurate when a page moves or an API changes.
 
 ## Tooling
 
@@ -91,6 +129,7 @@ The `starlight-llms-txt` `details` string in `astro.config.mjs` summarises the s
 - Navigation file: `apps/docs-site/astro.config.mjs` (`sidebar`)
 - Dev server: `pnpm docs:dev` (127.0.0.1:4310)
 - Build / check: `pnpm docs:build`; `pnpm -C apps/docs-site test` (builds the site, then fails on an internal link to a missing page or `#anchor`); `pnpm -C apps/docs-site lint` (`astro check`)
+- Look and feel: design tokens in `src/styles/tokens.css`; layout, prose and home styles in `layout.css`, `content.css` and `home.css` beside it. A page never sets its own colors, fonts or spacing. The `docs-site` skill (`.agents/skills/docs-site/`) has the design rules and a screenshot tool for checking a page in both themes.
 - Source lines: one line per paragraph, soft-wrapped by the editor (see `AGENTS.md`).
 - Internal links: root-absolute (`/guides/embed-in-node/`); a remark plugin rebases them.
 
@@ -98,24 +137,53 @@ The `starlight-llms-txt` `details` string in `astro.config.mjs` summarises the s
 
 - `InstallTabs` (`<InstallTabs pkgs="…" />`) for every package install. The Quickstart is the exception: it uses hand-written `Tabs` (`syncKey="pkg"`) for npm, pnpm and Yarn, since its install is a dev dependency, which `InstallTabs` can't express.
 - `Tabs` with a `syncKey` so choices persist site-wide: `pkg` (labels exactly npm / pnpm / yarn), `engine` (labels exactly PostgreSQL / MySQL / SQLite / SQL Server, in that order; a tab covers MariaDB under MySQL; add engine tabs wherever a page shows code that differs by engine), `wiring` (config-driven vs direct model).
-- `Aside` for prerequisites and real hazards — `note`, `tip`, `caution`; keep them rare.
+- `Aside` for a real hazard or a fact the reader must not miss: `note`, `tip`, `caution`, `danger`. At most two on a page. A prerequisite goes in "Before you start", not an aside.
+- `Steps` (from `@astrojs/starlight/components`) for a short procedure inside a section. A guide's main procedure uses numbered `##` headings instead, so each step is in the table of contents.
+- `FileTree` for a directory layout, with a comment on each file that needs one.
+- `Badge` for a status on a heading or in a table: `<Badge text="Experimental" variant="caution" />`. The sidebar entry of an experimental page carries the same badge (`badge` in `astro.config.mjs`).
+- `AgentPrompt` (`src/components/AgentPrompt.astro`) for the "Use with your agent" block of a task guide, under a `## Use with your agent` heading, before "Read next". The slot is the prompt: plain paragraphs and lists, with blank lines inside the tags. Name pages by their absolute `.md` URL (`https://askdb.tools/guides/multi-tenancy.md`), state the goal, and repeat the constraints the guide sets (AskDB returns SQL, the application runs it).
 - `ExampleLink` to point at a runnable example in the repo.
 - Diagrams are [Mermaid](https://mermaid.js.org/), written in a `mermaid` fence and rendered to inline SVG at build time by [pele](https://pele.run). Pages ship no diagram JavaScript, and CI and the Pages deploy need no binary or browser. See "Diagrams" below.
 
+## Visuals
+
+Pick the form from what the content is. A page of prose with no visual is fine when none of these fits.
+
+| The content is | Use |
+|---|---|
+| A flow, a boundary, or who owns what | A diagram |
+| Files and folders | `FileTree` |
+| A lookup: options, fields, flags, errors | A table |
+| A comparison of two to four choices | A table, one column per choice |
+| Variants of one code block | `Tabs` with a `syncKey` |
+| A file's contents | A code block with `title="path/to/file"` |
+| A change to code | A code block with `ins={…}` and `del={…}`, or a highlighted line `{3}` |
+| What a command prints | A second code block, right after the command |
+| A screen | A screenshot in `src/assets/`, inside a `<figure>` with a caption |
+
+Tables:
+
+- Four columns at most. Fold "required" into the default column (`required`), and put a long note under the table.
+- Put the name first and the description last. Those two columns wrap; the ones between them don't.
+- A table states facts. Explanation goes in the prose around it.
+
 ## Diagrams
 
+- Draw a diagram when the page explains a flow, a boundary or an ownership split that takes more than three sentences to say. One diagram carries one idea, in nine nodes or fewer. A second idea is a second diagram.
 - Write the diagram in a ```` ```mermaid ```` fence in the page, inside a `<figure>`. `plugins/remark-mermaid.mjs` renders it with pele, which reads Mermaid 12.1's syntax but lays diagrams out its own way, so check the built page rather than Mermaid's live editor.
 - End the figure with a `<figcaption>` that says what the diagram shows. It is the diagram's text alternative. Leave a blank line before and after the fence, or MDX doesn't render it.
 - The SVG keeps its natural width and shrinks to fit a narrower column, so the figure needs no width. Keep the natural width (the `width` of the built `<svg>`) at 720 px or less, the content column at its widest. With the table of contents showing, the column is narrower (632 px in a 1280 px window).
 - Draw a flow of four or more steps top to bottom (`flowchart TB`), so the text stays near full size on a phone. Check the page at 390 px wide, in both themes.
-- Leave colors to the theme. `custom.css` maps pele's `--pele-*` variables to the site's colors, so a diagram follows the light and dark toggle. A color set in the source (`style`, `classDef`, `linkStyle`) stays the same in both themes.
+- Leave colors to the theme. `src/styles/content.css` maps pele's `--pele-*` variables to the site's colors, so a diagram follows the light and dark toggle. A color set in the source (`style`, `classDef`, `linkStyle`) stays the same in both themes.
 - Use the same words in node labels as on the page: command names, package names and terms from "Terminology". Break a long label with `<br/>` where it reads best, rather than leaving pele to wrap it.
 - Put notes for maintainers, such as the source of truth for what a diagram shows, on `%%` comment lines inside the fence. They don't reach the page.
 - A diagram pele can't render fails the build. The error names the page and line, and pele's error code: `syntax`, `semantic`, `unsupported-diagram` or `limit`.
-- The home page's hero art (`src/assets/diagrams/askdb-hero-visual*.svg`) is hand-drawn, with a light and a dark file. Every other diagram is Mermaid.
+- The page's Markdown twin prints the fence's source and the caption, so both must read well as text.
+- The home page's hero art (`src/components/HomeHeroDiagram.astro`) is a hand-drawn inline SVG, colored from the design tokens. Every other diagram is Mermaid.
 
 ## Code samples
 
+- Give a block that shows a file its path: ```` ```ts title="askdb.config.ts" ````. Mark the lines a step adds or changes (`ins={4-6}`, `{3}`) when the block repeats code from an earlier step.
 - TypeScript for library code; bash for commands. Standalone command snippets use `npx` (readers substitute `pnpm dlx` / `yarn dlx`); multi-command flows use `pkg` tabs.
 - Samples show AskDB returning SQL; any execution runs through the reader's own connection (`pg`, Prisma, …), never through AskDB.
 - Placeholders: environment variables (`process.env.OPENAI_API_KEY`) rather than inline fake keys.

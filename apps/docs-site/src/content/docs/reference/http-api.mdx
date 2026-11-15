@@ -3,9 +3,7 @@ title: "HTTP API reference"
 description: "Endpoints, request and response shapes, error codes, exported types, the askdb-http binary's flags and exit codes, and configuration for @askdb/http-api."
 ---
 
-<p class="doc-eyebrow">Reference · HTTP API</p>
-
-<p class="doc-lede"><code>@askdb/http-api</code> is a thin HTTP wrapper around the same <code>ask()</code> pipeline as the library. Two endpoints, JSON over HTTP, designed to sit behind your own gateway.</p>
+`@askdb/http-api` is a thin HTTP wrapper around the same `ask()` pipeline as the library. Two endpoints, JSON over HTTP, designed to sit behind your own gateway.
 
 ## Server
 
@@ -108,6 +106,11 @@ An installed `askdb-http` reads only the working directory's `.env`, and it neve
 
 ## Endpoints
 
+| Route | Description |
+| --- | --- |
+| [`GET /health`](#get-health) | Liveness probe. |
+| [`POST /ask`](#post-ask) | Generate SQL from a question. |
+
 ### `GET /health`
 
 Liveness probe.
@@ -124,6 +127,12 @@ curl http://localhost:3000/health
 
 Generate SQL from a question.
 
+```bash
+curl -X POST http://localhost:3000/ask \
+  -H "content-type: application/json" \
+  -d '{"question":"How many customers signed up last week?"}'
+```
+
 **Request (`AskHttpRequest`)**
 
 ```json
@@ -136,15 +145,15 @@ Generate SQL from a question.
 }
 ```
 
-| Field | Required | Default | Description |
-| --- | --- | --- | --- |
-| `question` | yes | — | The natural-language question. |
-| `mode` | no | `modes.askdbMode`, else `schema_only` | One of `schema_only`, `bounded_results`. Also accepted as the `x-askdb-mode` header (the body wins). It can only tighten the server's `modes.askdbMode`: `bounded_results` runs `schema_only` unless the server sets `modes.askdbMode: "bounded_results"`. An unrecognized value returns `400 bad_request`. |
-| `explain` | no | `false` | Return metadata on the read-only checks. Must be a JSON boolean: any other value, such as `"false"`, returns `400 bad_request`. |
-| `omitSensitiveFromPrompt` | no | `modes.omitSensitiveFromPrompt` | `true` omits sensitive columns from the prompt for this request. It can only tighten the server setting. When the server sets `modes.omitSensitiveFromPrompt: true`, sending `false` has no effect. Must be a JSON boolean: any other value, such as `"true"` or `1`, returns `400 bad_request`. |
-| `schemaJson` | no | — | Inline schema artifact that replaces the server schema for this request. Rejected with `403 schema_override_disabled` unless the server sets `httpApi.allowSchemaOverride: true`. The server generates and checks SQL for the artifact's own `provider`, which must be a built-in dialect id; the config's `dialect` applies to the server's own schema only. Preferred: set `host.schemaPath` in `askdb.config.ts` server-side. |
+| Field | Default | Description |
+| --- | --- | --- |
+| `question` | required | The natural-language question. |
+| `mode` | `modes.askdbMode`, else `schema_only` | One of `schema_only`, `bounded_results`. Also accepted as the `x-askdb-mode` header (the body wins). It can only tighten the server's `modes.askdbMode`: `bounded_results` runs `schema_only` unless the server sets `modes.askdbMode: "bounded_results"`. An unrecognized value returns `400 bad_request`. |
+| `explain` | `false` | Return metadata on the read-only checks. Must be a JSON boolean: any other value, such as `"false"`, returns `400 bad_request`. |
+| `omitSensitiveFromPrompt` | `modes.omitSensitiveFromPrompt` | `true` omits sensitive columns from the prompt for this request. It can only tighten the server setting. When the server sets `modes.omitSensitiveFromPrompt: true`, sending `false` has no effect. Must be a JSON boolean: any other value, such as `"true"` or `1`, returns `400 bad_request`. |
+| `schemaJson` | optional | Inline schema artifact that replaces the server schema for this request. Rejected with `403 schema_override_disabled` unless the server sets `httpApi.allowSchemaOverride: true`. The server generates and checks SQL for the artifact's own `provider`, which must be a built-in dialect id; the config's `dialect` applies to the server's own schema only. Preferred: set `host.schemaPath` in `askdb.config.ts` server-side. |
 
-An optional field sent as JSON `null` counts as absent, as does an empty or whitespace-only `schemaJson`. A `null` body `mode` falls back to the `x-askdb-mode` header, then to config.
+Every field except `question` is optional. An optional field sent as JSON `null` counts as absent, as does an empty or whitespace-only `schemaJson`. A `null` body `mode` falls back to the `x-askdb-mode` header, then to config.
 
 **Success response (`200`, `AskHttpSuccessResponse`)**
 
@@ -249,8 +258,6 @@ See [Deploy as HTTP service](/guides/deploy-as-http-service/) for the production
 
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/guides/deploy-as-http-service/"><strong>Deploy as HTTP service</strong><span>The end-to-end deploy guide with curl and Python examples.</span></a>
-  <a href="/guides/run-safely-in-prod/"><strong>Run safely in production</strong><span>What your gateway service needs to enforce.</span></a>
-  <a href="/reference/config/"><strong>Configuration reference</strong><span>Every <code>askdb.config.ts</code> key the server reads, including <code>httpApi</code>.</span></a>
-</div>
+- [Deploy as HTTP service](/guides/deploy-as-http-service/): The end-to-end deploy guide with curl and Python examples.
+- [Run safely in production](/guides/run-safely-in-prod/): What your gateway service needs to enforce.
+- [Configuration reference](/reference/config/): Every `askdb.config.ts` key the server reads, including `httpApi`.

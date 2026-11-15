@@ -3,9 +3,9 @@ title: "Match your server's string settings"
 description: "Tell AskDB how your MySQL, MariaDB or Postgres server reads backslashes in strings, with backslashEscapes on a DialectSpec, so the SQL checks read strings the way your server does."
 ---
 
-<p class="doc-eyebrow">Run in production</p>
+import AgentPrompt from "../../../components/AgentPrompt.astro";
 
-<p class="doc-lede">AskDB's SQL checks read a backslash inside a <code>'…'</code> string the way each engine does by default. If your server reads it differently, AskDB and the server disagree about where a string ends, and SQL the checks accept can run code they never saw. Set <code>backslashEscapes</code> to match your server.</p>
+AskDB's SQL checks read a backslash inside a `'…'` string the way each engine does by default. If your server reads it differently, AskDB and the server disagree about where a string ends, and SQL the checks accept can run code they never saw. Set `backslashEscapes` to match your server.
 
 ## Before you start
 
@@ -60,10 +60,20 @@ Tenant IDs don't depend on the setting. By default (`tenantSqlMode: "sql-params"
 - **The connection charset matters for parameters too.** Under a MySQL or MariaDB connection charset of `sjis`, `cp932` or `ujis`, the client sends `¥` as byte 0x5C, which the server reads as a backslash. A driver that interpolates parameters into the SQL text on the client, such as mysql2's `query()` with params, is affected; server-side prepared statements (mysql2's `execute()`) aren't. Use a `utf8mb4` connection, or `execute()`.
 - **MySQL's `ANSI_QUOTES` mode isn't supported** (it's also part of the `ANSI` mode). It makes `"…"` an identifier, which the MySQL dialect reads as a string with backslash escapes, and no `DialectSpec` setting matches it. Run AskDB's SQL on a connection without `ANSI_QUOTES`.
 
+## Use with your agent
+
+<AgentPrompt>
+Make AskDB's SQL checks read strings the way this project's database server does. Follow https://askdb.tools/guides/match-server-string-settings.md.
+
+Constraints:
+
+- AskDB returns SQL and never runs it. This application runs it.
+- Check `@@sql_mode` (MySQL, MariaDB) or `standard_conforming_strings` (Postgres) on the connections the application uses, then set `backslashEscapes` on a spread `DialectSpec`.
+- Pass that dialect everywhere the application passes one, and run user-typed values as parameters.
+</AgentPrompt>
+
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/reference/sql-checks/#how-the-checks-read-sql"><strong>How the checks read SQL</strong><span>Each engine's strings, quoted names and comments.</span></a>
-  <a href="/reference/core-api/dialects/#dialectspec"><strong>DialectSpec</strong><span>Every field of a dialect spec.</span></a>
-  <a href="/guides/run-safely-in-prod/"><strong>Run safely in production</strong><span>The read-only role, timeouts and audit logging.</span></a>
-</div>
+- [How the checks read SQL](/reference/sql-checks/#how-the-checks-read-sql): Each engine's strings, quoted names and comments.
+- [DialectSpec](/reference/core-api/dialects/#dialectspec): Every field of a dialect spec.
+- [Run safely in production](/guides/run-safely-in-prod/): The read-only role, timeouts and audit logging.

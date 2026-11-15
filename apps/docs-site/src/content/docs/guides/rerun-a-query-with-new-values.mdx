@@ -3,14 +3,35 @@ title: "Rerun a query with new values"
 description: "Rerun a query AskDB generated with new values, such as another month or another tenant, without calling the model again."
 ---
 
-<p class="doc-eyebrow">Integrator guide</p>
+import AgentPrompt from "../../../components/AgentPrompt.astro";
 
-<p class="doc-lede">When a user asks the same question with a new value, such as another month, rebind the query AskDB already generated instead of calling the model again. AskDB checks the stored template again and takes the tenant IDs from the scope you pass now.</p>
+When a user asks the same question with a new value, such as another month, rebind the query AskDB already generated instead of calling the model again. AskDB checks the stored template again and takes the tenant IDs from the scope you pass now.
 
 ## Before you start
 
 - A service that calls `ask()`, through `@askdb/client` or `@askdb/core`. [Embed in a Node app](/guides/embed-in-node/) sets one up.
 - `parameterize` left on, which is the default. `ask()` then asks the model for a template of the query as well, at the cost of some extra output tokens.
+
+<figure>
+
+```mermaid
+sequenceDiagram
+  %% Source of truth: steps 1 and 2 below; AskDbClient.bind in packages/client/src/client.ts and
+  %% bindPreparedQuery in packages/core.
+  participant app as Your app
+  participant askdb as AskDB
+  participant store as Store
+  app->>askdb: ask(question)
+  askdb-->>app: sql, preparedQuery
+  app->>store: save
+  store-->>app: load later
+  app->>askdb: bind(values, tenantScope)
+  askdb->>askdb: re-check
+  askdb-->>app: rebound.sql
+```
+
+<figcaption>Prepare once, store the <code>preparedQuery</code>, and bind it with new values later. <code>bind()</code> makes no model call, runs the SQL checks again, and takes tenant IDs from the scope you pass.</figcaption>
+</figure>
 
 ## 1. Keep the prepared query
 
@@ -68,10 +89,21 @@ const { rows, truncated } = await runCapped(rebound.sql, rebound.tenantParams);
 
 [`QueryParameterError` reasons](/reference/core-api/errors/#queryparametererror-reasons) lists the rest.
 
+## Use with your agent
+
+<AgentPrompt>
+
+Add query reuse to this project's AskDB service. Follow https://askdb.tools/guides/rerun-a-query-with-new-values.md.
+
+Goal: store the `preparedQuery` that `ask()` returns, and call `askdb.bind()` with new values when a user repeats the question.
+
+- Pass the caller's `tenantScope` to `bind()`. Tenant IDs come from the application's auth, never from the values.
+- AskDB returns SQL and never runs it. The application runs `rebound.sql` with `rebound.tenantParams`.
+
+</AgentPrompt>
+
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/guides/embed-in-node/"><strong>Embed in a Node app</strong><span>The service that calls <code>ask()</code> and runs its SQL.</span></a>
-  <a href="/reference/tenant-policy/#what-the-tenant-check-requires"><strong>What the tenant check requires</strong><span>The rules a rebind checks again under the scope you pass.</span></a>
-  <a href="/reference/client-api/#clientbindprepared-values-options"><strong><code>client.bind()</code></strong><span>Every bind option.</span></a>
-</div>
+- [Embed in a Node app](/guides/embed-in-node/): The service that calls `ask()` and runs its SQL.
+- [What the tenant check requires](/reference/tenant-policy/#what-the-tenant-check-requires): The rules a rebind checks again under the scope you pass.
+- [`client.bind()`](/reference/client-api/#clientbindprepared-values-options): Every bind option.

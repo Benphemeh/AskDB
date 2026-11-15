@@ -4,16 +4,21 @@ description: "Stand up @askdb/http-api so Python, browsers, agents — anything 
 ---
 
 import InstallTabs from "../../../components/InstallTabs.astro";
+import AgentPrompt from "../../../components/AgentPrompt.astro";
 
-<p class="doc-eyebrow">Service guide</p>
+`@askdb/http-api` wraps the same `ask()` pipeline behind a minimal HTTP server. Use it when non-Node clients need to ask questions, or when you want one AskDB service shared across multiple consumers. At the end, a server answers `POST /ask` with checked SQL, behind a gateway that runs it.
 
-<p class="doc-lede"><code>@askdb/http-api</code> wraps the same <code>ask()</code> pipeline behind a minimal HTTP server. Use it when non-Node clients need to ask questions, or when you want one AskDB service shared across multiple consumers.</p>
+## Before you start
 
-## Install
+- **A schema artifact** for your database, from `askdb introspect`.
+- **An `askdb.config.ts`** with your AI provider and the schema (`host.schemaPath`, or `host.schemaJson`), and the provider's key in the environment. A flag can name the schema instead: see [Start the server](#2-start-the-server).
+- **An API gateway, ingress or reverse proxy** that authenticates callers. The server has no auth of its own.
+
+## 1. Install
 
 <InstallTabs pkgs="@askdb/http-api ai @ai-sdk/openai" />
 
-## Start the server
+## 2. Start the server
 
 The package ships an `askdb-http` binary — for most deployments you don't write any server code:
 
@@ -60,7 +65,7 @@ export default defineConfig({
 
 With `PORT` unset, `Number(env("PORT"))` is `NaN`, which counts as unset, so the server uses `3000` either way. The `?? 3000` shows the fallback in the config.
 
-## Ask a question
+## 3. Ask a question
 
 The server has two endpoints. `GET /health` answers `{"ok":true}`, for a liveness probe. `POST /ask` takes a JSON body with a `question`, and returns the checked SQL in `sql`, with a `correlationId` and the model's token `usage`. It returns SQL only: the server doesn't run it, and your client decides what to do with it. The [HTTP API reference](/reference/http-api/) lists every request field, response field and error code.
 
@@ -95,7 +100,7 @@ else:
     raise RuntimeError(f'{resp.status_code} {body["error"]["code"]}: {body["error"]["message"]}')
 ```
 
-## Run it behind a gateway
+## 4. Run it behind a gateway
 
 `@askdb/http-api` is intentionally minimal — there is no built-in auth, rate limiting, or TLS termination. **Don't expose it directly to the public internet.** Put it behind your existing API gateway, ingress, or reverse proxy and apply the same auth you use for the rest of your services.
 
@@ -151,10 +156,22 @@ Bundle the artifact with `askdb bundle` and ship the resulting JSON as the value
 
 Every response except `GET /health` includes a `correlationId`: the value of the request's `x-correlation-id` header when the caller sends one, or a new UUID. The server tags its structured log events with the same ID. Send `x-correlation-id` from your gateway to join its logs to the generated SQL and any errors.
 
+## Use with your agent
+
+<AgentPrompt>
+
+Deploy `@askdb/http-api` as a service for this project. Follow https://askdb.tools/guides/deploy-as-http-service.md.
+
+Constraints:
+
+- AskDB returns SQL and never runs it. The gateway service that calls `POST /ask` runs the SQL under a read-only database role.
+- `@askdb/http-api` has no auth, rate limiting or TLS. Put it behind the existing gateway and don't expose it to the public internet.
+- Leave `httpApi.allowSchemaOverride` off unless every caller that can send `schemaJson` is trusted. A schema with a tenant policy can't be served yet.
+
+</AgentPrompt>
+
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/guides/run-safely-in-prod/"><strong>Run safely in production</strong><span>The execution-side checklist your gateway service needs.</span></a>
-  <a href="/reference/http-api/"><strong>HTTP API reference</strong><span>Every endpoint, request shape, and error code.</span></a>
-  <a href="/guides/embed-in-node/"><strong>Embed in a Node app</strong><span>For when you want to skip HTTP and link the library directly.</span></a>
-</div>
+- [Run safely in production](/guides/run-safely-in-prod/): The execution-side checklist your gateway service needs.
+- [HTTP API reference](/reference/http-api/): Every endpoint, request shape, and error code.
+- [Embed in a Node app](/guides/embed-in-node/): For when you want to skip HTTP and link the library directly.

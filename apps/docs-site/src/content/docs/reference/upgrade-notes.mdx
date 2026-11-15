@@ -5,9 +5,7 @@ description: "What to change in your app for each AskDB release, newest first: b
 
 import InstallTabs from "../../../components/InstallTabs.astro";
 
-<p class="doc-eyebrow">Reference · Releases</p>
-
-<p class="doc-lede">What each AskDB release asks of your app, newest first. Each section lists only the changes that need something from you, and the package CHANGELOGs list everything else. <a href="/guides/upgrading/">Upgrade AskDB</a> says how to apply them.</p>
+What each AskDB release asks of your app, newest first. Each section lists only the changes that need something from you, and the package CHANGELOGs list everything else. [Upgrade AskDB](/guides/upgrading/) says how to apply them.
 
 ## 1.0.0-rc.2
 
@@ -946,7 +944,7 @@ If you bundle your app with webpack 5, the build fails with `Module not found` f
 
 The `ai` config now separates provider connections from model choice (ADR 0016). `ai.providerConfig` holds only connections: keys, endpoints and Azure resources. The language model moves to `ai.language`, and the embedding model behind `rag.embedder: "ai"` moves to `ai.embedding`:
 
-```ts
+```ts title="askdb.config.ts"
 // Before
 ai: {
   provider: "openai",
@@ -1077,8 +1075,6 @@ This wrapper works on Postgres and SQLite only. [Cap the rows a query returns](/
 
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/guides/upgrading/"><strong>Upgrade AskDB</strong><span>Upgrade the packages, apply these notes oldest first, and check the result.</span></a>
-  <a href="/reference/packages/"><strong>Packages</strong><span>What each package does, its peers, and the removed packages.</span></a>
-  <a href="/guides/troubleshooting/"><strong>Fix common errors</strong><span>Common errors and how to fix them.</span></a>
-</div>
+- [Upgrade AskDB](/guides/upgrading/): Upgrade the packages, apply these notes oldest first, and check the result.
+- [Packages](/reference/packages/): What each package does, its peers, and the removed packages.
+- [Fix common errors](/guides/troubleshooting/): Common errors and how to fix them.

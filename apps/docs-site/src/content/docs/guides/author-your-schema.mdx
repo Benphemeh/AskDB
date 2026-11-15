@@ -3,11 +3,10 @@ title: "Enrich your schema"
 description: "Use Studio to enrich your introspected schema with descriptions, aliases, concepts, sensitive markers, and tenant policy."
 ---
 
-import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+import { Aside, FileTree, Tabs, TabItem } from "@astrojs/starlight/components";
+import AgentPrompt from "../../../components/AgentPrompt.astro";
 
-<p class="doc-eyebrow">Schema author guide</p>
-
-<p class="doc-lede">Raw introspection gives the model structure, which may be enough for simple schemas and simple queries. Enrichment is what gives it real meaning and context: descriptions, business concepts, and domain phrasing that make generation reliable.</p>
+Raw introspection gives the model structure, which may be enough for simple schemas and simple queries. Enrichment is what gives it real meaning and context: descriptions, business concepts, and domain phrasing that make generation reliable.
 
 <Aside type="tip">Studio is the recommended way to enrich your schema: a local browser UI that edits your schema artifact directly. You can also edit the artifact's files by hand, in the [schema artifact format](/reference/schema-artifact-format/).</Aside>
 
@@ -25,6 +24,18 @@ npx askdb studio
 
 The command opens the schema directory in `introspection.outputDir` from `askdb.config.ts`, or `./askdb/` when that isn't set. Pass `--schema <dir>` to open another directory for this run. By default Studio serves on `http://127.0.0.1:5556`; `studio.listen.port` and `studio.listen.host` change that. It reads and writes the files in your schema folder directly — no separate database, no separate copy of your schema.
 
+<FileTree>
+
+- askdb/
+  - schema.json (the physical layer, written by `askdb introspect`)
+  - tables/
+    - orders.md (one file for each table you describe)
+    - users.md
+  - concepts.md (business concepts that span tables)
+  - tenant-policy.md (the tenant policy)
+
+</FileTree>
+
 Write descriptions in plain language, with the words your users say: AskDB folds them into the prompt next to the tables and columns they describe ([What the model actually receives](/concepts/the-schema-artifact/#what-the-model-actually-receives)). What you can edit, all of it optional:
 
 - **Tables.** Per-table description, aliases (the names users actually use), and a "common query language" section that captures domain phrasing.
@@ -39,6 +50,27 @@ If you work with a coding agent, give it the [askdb-enrich-schema skill](/skills
 ## Example: extend the Quickstart's shop
 
 The [Quickstart](/quickstart/)'s three tables need no enrichment, because the model answers from their column names alone. This example adds two tables whose meaning the names don't carry, then fixes a wrong answer with enrichment. Run it in the Quickstart's `askdb-shop` folder, with its SQLite `shop.db`. The dates are stored as text, so on the Quickstart's Postgres fallback the SQL the model writes differs from the SQL shown here.
+
+<figure>
+
+```mermaid
+flowchart TB
+  %% Source of truth: the steps below, and the schema artifact layout in
+  %% reference/schema-artifact-format.mdx (askdb introspect writes only schema.json).
+  introspect["askdb introspect<br/>writes schema.json"]
+  enrich["Enrich in Studio<br/>writes tables/*.md and concepts.md"]
+  ask["askdb ask --question"]
+  check{"Is the SQL right?"}
+  commit["Commit the schema artifact"]
+  introspect --> enrich
+  enrich --> ask
+  ask --> check
+  check -- "no: add the missing meaning" --> enrich
+  check -- "yes" --> commit
+```
+
+<figcaption>The enrich-and-test loop. Introspect once, then enrich and ask until the SQL is right, then commit the artifact.</figcaption>
+</figure>
 
 ### 1. Add plans and subscriptions
 
@@ -220,10 +252,22 @@ The bundle file is the entire artifact in one JSON. Load it with `loadSchema` th
 
 The schema artifact is source code. Check it into the repo, review changes in PRs, deploy it alongside your app. The artifact is the single source of truth for what the model sees about your database.
 
+## Use with your agent
+
+<AgentPrompt>
+
+Enrich this project's schema artifact. Follow https://askdb.tools/guides/author-your-schema.md, and use the askdb-enrich-schema skill at https://askdb.tools/skills/askdb-enrich-schema/SKILL.md if you have it.
+
+Goal: write descriptions, aliases, enum notes, concepts and sensitive markers for the tables the model gets wrong, in `tables/*.md` and `concepts.md`.
+
+- Ask me what each ambiguous column means. Don't guess.
+- Keep enrichment in `tables/*.md` and `concepts.md`: re-running `askdb introspect` regenerates `schema.json` and preserves them. After a rename, put back any `"sensitive": true` mark it dropped.
+- AskDB returns SQL and never runs it.
+
+</AgentPrompt>
+
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/guides/multi-tenancy/"><strong>Multi-tenancy</strong><span>Declaring tenant roots and scoped tables in your artifact.</span></a>
-  <a href="/reference/schema-artifact-format/"><strong>Schema artifact format</strong><span>The on-disk format in detail.</span></a>
-  <a href="/guides/rag-for-large-schemas/"><strong>RAG for large schemas</strong><span>When your enriched artifact is too big for a single prompt.</span></a>
-</div>
+- [Multi-tenancy](/guides/multi-tenancy/): Declaring tenant roots and scoped tables in your artifact.
+- [Schema artifact format](/reference/schema-artifact-format/): The on-disk format in detail.
+- [RAG for large schemas](/guides/rag-for-large-schemas/): When your enriched artifact is too big for a single prompt.

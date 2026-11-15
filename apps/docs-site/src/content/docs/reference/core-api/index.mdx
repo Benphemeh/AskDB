@@ -5,22 +5,18 @@ description: "@askdb/core, the NL-to-SQL pipeline: a map of its API pages, where
 
 import AnchorRedirects from "../../../../components/AnchorRedirects.astro";
 
-<p class="doc-eyebrow">Reference · @askdb/core</p>
-
-<p class="doc-lede"><code>@askdb/core</code> is the NL-to-SQL pipeline. It owns schema loading, prompt construction, the built-in dialects, heuristic SQL checks, and tenant-scope validation and binding. Everything else in the AskDB ecosystem composes it.</p>
+`@askdb/core` is the NL-to-SQL pipeline. It owns schema loading, prompt construction, the built-in dialects, heuristic SQL checks, and tenant-scope validation and binding. Everything else in the AskDB ecosystem composes it.
 
 ## Pages
 
-<div class="home-path-grid">
-  <a href="/reference/core-api/ask/"><strong>ask()</strong><span>Options, result, how to run the SQL, the guardrail verdict, modes and the lower-level functions.</span></a>
-  <a href="/reference/core-api/rebind/"><strong>bindPreparedQuery()</strong><span>Rerun a stored query with new values, re-checked.</span></a>
-  <a href="/reference/core-api/tenancy/"><strong>Tenant scope</strong><span><code>TenantScope</code>, scope expansion, placeholders and the policy types.</span></a>
-  <a href="/reference/core-api/checks/"><strong>Checks</strong><span><code>validateSensitiveReferences()</code> and the other check functions.</span></a>
-  <a href="/reference/core-api/schema/"><strong>Schema loading</strong><span><code>loadSchema()</code>, the schema files, mentions and enrichment suggestions.</span></a>
-  <a href="/reference/core-api/dialects/"><strong>Dialects</strong><span>Built-in ids, <code>DialectSpec</code> and <code>AskDialect</code>.</span></a>
-  <a href="/reference/core-api/logging/"><strong>Logging</strong><span><code>createAskDbLogger()</code>, the log events and the log contract.</span></a>
-  <a href="/reference/core-api/errors/"><strong>Errors</strong><span>Every error class, with its rules and reasons.</span></a>
-</div>
+- [ask()](/reference/core-api/ask/): Options, result, how to run the SQL, the guardrail verdict, modes and the lower-level functions.
+- [bindPreparedQuery()](/reference/core-api/rebind/): Rerun a stored query with new values, re-checked.
+- [Tenant scope](/reference/core-api/tenancy/): `TenantScope`, scope expansion, placeholders and the policy types.
+- [Checks](/reference/core-api/checks/): `validateSensitiveReferences()` and the other check functions.
+- [Schema loading](/reference/core-api/schema/): `loadSchema()`, the schema files, mentions and enrichment suggestions.
+- [Dialects](/reference/core-api/dialects/): Built-in ids, `DialectSpec` and `AskDialect`.
+- [Logging](/reference/core-api/logging/): `createAskDbLogger()`, the log events and the log contract.
+- [Errors](/reference/core-api/errors/): Every error class, with its rules and reasons.
 
 ## Where to start
 
@@ -53,10 +49,8 @@ import AnchorRedirects from "../../../../components/AnchorRedirects.astro";
 
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/reference/client-api/"><strong>@askdb/client API</strong><span>The config-driven facade: <code>createAskDb()</code> and per-call overrides.</span></a>
-  <a href="/reference/rag-api/"><strong>@askdb/rag API</strong><span><code>buildSchemaIndex()</code>, embedders and vector stores.</span></a>
-  <a href="/guides/embed-in-node/"><strong>Embed in a Node app</strong><span>These APIs in a service, end to end.</span></a>
-</div>
+- [@askdb/client API](/reference/client-api/): The config-driven facade: `createAskDb()` and per-call overrides.
+- [@askdb/rag API](/reference/rag-api/): `buildSchemaIndex()`, embedders and vector stores.
+- [Embed in a Node app](/guides/embed-in-node/): These APIs in a service, end to end.
 
 <AnchorRedirects moved={{"askoptions":"ask/#askoptions","options":"ask/#options","result--askpipelineresult":"ask/#result--askpipelineresult","executing-the-result":"ask/#executing-the-result","guardrail-verdict":"ask/#guardrail-verdict","bindpreparedqueryprepared-values-guardrails":"rebind/#bindpreparedqueryprepared-values-guardrails","expandtenantscopepolicy-scope-resolvetenantdescendants":"tenancy/#expandtenantscopepolicy-scope-resolvetenantdescendants","expandclosureseedids-childrenof":"tenancy/#expandclosureseedids-childrenof","askusage":"ask/#askusage","guardrails":"checks/","validatesensitivereferencessql-schema-options":"checks/#validatesensitivereferencessql-schema-options","result--sensitiveguardrailresult":"checks/#result--sensitiveguardrailresult","options-1":"checks/#options","scope-resolution":"checks/#scope-resolution","modes":"checks/#modes","conservative-failure":"checks/#conservative-failure","schemahassensitiveidentifiersschema":"checks/#schemahassensitiveidentifiersschema","formatsensitivereferenceref":"checks/#formatsensitivereferenceref","schema-loading":"schema/","loadschemapath":"schema/#loadschemapath","loadschemafromjsonraw":"schema/#loadschemafromjsonraw","readschemadirectorydir":"schema/#readschemadirectorydir","findmentionednamestext-names-creatementionmatchernames-and-sensitivementionnamesschema":"schema/#findmentionednamestext-names-creatementionmatchernames-and-sensitivementionnamesschema","saveschemafileschemadir-relativepath-content":"schema/#saveschemafileschemadir-relativepath-content","enrichment-suggestions":"schema/#suggestenrichmenttarget-context-model-deps","suggestenrichmenttarget-context-model-deps":"schema/#suggestenrichmenttarget-context-model-deps","dialects":"dialects/","built-in-dialect-id":"dialects/#built-in-dialect-id","dialectspec":"dialects/#dialectspec","askdialect":"dialects/#askdialect","modes-1":"ask/#modes","logging":"logging/","createaskdbloggeroptions":"logging/#createaskdbloggeroptions","tenant-types":"tenancy/#tenant-types","tenantsqloutputmode":"tenancy/#tenantsqloutputmode","default_tenant_sql_mode":"tenancy/#default_tenant_sql_mode","tenantbinding":"tenancy/#tenantbinding","placeholderfortenantrootroot":"tenancy/#placeholderfortenantrootroot","buildtenantpromptblockpolicy-scope-prompt":"tenancy/#buildtenantpromptblockpolicy-scope-prompt","buildnltosqluserpromptdialect-question-schema-ambiguitynotes-logger-nltosqlschemaoptions-prebuiltddl-tenantpolicy-tenantscope-parameterize-prompttableids":"ask/#buildnltosqluserpromptdialect-question-schema-ambiguitynotes-logger-nltosqlschemaoptions-prebuiltddl-tenantpolicy-tenantscope-parameterize-prompttableids","formattenantpolicywarningwarning":"tenancy/#formattenantpolicywarningwarning","tenantscope":"tenancy/#tenantscope","errors":"errors/#errors","sqlvalidationerror-rules":"errors/#sqlvalidationerror-rules","tenantscopeerror-reasons":"errors/#tenantscopeerror-reasons","tenantguardrailerror-rules":"errors/#tenantguardrailerror-rules","sensitivereferenceerror-rules":"errors/#sensitivereferenceerror-rules","queryparametererror-reasons":"errors/#queryparametererror-reasons"}} />

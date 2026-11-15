@@ -1,21 +1,243 @@
 ---
-import heroVisualLight from "../assets/diagrams/askdb-hero-visual-long.svg?raw";
-import heroVisualDark from "../assets/diagrams/askdb-hero-visual-dark-long.svg?raw";
-
+/**
+ * The home page's hero art: a question goes in, AskDB reads your schema artifact and calls your
+ * model, the SQL checks run, and checked SQL comes out for your application to run. One inline
+ * SVG, colored from the tokens in src/styles/tokens.css, so it follows the theme toggle.
+ */
 const aria =
-	"Diagram of AskDB turning a natural language question into checked SQL, with connections to database, keys, runtime, and policy.";
+	"A question goes into AskDB. AskDB reads your schema artifact and calls your model, runs its SQL checks, and returns checked SQL. Your application runs it.";
 ---
 
-<div class="home-hero-diagram" data-home-hero-diagram role="img" aria-label={aria}>
-	<div class="home-hero-diagram-layer home-hero-diagram-layer--light" set:html={heroVisualLight} />
-	<div class="home-hero-diagram-layer home-hero-diagram-layer--dark" set:html={heroVisualDark} />
-</div>
+<svg class="home-hero-diagram" viewBox="0 0 440 476" role="img" aria-label={aria}>
+	<defs>
+		<radialGradient id="home-hero-glow" cx="50%" cy="50%" r="50%">
+			<stop offset="0%" class="hd-glow-in"></stop>
+			<stop offset="100%" class="hd-glow-out"></stop>
+		</radialGradient>
+		<marker id="home-hero-arrow" viewBox="0 0 8 8" refX="6.5" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+			<path d="M1 1.2 6.5 4 1 6.8" class="hd-arrowhead"></path>
+		</marker>
+	</defs>
+
+	<circle cx="220" cy="186" r="150" fill="url(#home-hero-glow)"></circle>
+
+	{/* The question */}
+	<rect x="40" y="6" width="360" height="62" rx="14" class="hd-card"></rect>
+	<circle cx="72" cy="37" r="14" class="hd-badge"></circle>
+	<text x="72" y="42.5" text-anchor="middle" class="hd-badge-text">?</text>
+	<text x="98" y="32.5" class="hd-text">Which active users signed up</text>
+	<text x="98" y="51" class="hd-text">in the last 30 days?</text>
+
+	<path d="M220 68V124" class="hd-flow" marker-end="url(#home-hero-arrow)"></path>
+
+	{/* Your schema artifact */}
+	<rect x="1" y="138" width="128" height="96" rx="12" class="hd-card"></rect>
+	<text x="15" y="161" class="hd-label">Schema artifact</text>
+	<text x="15" y="182" class="hd-mono">schema.json</text>
+	<text x="15" y="199" class="hd-mono">tables/*.md</text>
+	<text x="15" y="216" class="hd-mono">concepts.md</text>
+	<path d="M129 186H143" class="hd-link" marker-end="url(#home-hero-arrow)"></path>
+
+	{/* AskDB */}
+	<rect x="146" y="126" width="148" height="120" rx="16" class="hd-core"></rect>
+	<text x="220" y="184" text-anchor="middle" class="hd-wordmark">Ask<tspan class="hd-wordmark-db">DB</tspan></text>
+	<rect x="193" y="198" width="54" height="22" rx="6" class="hd-chip"></rect>
+	<text x="220" y="213" text-anchor="middle" class="hd-mono hd-mono-strong">ask()</text>
+
+	{/* Your model */}
+	<path d="M297 186H311" class="hd-link" marker-start="url(#home-hero-arrow)" marker-end="url(#home-hero-arrow)"></path>
+	<rect x="311" y="138" width="128" height="96" rx="12" class="hd-card"></rect>
+	<text x="325" y="161" class="hd-label">Your model</text>
+	<text x="325" y="182" class="hd-small">OpenAI · Anthropic</text>
+	<text x="325" y="199" class="hd-small">Google · Azure</text>
+	<text x="325" y="216" class="hd-small">any AI SDK model</text>
+
+	{/* The SQL checks, on the way out */}
+	<path d="M220 246V298" class="hd-flow" marker-end="url(#home-hero-arrow)"></path>
+	<rect x="112" y="259" width="216" height="24" rx="12" class="hd-pill"></rect>
+	<path d="m126.5 271 3 3 5.5-6" class="hd-tick"></path>
+	<text x="141" y="275" class="hd-small hd-small-strong">read-only · tenant · sensitive</text>
+
+	{/* Checked SQL */}
+	<rect x="1" y="300" width="438" height="174" rx="14" class="hd-code"></rect>
+	<text x="22" y="334" class="hd-sql"><tspan class="hd-kw">SELECT</tspan> id, name</text>
+	<text x="22" y="356" class="hd-sql"><tspan class="hd-kw">FROM</tspan> users</text>
+	<text x="22" y="378" class="hd-sql"><tspan class="hd-kw">WHERE</tspan> active = <tspan class="hd-lit">true</tspan></text>
+	<text x="22" y="400" class="hd-sql" xml:space="preserve">  <tspan class="hd-kw">AND</tspan> created_at &gt;= NOW() - <tspan class="hd-kw">INTERVAL</tspan> <tspan class="hd-lit">'30 days'</tspan>;</text>
+	<path d="M1 424H439" class="hd-rule"></path>
+	<circle cx="29" cy="449" r="8" class="hd-ok"></circle>
+	<path d="m25.2 449.2 2.7 2.7 4.9-5.4" class="hd-ok-tick"></path>
+	<text x="45" y="453.5" class="hd-small hd-small-strong">Checked SQL</text>
+	<text x="418" y="453.5" text-anchor="end" class="hd-small">your application runs it</text>
+</svg>
 
 <style>
-	.home-hero-diagram :global(svg) {
+	.home-hero-diagram {
 		display: block;
 		height: auto;
-		max-width: 100%;
-		vertical-align: middle;
+		overflow: visible;
+		width: 100%;
+	}
+
+	.hd-glow-in {
+		stop-color: var(--ask-accent);
+		stop-opacity: 0.16;
+	}
+
+	.hd-glow-out {
+		stop-color: var(--ask-accent);
+		stop-opacity: 0;
+	}
+
+	.hd-card,
+	.hd-pill {
+		fill: var(--ask-surface);
+		stroke: var(--ask-border-strong);
+	}
+
+	.hd-core {
+		fill: var(--ask-surface);
+		stroke: var(--ask-accent);
+		stroke-width: 1.5;
+	}
+
+	.hd-code {
+		fill: var(--ask-code-bg);
+		stroke: var(--ask-border-strong);
+	}
+
+	.hd-chip {
+		fill: var(--ask-surface-2);
+		stroke: var(--ask-border);
+	}
+
+	.hd-badge {
+		fill: var(--ask-accent-soft);
+	}
+
+	.hd-badge-text {
+		fill: var(--ask-accent);
+		font-family: var(--ask-font-display);
+		font-size: 15px;
+		font-weight: 700;
+	}
+
+	.hd-text {
+		fill: var(--ask-text);
+		font-family: var(--__sl-font);
+		font-size: 14px;
+		font-weight: 500;
+	}
+
+	.hd-label {
+		fill: var(--ask-text);
+		font-family: var(--__sl-font);
+		font-size: 12px;
+		font-weight: 600;
+	}
+
+	.hd-small {
+		fill: var(--ask-text-muted);
+		font-family: var(--__sl-font);
+		font-size: 11px;
+	}
+
+	.hd-small-strong {
+		fill: var(--ask-text);
+		font-weight: 500;
+	}
+
+	.hd-mono {
+		fill: var(--ask-text-muted);
+		font-family: var(--__sl-font-mono);
+		font-size: 10.5px;
+	}
+
+	.hd-mono-strong {
+		fill: var(--ask-text);
+		font-size: 11.5px;
+		font-weight: 500;
+	}
+
+	.hd-wordmark {
+		fill: var(--ask-text);
+		font-family: var(--ask-font-display);
+		font-size: 30px;
+		font-weight: 800;
+		letter-spacing: -0.03em;
+	}
+
+	.hd-wordmark-db {
+		fill: var(--ask-accent);
+	}
+
+	.hd-sql {
+		fill: var(--ask-text);
+		font-family: var(--__sl-font-mono);
+		font-size: 12.5px;
+	}
+
+	.hd-kw {
+		fill: var(--ask-accent);
+		font-weight: 600;
+	}
+
+	.hd-lit {
+		fill: var(--ask-ok);
+	}
+
+	.hd-flow,
+	.hd-link {
+		fill: none;
+		stroke: var(--ask-text-subtle);
+		stroke-width: 1.25;
+	}
+
+	.hd-flow {
+		stroke-dasharray: 3 4;
+	}
+
+	.hd-arrowhead {
+		fill: none;
+		stroke: var(--ask-text-subtle);
+		stroke-linecap: round;
+		stroke-linejoin: round;
+		stroke-width: 1.25;
+	}
+
+	.hd-rule {
+		stroke: var(--ask-border);
+	}
+
+	.hd-tick,
+	.hd-ok-tick {
+		fill: none;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+		stroke-width: 1.6;
+	}
+
+	.hd-tick {
+		stroke: var(--ask-ok);
+	}
+
+	.hd-ok {
+		fill: var(--ask-ok);
+	}
+
+	.hd-ok-tick {
+		stroke: var(--ask-surface);
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		.hd-flow {
+			animation: hd-flow 1.4s linear infinite;
+		}
+
+		@keyframes hd-flow {
+			to {
+				stroke-dashoffset: -14;
+			}
+		}
 	}
 </style>

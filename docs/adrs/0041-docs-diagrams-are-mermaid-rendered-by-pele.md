@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (2026-11-07, the maintainer's Round 16, Q41 → A). Supersedes [ADR 0034](0034-docs-diagrams-are-d2-rendered-at-build-time.md). Amended 2026-11-07: the pin moves to pele 1.10.0. Amended 2026-11-11: the pin moves to pele 1.13.0 (see Decision).
+Accepted (2026-11-07, the maintainer's Round 16, Q41 → A). Supersedes [ADR 0034](0034-docs-diagrams-are-d2-rendered-at-build-time.md). Amended 2026-11-07: the pin moves to pele 1.10.0. Amended 2026-11-11: the pin moves to pele 1.13.0 (see Decision). Amended 2026-11-14 by [ADR 0050](0050-docs-pages-are-markdown-first-with-a-markdown-twin.md): the `--pele-*` mapping is in `src/styles/content.css` and the font stacks in `src/styles/tokens.css`, where this ADR says `custom.css`.
 
 ## Context
 

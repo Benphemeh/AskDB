@@ -3,18 +3,17 @@ title: "Configuration reference"
 description: "Every askdb.config.ts key, with its type and default, the environment variables askdb init writes, and how a setting's value is decided."
 ---
 
-<p class="doc-eyebrow">Reference · Configuration</p>
-
-<p class="doc-lede"><code>askdb.config.ts</code> holds every setting the CLI, Studio, the HTTP API and <code>createAskDb()</code> read. Environment variables reach it through <code>env()</code> calls in the file. This page lists each key. To load the config in your own code, see the <a href="/reference/config-api/">@askdb/config API</a>.</p>
+`askdb.config.ts` holds every setting the CLI, Studio, the HTTP API and `createAskDb()` read. Environment variables reach it through `env()` calls in the file. This page lists each key. To load the config in your own code, see the [@askdb/config API](/reference/config-api/).
 
 ## `askdb.config.ts`
 
-`askdb init` scaffolds this file. It uses `defineConfig` for type safety:
+`askdb init` scaffolds this file. It uses `defineConfig` for type safety. The comments name what each top-level block configures:
 
-```ts
+```ts title="askdb.config.ts"
 import { defineConfig, env } from "@askdb/config";
 
 export default defineConfig({
+  // ai: provider connections and models (The `ai` block)
   ai: {
     provider: "openai",
     providerConfig: {
@@ -23,6 +22,7 @@ export default defineConfig({
     language: { model: env("OPENAI_MODEL") },
     embedding: { model: "text-embedding-3-small" },
   },
+  // introspection: what `askdb introspect` reads and writes
   introspection: {
     provider: "postgres",
     providerConfig: {
@@ -30,6 +30,7 @@ export default defineConfig({
     },
     outputDir: "./my-app.schema",
   },
+  // rag: optional, experimental retrieval for large schemas
   rag: {
     embedder: "ai",
     store: "pgvector",
@@ -37,6 +38,7 @@ export default defineConfig({
       pgvector: { databaseUrl: env("PGVECTOR_URL") },
     },
   },
+  // logging: structured log defaults
   logging: {
     level: "info",
   },
@@ -52,18 +54,18 @@ export default defineConfig({
 
 ## All top-level fields
 
-| Field | Required | What it configures |
+| Field | Default | What it configures |
 | --- | --- | --- |
-| `ai` | yes | Provider connections (`provider`, `providerConfig`), the language model (`language`) and the embedding model (`embedding`). See [The `ai` block](#the-ai-block) and [Bring your own model](/guides/bring-your-own-model/). |
-| `introspection` | yes | The engine `askdb introspect` reads (`provider`), its connection (`providerConfig`), the output directory (`outputDir`) and the schemas to read (`schemas`). See [The `introspection` block](#the-introspection-block). |
-| `dialect` | no | Overrides the NL-to-SQL dialect: `postgres`, `cockroachdb`, `mysql`, `mariadb`, `sqlite` or `sqlserver`. When unset, it's inferred from the schema artifact's recorded provider. See [`dialect`](#dialect). |
-| `rag` | no | Experimental. The embedder (`mock`, or `ai` for the `ai.embedding` model), the vector store (`file`, `memory`, `pgvector`) and the store's options. Omit it when you don't use retrieval: AskDB then uses the mock embedder and the in-memory store. See [The `rag` block](#the-rag-block). |
-| `modes` | no | `askdbMode` (`schema_only` default, `bounded_results`) and `omitSensitiveFromPrompt` (default `false`). Both are floors: a CLI flag, a client call, or an HTTP request can tighten them, never loosen them. See [`modes` and `host`](#modes-and-host). |
-| `host` | no | `schemaPath` or `schemaJson`: the default schema artifact for `createAskDb` and the HTTP API. See [`modes` and `host`](#modes-and-host). |
-| `logging` | no | The level, log file and stdout copy of the structured logs from the CLI and the HTTP API server, and the CLI's correlation ID. See [`logging` and `dev`](#logging-and-dev). |
-| `dev` | no | `mockSql`: fixed SQL in place of the model call, for tests. See [`logging` and `dev`](#logging-and-dev). |
-| `studio` | no | Experimental. Studio's listen address and the Query Playground's `execute` block. See [The `studio` block](#the-studio-block). |
-| `httpApi` | no | The HTTP API server's listen address, schema override and request timeout. See [The `httpApi` block](#the-httpapi-block). |
+| `ai` | required | Provider connections (`provider`, `providerConfig`), the language model (`language`) and the embedding model (`embedding`). See [The `ai` block](#the-ai-block) and [Bring your own model](/guides/bring-your-own-model/). |
+| `introspection` | required | The engine `askdb introspect` reads (`provider`), its connection (`providerConfig`), the output directory (`outputDir`) and the schemas to read (`schemas`). See [The `introspection` block](#the-introspection-block). |
+| `dialect` | optional | Overrides the NL-to-SQL dialect: `postgres`, `cockroachdb`, `mysql`, `mariadb`, `sqlite` or `sqlserver`. When unset, it's inferred from the schema artifact's recorded provider. See [`dialect`](#dialect). |
+| `rag` | optional | Experimental. The embedder (`mock`, or `ai` for the `ai.embedding` model), the vector store (`file`, `memory`, `pgvector`) and the store's options. Omit it when you don't use retrieval: AskDB then uses the mock embedder and the in-memory store. See [The `rag` block](#the-rag-block). |
+| `modes` | optional | `askdbMode` (`schema_only` default, `bounded_results`) and `omitSensitiveFromPrompt` (default `false`). Both are floors: a CLI flag, a client call, or an HTTP request can tighten them, never loosen them. See [`modes` and `host`](#modes-and-host). |
+| `host` | optional | `schemaPath` or `schemaJson`: the default schema artifact for `createAskDb` and the HTTP API. See [`modes` and `host`](#modes-and-host). |
+| `logging` | optional | The level, log file and stdout copy of the structured logs from the CLI and the HTTP API server, and the CLI's correlation ID. See [`logging` and `dev`](#logging-and-dev). |
+| `dev` | optional | `mockSql`: fixed SQL in place of the model call, for tests. See [`logging` and `dev`](#logging-and-dev). |
+| `studio` | optional | Experimental. Studio's listen address and the Query Playground's `execute` block. See [The `studio` block](#the-studio-block). |
+| `httpApi` | optional | The HTTP API server's listen address, schema override and request timeout. See [The `httpApi` block](#the-httpapi-block). |
 
 A config without `ai` or `introspection` fails to load, with an error that names the file and the missing block. That includes a config you only use for `askdb introspect`: it still needs an `ai` block.
 
@@ -390,7 +392,5 @@ Environment variables don't override the config file from the outside — they f
 
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/reference/cli/"><strong>CLI reference</strong><span>How each CLI command resolves config and flags.</span></a>
-  <a href="/reference/config-api/"><strong>@askdb/config API</strong><span>Load the config in your own code, and read the checked settings.</span></a>
-</div>
+- [CLI reference](/reference/cli/): How each CLI command resolves config and flags.
+- [@askdb/config API](/reference/config-api/): Load the config in your own code, and read the checked settings.

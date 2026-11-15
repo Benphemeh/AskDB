@@ -3,9 +3,7 @@ title: "@askdb/core API reference: dialects"
 description: "The dialect option of ask(): the built-in dialect ids and their specs, DialectSpec for a variant of a built-in engine, and AskDialect for your own generator."
 ---
 
-<p class="doc-eyebrow">Reference · @askdb/core</p>
-
-<p class="doc-lede">The <code>dialect</code> option of <code>ask()</code> accepts three forms: a built-in dialect id, a <code>DialectSpec</code> for a variant of a built-in engine, or an <code>AskDialect</code> that generates SQL itself. The table below lists the engine each id covers, and <a href="/concepts/modes-and-dialects/">Modes and dialects</a> explains what a dialect does.</p>
+The `dialect` option of `ask()` accepts three forms: a built-in dialect id, a `DialectSpec` for a variant of a built-in engine, or an `AskDialect` that generates SQL itself. The table below lists the engine each id covers, and [Modes and dialects](/concepts/modes-and-dialects/) explains what a dialect does.
 
 ## Built-in dialect id
 
@@ -43,19 +41,19 @@ const redshiftFlavor: DialectSpec = {
 };
 ```
 
-| Field | Type | Required | Description |
+| Field | Type | Default | Description |
 | --- | --- | --- | --- |
-| `id` | `DialectId` | yes | One of the six built-in ids — the engine family this spec belongs to. |
-| `displayName` | `string` | yes | Human-readable name. |
-| `promptBrief` | `string` | yes | One-paragraph guidance for the model about this dialect's syntax. |
-| `identifierQuote` | `'"' \| '`'` | yes | Identifier quoting style. The prompt quotes names the way `id`'s engine does, not with this field. |
-| `reservedWords` | `readonly string[]` | no | Words the engine reserves, case-insensitive. The prompt lists a schema, table or column with one of these names quoted. The built-in specs set their engine's list; spread one to keep it, since setting the field replaces the list. |
-| `unqualifiedNamespace` | `string` | no | A namespace that isn't a schema in this engine. When it is the schema's only namespace, the prompt lists its tables without it and tells the model never to write `<namespace>.<table>`; next to other namespaces (a MySQL database list that includes a database named `public`) it stays qualified. The SQLite, MySQL and MariaDB specs set `SINGLE_NAMESPACE_LABEL` (`"public"`), the namespace their connectors give the database's tables; spread one to keep it. |
-| `extraForbiddenKeywords` | `readonly string[]` | no | Keywords to forbid in addition to the shared read-only denylist. |
-| `blockedFunctions` | `readonly string[]` | no | Functions `validateSelectSql` rejects when called (`name(`), such as `pg_sleep` or `load_file`. |
-| `extraValidate` | `(sql: string) => void` | no | A dialect-specific SQL check. Throw `SqlValidationError` for failures. |
-| `listBinding` | `"array" \| "expand"` | no | How a list value binds in `unboundSql`. `"array"` binds the whole list to one marker (`= ANY($1)`), so the marker count doesn't change with the list length. `"expand"` binds one marker per item (`IN (?, ?, ?)`). Default `"expand"` when unset. `POSTGRES_DIALECT` and `COCKROACHDB_DIALECT` set `"array"`, and the other built-in specs set `"expand"`. |
-| `backslashEscapes` | `boolean` | no | Whether a backslash escapes a quote inside `'…'` strings on your server. The built-in specs set the engine default (`true` for MySQL and MariaDB, `false` otherwise). Set `false` for MySQL or MariaDB with `NO_BACKSLASH_ESCAPES`, and `true` for Postgres with `standard_conforming_strings = off`. The checks lex strings this way, and the business values `bindPreparedQuery()` inlines are escaped to match. Tenant IDs are never escaped for the dialect: they are driver parameters by default, and `"sql-only"` refuses an ID that would need escaping. See [Match your server's string settings](/guides/match-server-string-settings/). |
+| `id` | `DialectId` | required | One of the six built-in ids — the engine family this spec belongs to. |
+| `displayName` | `string` | required | Human-readable name. |
+| `promptBrief` | `string` | required | One-paragraph guidance for the model about this dialect's syntax. |
+| `identifierQuote` | `'"' \| '`'` | required | Identifier quoting style. The prompt quotes names the way `id`'s engine does, not with this field. |
+| `reservedWords` | `readonly string[]` | optional | Words the engine reserves, case-insensitive. The prompt lists a schema, table or column with one of these names quoted. The built-in specs set their engine's list; spread one to keep it, since setting the field replaces the list. |
+| `unqualifiedNamespace` | `string` | optional | A namespace that isn't a schema in this engine. When it is the schema's only namespace, the prompt lists its tables without it and tells the model never to write `<namespace>.<table>`; next to other namespaces (a MySQL database list that includes a database named `public`) it stays qualified. The SQLite, MySQL and MariaDB specs set `SINGLE_NAMESPACE_LABEL` (`"public"`), the namespace their connectors give the database's tables; spread one to keep it. |
+| `extraForbiddenKeywords` | `readonly string[]` | optional | Keywords to forbid in addition to the shared read-only denylist. |
+| `blockedFunctions` | `readonly string[]` | optional | Functions `validateSelectSql` rejects when called (`name(`), such as `pg_sleep` or `load_file`. |
+| `extraValidate` | `(sql: string) => void` | optional | A dialect-specific SQL check. Throw `SqlValidationError` for failures. |
+| `listBinding` | `"array" \| "expand"` | optional | How a list value binds in `unboundSql`. `"array"` binds the whole list to one marker (`= ANY($1)`), so the marker count doesn't change with the list length. `"expand"` binds one marker per item (`IN (?, ?, ?)`). Default `"expand"` when unset. `POSTGRES_DIALECT` and `COCKROACHDB_DIALECT` set `"array"`, and the other built-in specs set `"expand"`. |
+| `backslashEscapes` | `boolean` | optional | Whether a backslash escapes a quote inside `'…'` strings on your server. The built-in specs set the engine default (`true` for MySQL and MariaDB, `false` otherwise). Set `false` for MySQL or MariaDB with `NO_BACKSLASH_ESCAPES`, and `true` for Postgres with `standard_conforming_strings = off`. The checks lex strings this way, and the business values `bindPreparedQuery()` inlines are escaped to match. Tenant IDs are never escaped for the dialect: they are driver parameters by default, and `"sql-only"` refuses an ID that would need escaping. See [Match your server's string settings](/guides/match-server-string-settings/). |
 
 `id` also selects how the SQL checks read strings, quoted names and comments: see [How the checks read SQL](/reference/sql-checks/#how-the-checks-read-sql). The built-in specs ship their own `extraForbiddenKeywords` and `blockedFunctions`; spread one (`{ ...POSTGRES_DIALECT, … }`) to keep them, since setting either field replaces the built-in list. These checks are defense in depth — run generated SQL under a read-only database role.
 
@@ -109,8 +107,6 @@ Passing an unknown string dialect id, or a `DialectSpec` whose `id` isn't one of
 
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/guides/switch-engines/"><strong>Switch engines</strong><span>Move a schema and its queries to another engine.</span></a>
-  <a href="/guides/match-server-string-settings/"><strong>Match your server's string settings</strong><span>Set <code>backslashEscapes</code> to match your server.</span></a>
-  <a href="/reference/core-api/ask/"><strong>ask()</strong><span>Pass the dialect to <code>ask()</code>.</span></a>
-</div>
+- [Switch engines](/guides/switch-engines/): Move a schema and its queries to another engine.
+- [Match your server's string settings](/guides/match-server-string-settings/): Set `backslashEscapes` to match your server.
+- [ask()](/reference/core-api/ask/): Pass the dialect to `ask()`.

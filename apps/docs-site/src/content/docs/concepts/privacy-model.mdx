@@ -3,9 +3,17 @@ title: "Privacy model"
 description: "What AskDB sends to your model provider, what stays in your stack, and what you control."
 ---
 
-<p class="doc-eyebrow">What crosses the boundary</p>
+AskDB sends the model the question and text from your schema artifact, plus your tenant policy and the caller's scope context when you use one. It never reads your rows, your credentials or your query results, so it can't send them.
 
-<p class="doc-lede">AskDB sends the model the question and text from your schema artifact, plus your tenant policy and the caller's scope context when you use one. It never reads your rows, your credentials or your query results, so it can't send them.</p>
+| Sent to your model provider | Never sent |
+| --- | --- |
+| The user's question | Your database rows |
+| Schema context from the schema artifact | Database credentials |
+| Your tenant policy and the caller's scope, when the schema has a tenant policy, with tenant IDs as placeholders | Query results |
+| Hints AskDB derives from the question and the schema | Tenant IDs |
+| Dialect cues and output rules | User identifiers, session tokens and request headers, unless you put one in the question or in `tenantScope.context` |
+
+The two sections below give the detail of each column.
 
 ## What the model sees
 
@@ -89,3 +97,9 @@ Studio is the one place AskDB keeps them, on your machine: its Playground saves 
 ## In one sentence
 
 AskDB lets you put a natural-language interface in front of your database without putting your rows, your credentials, or your results in front of a model.
+
+## Read next
+
+- [Safety boundaries](/concepts/safety-boundaries/): Why the SQL checks are defense in depth, and what keeps generated SQL safe.
+- [Keep sensitive columns out of prompts](/guides/keep-sensitive-columns-out-of-prompts/): Mark sensitive tables and columns, leave them out of every prompt, and check the generated SQL for them.
+- [How AskDB works](/concepts/how-askdb-works/): The end-to-end flow from question to checked SQL.

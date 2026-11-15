@@ -3,9 +3,7 @@ title: "@askdb/client API reference"
 description: "Full API reference for @askdb/client: createAskDb(), AskDbClient, per-call overrides, and errors."
 ---
 
-<p class="doc-eyebrow">Reference · @askdb/client</p>
-
-<p class="doc-lede"><code>@askdb/client</code> is a config-driven facade over <code>@askdb/core</code>. <code>createAskDb()</code> resolves the schema, model, and dialect from <code>askdb.config.*</code>, so call sites pass only a question.</p>
+`@askdb/client` is a config-driven facade over `@askdb/core`. `createAskDb()` resolves the schema, model, and dialect from `askdb.config.*`, so call sites pass only a question.
 
 The experimental `@askdb/client/charts` entry point, for planning a chart from a query result, has [its own page](/reference/client-charts-api/).
 
@@ -37,16 +35,16 @@ Install the AI SDK package for the provider your config selects, for example `@a
 
 ### Options — `CreateAskDbOptions`
 
-| Field | Type | Required | Description |
+| Field | Type | Default | Description |
 | --- | --- | --- | --- |
-| `config` | `AskDbRuntimeConfig` | yes | Runtime config snapshot from `getAskDbRuntimeConfig()`. Call `bootstrapAskDbEnv()` at startup first. |
-| `providers` | `AiProviderAdapters` | no | Which providers the client can build models for. Default: every provider built into `@askdb/ai` (`openai`, `anthropic`, `google`, `azure`/`foundry`, `gateway`). Pass built-in names to restrict the set (`["openai"]`) or `AiProviderAdapter` objects to add custom providers; both can be mixed. |
-| `registry` | `AiRegistry` | no | Prebuilt registry from `createAiRegistry(...)` — advanced alternative to `providers` (e.g. to share one registry across clients). Pass at most one of `providers` or `registry`: passing both throws an `Error` from `createAskDb()`. Build it with the `@askdb/ai` version `@askdb/client` depends on: one from an older `@askdb/ai` has no section methods. |
-| `schema` | `SchemaSource` | no | Default schema source. Falls back to `host.schemaJson`, then `host.schemaPath`, from `askdb.config.ts`. With none of the three, the first call throws [`SchemaNotConfiguredError`](#errors). |
-| `dialect` | `BuiltInDialectId` | no | Default dialect override. Falls back to `dialect` in `askdb.config.ts`, then `schema.provider`, then `"postgres"` when the schema records no provider. |
-| `unknownDialect` | `"throw" \| "fallback-postgres"` | no | What to do when no dialect is set and `schema.provider` isn't a built-in dialect id. Default `"throw"`: `ask()` throws [`DialectNotSupportedError`](#errors). `"fallback-postgres"` uses `"postgres"` and reports it in `DialectResolution.note`. |
-| `reasoningEffort` | `ReasoningEffort` | no | `"minimal"`, `"low"`, `"medium"` or `"high"`. The default reasoning effort for this client's `ask()` calls. It takes precedence over `ai.language.reasoning` in `askdb.config.ts` (see [Reasoning effort](/reference/config/#reasoning-effort)), and a per-call `reasoningEffort` takes precedence over it. |
-| `onResolve` | `(info: { dialect: DialectResolution; modelSource: "override" \| "registry" \| "mock" }) => void` | no | Called on every `ask()` call after the schema, dialect and model resolve, before the model call. Useful for logging which dialect and model were chosen. `bind()` doesn't call it. |
+| `config` | `AskDbRuntimeConfig` | required | Runtime config snapshot from `getAskDbRuntimeConfig()`. Call `bootstrapAskDbEnv()` at startup first. |
+| `providers` | `AiProviderAdapters` | optional | Which providers the client can build models for. Default: every provider built into `@askdb/ai` (`openai`, `anthropic`, `google`, `azure`/`foundry`, `gateway`). Pass built-in names to restrict the set (`["openai"]`) or `AiProviderAdapter` objects to add custom providers; both can be mixed. |
+| `registry` | `AiRegistry` | optional | Prebuilt registry from `createAiRegistry(...)` — advanced alternative to `providers` (e.g. to share one registry across clients). Pass at most one of `providers` or `registry`: passing both throws an `Error` from `createAskDb()`. Build it with the `@askdb/ai` version `@askdb/client` depends on: one from an older `@askdb/ai` has no section methods. |
+| `schema` | `SchemaSource` | optional | Default schema source. Falls back to `host.schemaJson`, then `host.schemaPath`, from `askdb.config.ts`. With none of the three, the first call throws [`SchemaNotConfiguredError`](#errors). |
+| `dialect` | `BuiltInDialectId` | optional | Default dialect override. Falls back to `dialect` in `askdb.config.ts`, then `schema.provider`, then `"postgres"` when the schema records no provider. |
+| `unknownDialect` | `"throw" \| "fallback-postgres"` | optional | What to do when no dialect is set and `schema.provider` isn't a built-in dialect id. Default `"throw"`: `ask()` throws [`DialectNotSupportedError`](#errors). `"fallback-postgres"` uses `"postgres"` and reports it in `DialectResolution.note`. |
+| `reasoningEffort` | `ReasoningEffort` | optional | `"minimal"`, `"low"`, `"medium"` or `"high"`. The default reasoning effort for this client's `ask()` calls. It takes precedence over `ai.language.reasoning` in `askdb.config.ts` (see [Reasoning effort](/reference/config/#reasoning-effort)), and a per-call `reasoningEffort` takes precedence over it. |
+| `onResolve` | `(info: { dialect: DialectResolution; modelSource: "override" \| "registry" \| "mock" }) => void` | optional | Called on every `ask()` call after the schema, dialect and model resolve, before the model call. Useful for logging which dialect and model were chosen. `bind()` doesn't call it. |
 
 `modelSource` says where the model came from: `"override"` for a per-call `model`, `"mock"` for a per-call `deps.generateText` or `dev.mockSql` in `askdb.config.ts`, and `"registry"` for a model built from `ai` in the config.
 
@@ -72,6 +70,15 @@ type DialectResolution = {
 `note` is set when the config dialect and the schema's `provider` disagree (the config wins), and when `"fallback-postgres"` applies. `askdb ask` prints it to stderr as `Note: …`.
 
 ### `resolveDialect(schema, options?)`
+
+```ts
+import { resolveDialect } from "@askdb/client";
+
+resolveDialect(
+  schema: AnyNormalizedSchema,
+  options?: { override?: AskDialectInput; configDialect?: BuiltInDialectId; unknownDialect?: "throw" | "fallback-postgres" },
+): DialectResolution
+```
 
 The rule `createAskDb()`'s `ask()` runs to pick a dialect, exported so a host that calls `@askdb/core`'s `ask()` itself picks it the same way (Studio does). It returns a [`DialectResolution`](#dialectresolution) and reads no config: pass the values in.
 
@@ -206,8 +213,6 @@ type AskDbClient = {
 
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/reference/core-api/"><strong>@askdb/core API</strong><span><code>ask()</code> options and result types in full.</span></a>
-  <a href="/reference/config/"><strong>Configuration reference</strong><span>All <code>askdb.config.*</code> fields and environment variables.</span></a>
-  <a href="/guides/embed-in-node/"><strong>Embed in a Node app</strong><span>End-to-end walkthrough using both the direct and client paths.</span></a>
-</div>
+- [@askdb/core API](/reference/core-api/): `ask()` options and result types in full.
+- [Configuration reference](/reference/config/): All `askdb.config.*` fields and environment variables.
+- [Embed in a Node app](/guides/embed-in-node/): End-to-end walkthrough using both the direct and client paths.

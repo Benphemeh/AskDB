@@ -5,9 +5,7 @@ description: "Every @askdb/* package: purpose, when to install, and what it expo
 
 import InstallTabs from "../../../components/InstallTabs.astro";
 
-<p class="doc-eyebrow">Reference · Packages</p>
-
-<p class="doc-lede">AskDB is a workspace of focused packages. Install the ones your use case needs. This page is the index — purpose, install, and key exports for each. <a href="/reference/versioning/">Versioning and stability</a> lists which packages are on 1.0 and what each version bump means.</p>
+AskDB is a workspace of focused packages. Install the ones your use case needs. This page is the index — purpose, install, and key exports for each. [Versioning and stability](/reference/versioning/) lists which packages are on 1.0 and what each version bump means.
 
 ## Core
 
@@ -272,12 +270,10 @@ Reusable packages stay small and layered. First-party surfaces (CLI, Studio, HTT
 
 ## What to install — by use case
 
-<div class="home-path-grid">
-  <a href="/quickstart/"><strong>Just trying it out</strong><span><code>askdb</code> alone is enough to introspect a database, enrich, and ask from the CLI. Add <code>@askdb/prisma</code> to read a Prisma schema file.</span></a>
-  <a href="/guides/embed-in-node/"><strong>Embedding in a Node service</strong><span><code>@askdb/client</code> + <code>@askdb/core</code> + <code>@askdb/config</code> + <code>ai</code> + an AI SDK provider package such as <code>@ai-sdk/openai</code>.</span></a>
-  <a href="/guides/deploy-as-http-service/"><strong>Standing up an HTTP service</strong><span>Add <code>@askdb/http-api</code> on top of the embedding install.</span></a>
-  <a href="/guides/rag-for-large-schemas/"><strong>Working with a large schema</strong><span>Add <code>@askdb/rag</code> and a vector store (pgvector recommended).</span></a>
-</div>
+- [Just trying it out](/quickstart/): `askdb` alone is enough to introspect a database, enrich, and ask from the CLI. Add `@askdb/prisma` to read a Prisma schema file.
+- [Embedding in a Node service](/guides/embed-in-node/): `@askdb/client` + `@askdb/core` + `@askdb/config` + `ai` + an AI SDK provider package such as `@ai-sdk/openai`.
+- [Standing up an HTTP service](/guides/deploy-as-http-service/): Add `@askdb/http-api` on top of the embedding install.
+- [Working with a large schema](/guides/rag-for-large-schemas/): Add `@askdb/rag` and a vector store (pgvector recommended).
 
 ## Removed packages
 
@@ -295,13 +291,11 @@ The `@askdb/ai-*` packages only re-exported `@askdb/ai`'s built-in providers. `c
 
 ## Read next
 
-<div class="home-path-grid">
-  <a href="/reference/core-api/"><strong>@askdb/core API</strong><span>Full <code>ask()</code> options, result fields, dialects, modes, and logging.</span></a>
-  <a href="/reference/client-api/"><strong>@askdb/client API</strong><span><code>createAskDb()</code> and per-call overrides.</span></a>
-  <a href="/reference/rag-api/"><strong>@askdb/rag API</strong><span><code>buildSchemaIndex()</code>, embedders, and vector stores.</span></a>
-  <a href="/reference/cli/"><strong>CLI reference</strong><span>The askdb binary in detail.</span></a>
-  <a href="/reference/http-api/"><strong>HTTP API reference</strong><span>Endpoints, request and response shapes.</span></a>
-  <a href="/reference/config/"><strong>Configuration reference</strong><span>defineConfig and the env-var matrix.</span></a>
-  <a href="/reference/versioning/"><strong>Versioning and stability</strong><span>The 1.0 set, the 0.x set, and what each version bump means.</span></a>
-  <a href="/reference/upgrade-notes/"><strong>Upgrade notes by release</strong><span>What to change in your app for each release.</span></a>
-</div>
+- [@askdb/core API](/reference/core-api/): Full `ask()` options, result fields, dialects, modes, and logging.
+- [@askdb/client API](/reference/client-api/): `createAskDb()` and per-call overrides.
+- [@askdb/rag API](/reference/rag-api/): `buildSchemaIndex()`, embedders, and vector stores.
+- [CLI reference](/reference/cli/): The askdb binary in detail.
+- [HTTP API reference](/reference/http-api/): Endpoints, request and response shapes.
+- [Configuration reference](/reference/config/): defineConfig and the env-var matrix.
+- [Versioning and stability](/reference/versioning/): The 1.0 set, the 0.x set, and what each version bump means.
+- [Upgrade notes by release](/reference/upgrade-notes/): What to change in your app for each release.
