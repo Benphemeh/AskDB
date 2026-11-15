@@ -22,9 +22,10 @@ You need Node.js 22.23.4 or newer.
 - `askdb/schema.json`: the schema artifact `askdb introspect` wrote for that database.
 - `to-echarts.mjs`: `toEChartsOption(spec, rows)`, the mapping from a chart spec to an ECharts option. The guide shows this file.
 - `chart.mjs`: the whole flow, with two model calls: `ask()`, then `planChart()`. It writes `chart.svg`.
-- `recorded/run.json`: one real run of `chart.mjs`, with its date and model: the question, the SQL, the rows, the classified result, the prompt `planChart()` sent, and the chart plan it returned. The guide shows this run.
+- `first-chart.mjs`: the script the tutorial [Chart your first answer](https://askdb.tools/chart-your-first-answer/) builds, as it is after the last step. It runs in the Quickstart's project folder, where it reads `shop.db` and `askdb/`, with `to-echarts.mjs` next to it.
+- `recorded/run.json`: one real run of `chart.mjs`, with its date and model: the question, the SQL, the rows, the classified result, the prompt `planChart()` sent, and the chart plan it returned. The tutorial and the guide show this run.
 - `draw-recorded.mjs`: draws the recorded run again, in ECharts' light and dark themes. It makes no model call.
-- `chart.test.mjs`: checks with no model call, such as that the prompt holds no value from the rows.
+- `chart.test.mjs`: checks with no model call, such as that the prompt holds no value from the rows. One runs `first-chart.mjs` against a local stand-in for the model provider, which answers with the recorded SQL and plan.
 
 ## Draw the recorded run, with no API key
 

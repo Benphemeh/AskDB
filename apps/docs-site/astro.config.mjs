@@ -167,6 +167,7 @@ export default defineConfig({
           items: [
             { label: "Overview", slug: "index" },
             { label: "Quickstart", slug: "quickstart" },
+            { label: "Chart your first answer", slug: "chart-your-first-answer", badge: { text: "Experimental", variant: "caution" } },
             { label: "Install", slug: "install" },
             { label: "Studio tour", slug: "studio" },
           ],

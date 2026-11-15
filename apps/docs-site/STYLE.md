@@ -64,7 +64,7 @@ Model wiring has two first-party paths: `@askdb/ai`'s built-in providers (`creat
 
 | Sidebar section | Diátaxis type | Folder |
 |---|---|---|
-| Start | Tutorial (Quickstart), plus orientation pages, each of one type: Overview (explanation), Install (how-to), Studio (a tutorial-style tour of its views) | root |
+| Start | Tutorials (Quickstart, then Chart your first answer), plus orientation pages, each of one type: Overview (explanation), Install (how-to), Studio (a tutorial-style tour of its views) | root |
 | Guides | How-to guides, in groups by the reader's task: Build, Run in production, Tenancy, Maintain, Integrations | `guides/`, `guides/integrations/` |
 | Concepts | Explanation | `concepts/` |
 | Reference | Reference, in groups: Surfaces (CLI, HTTP API, configuration), Formats and rules, Packages and releases, APIs | `reference/` |

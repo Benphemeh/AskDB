@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # The chart example (examples/chart-a-result) runs from the packed packages: install, then its
-# own keyless tests (`node --test`), which draw the recorded chart plan with ECharts and check
-# the packed @askdb/client/charts against the recorded run. No test calls a model, so no API
-# key is needed. apps/docs-site/scripts/check-chart-example.test.mjs checks the example's files
-# against the guide's code blocks.
+# own keyless tests (`node --test`), which draw the recorded chart plan with ECharts, check
+# the packed @askdb/client/charts against the recorded run, and run the tutorial's script
+# (first-chart.mjs) against a local stand-in for the model provider. No test calls a model, so
+# no API key is needed. apps/docs-site/scripts/check-chart-example.test.mjs checks the example's
+# files against the code blocks of the tutorial and the guide.
 #
 # Usage: chart-example.sh <tarball-dir> <work-dir>
 #
@@ -21,7 +22,7 @@ DIR="$(cd "$2" && pwd -P)/askdb-chart"
 mkdir "$DIR"
 
 # The example's tracked files only, not node_modules or an SVG from a local run.
-for file in package.json shop.sql to-echarts.mjs chart.mjs draw-recorded.mjs chart.test.mjs; do
+for file in package.json shop.sql to-echarts.mjs chart.mjs first-chart.mjs draw-recorded.mjs chart.test.mjs; do
   cp "$EXAMPLE/$file" "$DIR/$file"
 done
 cp -R "$EXAMPLE/askdb" "$EXAMPLE/recorded" "$DIR/"

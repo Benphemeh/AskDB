@@ -2,8 +2,15 @@
 // If a change to @askdb/client/charts fails one, recorded/run.json and the guide that shows it
 // (https://askdb.tools/guides/plan-a-chart/) are out of date.
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { execFile } from "node:child_process";
+import { cpSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { createServer } from "node:http";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
+import { inspect } from "node:util";
 import { classifyResult, planChart, validateChartSpec } from "@askdb/client/charts";
 import * as echarts from "echarts";
 import { drawRecorded } from "./draw-recorded.mjs";
@@ -97,5 +104,69 @@ test("toEChartsOption() maps every chart type onto an option ECharts accepts", (
     chart.dispose();
     assert.ok(svg.includes(">2026-01<") || type === "pie", `${type}: no category label`);
     assert.ok(svg.includes("<path"), `${type}: nothing drawn`);
+  }
+});
+
+/**
+ * A local stand-in for the model provider's API, so first-chart.mjs runs unchanged with no key.
+ * It answers ask()'s request with the recorded SQL and planChart()'s with the recorded plan, in
+ * the shape of an OpenAI Responses API reply.
+ */
+function standInProvider() {
+  const requests = [];
+  const server = createServer((request, response) => {
+    let body = "";
+    request.on("data", (chunk) => (body += chunk));
+    request.on("end", () => {
+      requests.push(body);
+      const text = body.includes("You plan a chart") ? JSON.stringify({ ...plan, alternate: null }) : "```sql\n" + sql + "\n```";
+      response.setHeader("content-type", "application/json");
+      response.end(
+        JSON.stringify({
+          id: "resp_recorded",
+          object: "response",
+          created_at: 1763164800,
+          status: "completed",
+          error: null,
+          incomplete_details: null,
+          model: JSON.parse(body).model,
+          output: [{ type: "message", id: "msg_recorded", status: "completed", role: "assistant", content: [{ type: "output_text", text, annotations: [] }] }],
+          usage: { input_tokens: 1, input_tokens_details: { cached_tokens: 0 }, output_tokens: 1, output_tokens_details: { reasoning_tokens: 0 }, total_tokens: 2 },
+        }),
+      );
+    });
+  });
+  return new Promise((resolve) => server.listen(0, "127.0.0.1", () => resolve({ server, requests })));
+}
+
+test("first-chart.mjs, the tutorial's script, prints the recorded run and draws its chart", async () => {
+  // The Quickstart's project, as far as the script reads it: shop.db and the schema artifact.
+  const project = mkdtempSync(join(tmpdir(), "askdb-first-chart-"));
+  const { server, requests } = await standInProvider();
+  try {
+    new DatabaseSync(join(project, "shop.db")).exec(readFileSync(new URL("./shop.sql", import.meta.url), "utf8"));
+    cpSync(new URL("./askdb", import.meta.url), join(project, "askdb"), { recursive: true });
+    const stdout = await new Promise((resolve, reject) => {
+      execFile(
+        process.execPath,
+        [fileURLToPath(new URL("./first-chart.mjs", import.meta.url))],
+        { cwd: project, env: { ...process.env, OPENAI_API_KEY: "no-key", OPENAI_MODEL: "", OPENAI_BASE_URL: `http://127.0.0.1:${server.address().port}/v1` } },
+        (error, out, err) => (error ? reject(new Error(`${error.message}\n${err}`)) : resolve(out)),
+      );
+    });
+    assert.equal(requests.length, 2, "one request for ask() and one for planChart()");
+    for (const row of rows) for (const value of Object.values(row)) assert.ok(!requests[1].includes(String(value)), `planChart()'s request holds ${value}`);
+    assert.ok(stdout.startsWith(`${sql}\n`), "the SQL comes first");
+    for (const row of rows) assert.match(stdout, new RegExp(`│ '${row.name}'\\s*│ ${String(row.total_spent).replace(".", "\\.")}\\s*│`));
+    assert.ok(stdout.includes(`${inspect(result.shape)}\n`), "result.shape, as console.log prints it");
+    for (const [field, value] of Object.entries(plan.primary)) assert.ok(stdout.includes(`    ${field}: ${inspect(value)}`), `the chart spec's ${field}`);
+    assert.ok(stdout.includes("  source: 'model',\n"), "the plan's source");
+    assert.ok(stdout.endsWith("Wrote chart.svg\n"));
+    const svg = readFileSync(join(project, "chart.svg"), "utf8");
+    for (const row of rows) assert.ok(svg.includes(`>${row.name}<`), `no label for ${row.name}`);
+    assert.ok(svg.includes(plan.primary.title));
+  } finally {
+    server.close();
+    rmSync(project, { recursive: true, force: true });
   }
 });
