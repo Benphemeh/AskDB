@@ -3,7 +3,7 @@ title: "Enrich your schema"
 description: "Use Studio to enrich your introspected schema with descriptions, aliases, concepts, sensitive markers, and tenant policy."
 ---
 
-import { Aside } from "@astrojs/starlight/components";
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
 
 <p class="doc-eyebrow">Schema author guide</p>
 
@@ -38,7 +38,7 @@ If you work with a coding agent, give it the [askdb-enrich-schema skill](/skills
 
 ## Example: extend the Quickstart's shop
 
-The [Quickstart](/quickstart/)'s three tables need no enrichment, because the model answers from their column names alone. This example adds two tables whose meaning the names don't carry, then fixes a wrong answer with enrichment. Run it in the Quickstart's `askdb-shop` folder.
+The [Quickstart](/quickstart/)'s three tables need no enrichment, because the model answers from their column names alone. This example adds two tables whose meaning the names don't carry, then fixes a wrong answer with enrichment. Run it in the Quickstart's `askdb-shop` folder, with its SQLite `shop.db`. The dates are stored as text, so on the Quickstart's Postgres fallback the SQL the model writes differs from the SQL shown here.
 
 ### 1. Add plans and subscriptions
 
@@ -81,12 +81,34 @@ console.log("Added plans and subscriptions to shop.db");
 
 Run it, then introspect again so the schema artifact has the new tables:
 
+<Tabs syncKey="pkg">
+  <TabItem label="npm">
+
 ```bash
 node extend-shop.mjs
 npx askdb introspect
 ```
 
-`askdb introspect` prints `Wrote askdb/schema.json: 5 tables (sqlite).` If you used the Quickstart's Postgres fallback, load the file with `docker exec -i askdb-shop-db psql -U postgres < extend-shop.sql` instead of `node extend-shop.mjs`.
+  </TabItem>
+  <TabItem label="pnpm">
+
+```bash
+node extend-shop.mjs
+pnpm exec askdb introspect
+```
+
+  </TabItem>
+  <TabItem label="yarn">
+
+```bash
+node extend-shop.mjs
+yarn askdb introspect
+```
+
+  </TabItem>
+</Tabs>
+
+`askdb introspect` prints `Wrote askdb/schema.json: 5 tables (sqlite).`
 
 ### 2. Ask a question the names can't answer
 
