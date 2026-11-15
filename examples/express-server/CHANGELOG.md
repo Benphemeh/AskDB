@@ -1,5 +1,12 @@
 # askdb-express-server-example
 
+## 0.0.2-rc.15
+
+### Patch Changes
+
+- @askdb/client@1.0.0-rc.2
+  - @askdb/config@1.0.0-rc.2
+
 ## 0.0.2-rc.14
 
 ### Patch Changes

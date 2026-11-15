@@ -1,5 +1,11 @@
 # @askdb/client
 
+## 1.0.0-rc.2
+
+### Patch Changes
+
+- @askdb/ai@1.0.0-rc.2
+
 ## 1.0.0-rc.1
 
 ### Major Changes

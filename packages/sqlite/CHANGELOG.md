@@ -1,5 +1,16 @@
 # @askdb/sqlite
 
+## 1.0.0-rc.2
+
+### Patch Changes
+
+- a7fdcce: SQLite introspection now writes `"nullable": false` for an `INTEGER PRIMARY KEY` column, so the prompt reads `id INTEGER (PK NOT NULL)` instead of `id INTEGER (PK NULL)` (#962). SQLite's `PRAGMA table_info` reports such a column as nullable unless `NOT NULL` is written out, but it aliases `rowid` and can never hold NULL. Other primary keys keep the nullability SQLite reports: on a rowid table they do accept NULL, an old SQLite bug kept for compatibility, and a `WITHOUT ROWID` table's key is already reported as `NOT NULL`.
+- Updated dependencies [b7c6c0f]
+- Updated dependencies [73c9c7d]
+- Updated dependencies [197e1c0]
+  - @askdb/core@1.0.0-rc.2
+  - @askdb/introspect@1.0.0-rc.2
+
 ## 1.0.0-rc.1
 
 ### Major Changes

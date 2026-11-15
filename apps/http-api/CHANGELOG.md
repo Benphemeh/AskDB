@@ -1,5 +1,22 @@
 # @askdb/http-api
 
+## 1.0.0-rc.2
+
+### Minor Changes
+
+- 70fe6ad: `POST /ask` answers a question the model declines with `422` and the new error code `question_declined`, with `error.reason`, the model's one-line reason, which `error.message` also ends with (#949). `AskHttpErrorResponse` adds `question_declined` to `error.code` and an optional `error.reason`.
+  
+  Upgrade notes: clients that switch over `error.code` can add a case for `question_declined`.
+
+### Patch Changes
+
+- Updated dependencies [b7c6c0f]
+- Updated dependencies [73c9c7d]
+  - @askdb/core@1.0.0-rc.2
+  - @askdb/client@1.0.0-rc.2
+  - @askdb/ai@1.0.0-rc.2
+  - @askdb/config@1.0.0-rc.2
+
 ## 1.0.0-rc.1
 
 ### Major Changes
