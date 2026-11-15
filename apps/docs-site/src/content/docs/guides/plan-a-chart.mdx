@@ -18,7 +18,7 @@ The model gets the question, the SQL and the column kinds, never a row. AskDB dr
 <figure class="doc-chart">
   <Image src={chartLight} alt="A horizontal bar chart titled Total Spending by Customers (Highest First). Grace 398, Margaret 377, Ada 138.99, Linus 49.99." class="dark:sl-hidden" />
   <Image src={chartDark} alt="A horizontal bar chart titled Total Spending by Customers (Highest First). Grace 398, Margaret 377, Ada 138.99, Linus 49.99." class="light:sl-hidden" />
-  <figcaption>The chart for "How much has each customer spent in total, highest first?" on the Quickstart's shop database. <code>planChart()</code> returned the chart type, the two columns, the title and the description, from gpt-4o-mini on 2026-11-15. The application drew it with ECharts from its own 4 rows.</figcaption>
+  <figcaption>The chart for "How much has each customer spent in total, highest first?" on the Quickstart's shop database. <code>planChart()</code> returned the chart type, the two columns, the title and the description, from gpt-4o-mini on 2026-11-15. The example drew it with ECharts from that run's 4 rows.</figcaption>
 </figure>
 
 ## Who does what
@@ -65,9 +65,9 @@ flowchart TB
 - A charting library. This guide uses [Apache ECharts](https://echarts.apache.org/); step 4 says what changes for another one.
 - Room for one more model call per chart, after the call `ask()` makes.
 
-Install `@askdb/client`, which holds the `@askdb/client/charts` entry point, and ECharts. The entry point imports only `@askdb/core` and `ai`, which your service already has. `@askdb/config` is a peer of `@askdb/client`.
+Install `@askdb/client`, which holds the `@askdb/client/charts` entry point, and ECharts. The entry point imports only `@askdb/core` and `ai`, and `@askdb/config` is a peer of `@askdb/client`. A service from [Embed in a Node app](/guides/embed-in-node/) has all of these but ECharts, and the package for its model.
 
-<InstallTabs pkgs="@askdb/client @askdb/config echarts" />
+<InstallTabs pkgs="@askdb/client @askdb/core @askdb/config ai echarts" />
 
 The whole flow, on the Quickstart's shop database, is in <ExampleLink path="examples/chart-a-result" />. Its `draw-recorded.mjs` draws the chart above with no API key. The output in each step below is from that example's recorded run.
 
@@ -256,7 +256,7 @@ if (!spec) {
 }
 ```
 
-The page then shows the chart at the top of this guide. The rows reach the browser from your own API, the way they reach a table. The chart spec can go with them: it holds no row.
+Your page then shows a chart like the one at the top of this guide. The rows reach the browser from your own API, the way they reach a table. The chart spec can go with them: it holds no row.
 
 If you use another library, map the same five fields. Chart.js, Recharts and Vega-Lite also take an array of row objects and a column name for each axis: `parsing.xAxisKey` and `parsing.yAxisKey` in Chart.js, `dataKey` in Recharts, and `encoding.x.field` in Vega-Lite.
 

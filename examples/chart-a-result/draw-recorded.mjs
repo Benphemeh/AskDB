@@ -1,6 +1,6 @@
 // Draws the recorded run (recorded/run.json) with ECharts, in its light and dark themes.
 // It needs no API key and makes no model call: the chart plan and the rows are in the file.
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, realpathSync, writeFileSync } from "node:fs";
 import * as echarts from "echarts";
 import { toEChartsOption } from "./to-echarts.mjs";
 
@@ -15,7 +15,9 @@ export function drawRecorded(theme = null) {
   return svg;
 }
 
-if (import.meta.filename === process.argv[1]) {
+// Node resolves symbolic links in `import.meta.filename`, so resolve them in the script's path too:
+// macOS reaches /tmp and /var through one.
+if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
   writeFileSync("chart-light.svg", drawRecorded());
   writeFileSync("chart-dark.svg", drawRecorded("dark"));
   console.log("Wrote chart-light.svg and chart-dark.svg");

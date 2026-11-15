@@ -34,6 +34,8 @@ node draw-recorded.mjs
 
 It writes `chart-light.svg` and `chart-dark.svg`. Open either in a browser.
 
+The docs guide shows these two files. After you record a new run or change `to-echarts.mjs`, copy them to `apps/docs-site/src/assets/charts/total-spent-light.svg` and `total-spent-dark.svg`. No check compares them.
+
 ## Run it with your model
 
 Set an OpenAI API key, then run the flow:
