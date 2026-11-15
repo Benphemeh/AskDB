@@ -11,7 +11,7 @@ import InstallTabs from "../../../components/InstallTabs.astro";
 import chartLight from "../../../assets/charts/total-spent-light.svg";
 import chartDark from "../../../assets/charts/total-spent-dark.svg";
 
-AskDB returns SQL, and your application runs it. `@askdb/client/charts` then asks your model which chart fits that result, and returns a chart spec. Your application draws the chart from its own rows, with its own charting library.
+AskDB returns SQL, and your application runs it. This guide turns those rows into a chart. `@askdb/client/charts` asks your model which chart fits the result. It returns a chart spec, a small object that names the chart type and columns. Your application draws the chart from its own rows, with its own charting library.
 
 The model gets the question, the SQL and the column kinds, never a row. AskDB draws nothing.
 
@@ -20,7 +20,7 @@ If this is new to you, start with the tutorial [Chart your first answer](/chart-
 <figure class="doc-chart">
   <Image src={chartLight} alt="A horizontal bar chart titled Total Spending by Customers (Highest First). Grace 398, Margaret 377, Ada 138.99, Linus 49.99." class="dark:sl-hidden" />
   <Image src={chartDark} alt="A horizontal bar chart titled Total Spending by Customers (Highest First). Grace 398, Margaret 377, Ada 138.99, Linus 49.99." class="light:sl-hidden" />
-  <figcaption>The chart for "How much has each customer spent in total, highest first?" on the Quickstart's shop database. <code>planChart()</code> returned the chart type, the two columns, the title and the description, from gpt-4o-mini on 2026-11-15. The example drew it with ECharts from that run's 4 rows.</figcaption>
+  <figcaption>The chart answers one question on the Quickstart's shop database: "How much has each customer spent in total, highest first?" <code>planChart()</code> returned the chart type, the two columns, the title and the description, from gpt-4o-mini on 2026-11-15. The example drew it with ECharts from that run's 4 rows.</figcaption>
 </figure>
 
 ## Who does what
@@ -55,7 +55,7 @@ plan -> draw: checked chart spec
 run -> draw: rows
 ```
 
-<figcaption>The rows go from your application's query to <code>classifyResult()</code>, which runs in your process, and to your own charting library. <code>planChart()</code> sends your model the question, the SQL with <code>?</code> for every value, and the column names and kinds. It checks the chart spec the model returns, and your application draws that spec.</figcaption>
+<figcaption>The rows go to two places: <code>classifyResult()</code>, which runs in your process, and your own charting library. <code>planChart()</code> sends your model three things. They are the question, the SQL with <code>?</code> for every value, and the column names and kinds. It checks the chart spec the model returns, and your application draws that spec.</figcaption>
 </figure>
 
 [Chart planning](/concepts/chart-planning/) explains the design: what the model never sees, what the checks refuse, what a chart costs, and when to skip the planner.
@@ -71,7 +71,10 @@ run -> draw: rows
 - A charting library. This guide uses [Apache ECharts](https://echarts.apache.org/); step 4 says what changes for another one.
 - Room for one more model call per chart, after the call `ask()` makes.
 
-Install `@askdb/client`, which holds the `@askdb/client/charts` entry point, and ECharts. The entry point imports only `@askdb/core` and `ai`, and `@askdb/config` is a peer of `@askdb/client`. A service from [Embed in a Node app](/guides/embed-in-node/) has all of these but ECharts, and the package for its model.
+Install `@askdb/client`, which holds the `@askdb/client/charts` entry point, and ECharts. A service from [Embed in a Node app](/guides/embed-in-node/) has all of these but ECharts, and the package for its model. Two details on the packages:
+
+- **Imports.** The entry point imports only `@askdb/core` and `ai`.
+- **Peer.** `@askdb/config` is a peer of `@askdb/client`.
 
 <InstallTabs pkgs="@askdb/client @askdb/core @askdb/config ai echarts" />
 
@@ -186,7 +189,13 @@ The recorded run returned this plan:
 }
 ```
 
-`plan.primary` is the chart spec: a `type`, the `category` column, the `series` columns, a `title` and a `description`. It names columns of your result and holds no data. The model picks it, so yours can differ.
+`plan.primary` is the chart spec. It names columns of your result and holds no data. The model picks it, so yours can differ. The spec has five fields:
+
+- `type`
+- `category`, the column that labels each bar, slice or point
+- `series`, the columns to plot
+- `title`
+- `description`
 
 ## 4. Draw the chart from your rows
 
@@ -264,7 +273,11 @@ if (!spec) {
 
 Your page then shows a chart like the one at the top of this guide. The rows reach the browser from your own API, the way they reach a table. The chart spec can go with them: it holds no row.
 
-If you use another library, map the same five fields. Chart.js, Recharts and Vega-Lite also take an array of row objects and a column name for each axis: `parsing.xAxisKey` and `parsing.yAxisKey` in Chart.js, `dataKey` in Recharts, and `encoding.x.field` in Vega-Lite.
+If you use another library, map the same five fields. Chart.js, Recharts and Vega-Lite also take an array of row objects and a column name for each axis. The option that names the column:
+
+- **Chart.js.** `parsing.xAxisKey` and `parsing.yAxisKey`.
+- **Recharts.** `dataKey`.
+- **Vega-Lite.** `encoding.x.field`.
 
 ## 5. Handle a fallback and a result with no chart
 
@@ -284,7 +297,7 @@ If you store a chart spec and draw it later from new rows, classify the new resu
 
 ## Keep sensitive columns out of the prompt
 
-If you keep sensitive columns out of prompts (`modes.omitSensitiveFromPrompt`), pass that setting as `omitSensitiveIdentifiers`, with the schema artifact as `schema`, as `ask()` takes it. The model then gets no SQL that mentions a sensitive column, and a result column named like one is shown under a `column_<n>` label. `planChart()` maps the label in the model's answer back to the real name.
+Some projects keep sensitive columns out of prompts with `modes.omitSensitiveFromPrompt`. If you do, pass that setting to `planChart()` too, as `omitSensitiveIdentifiers`, with the schema artifact as `schema`. `ask()` takes it the same way. The model then gets no SQL that mentions a sensitive column. A result column named like one is shown under a `column_<n>` label, and `planChart()` maps the label in the model's answer back to the real name.
 
 ```ts
 const plan = await planChart({ question, sql, result, model, dialect: "sqlite", schema, omitSensitiveIdentifiers: true });

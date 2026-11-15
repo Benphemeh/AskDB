@@ -5,9 +5,9 @@ description: "Why AskDB's SQL checks are defense in depth and not a security bou
 
 import { Aside } from "@astrojs/starlight/components";
 
-AskDB checks every SQL string the model returns before handing it back to your application. The checks are heuristics that catch common model mistakes. They are defense in depth, not a security boundary.
+A model can return SQL that you didn't ask for, so AskDB checks every SQL string before it hands it to your application. The checks are heuristics that catch common model mistakes. They are defense in depth, not a security boundary.
 
-The database role your application uses to run the SQL is the boundary.
+AskDB returns SQL and never runs it. The database role your application uses to run the SQL is the boundary.
 
 <figure>
 
@@ -41,22 +41,26 @@ AskDB does not parse SQL. Its checks are token- and pattern-based and can be byp
 
 ## What AskDB checks
 
-Before `ask()` returns, it runs up to three checks on the model's SQL. [SQL checks reference](/reference/sql-checks/) gives each one's rules, and how it reads SQL on each engine.
+Take a model reply of `SELECT * FROM orders; DELETE FROM orders`. It holds two statements, and the second one writes, so `ask()` refuses it with `SqlValidationError`. That refusal comes from one of up to three checks that `ask()` runs on the model's SQL before it returns. [SQL checks reference](/reference/sql-checks/) gives each one's rules, and how it reads SQL on each engine.
 
-- **The read-only check** makes sure the SQL is one query that reads: it starts with `SELECT` or `WITH`, holds one statement and no comments, and has no write, DDL, locking or side-effecting keyword or function. It runs for a built-in dialect or a `DialectSpec`, and always refuses what it catches. A custom `AskDialect` skips it.
-- **The tenant check** runs when your schema has a tenant policy and the scope isn't `global`, under every dialect. It makes sure each tenant-scoped table the SQL reads is filtered by its tenant placeholder, and refuses or reports SQL that isn't, as your policy's `enforcement` says. See [What the tenant check requires](/reference/tenant-policy/#what-the-tenant-check-requires).
-- **The sensitive check** runs when your schema marks tables or columns `sensitive`. It reports the SQL that reads one, or refuses it in `"strict"` mode.
+- **The read-only check** makes sure the SQL is one query that reads. The SQL starts with `SELECT` or `WITH`, and holds one statement and no comments. It has no write, DDL, locking or side-effecting keyword or function. The check runs for a built-in dialect or a `DialectSpec`, and always refuses what it catches. A custom `AskDialect` skips it.
+- **The tenant check** runs when your schema has a tenant policy and the scope isn't `global`, under every dialect. A tenant policy is the file that says which tables belong to a tenant. The scope is the set of tenant IDs your application lets this caller see, and a `global` scope is deliberately unscoped. The check makes sure each tenant-scoped table the SQL reads is filtered by its tenant placeholder, such as `:tenant_organization_ids`. SQL that isn't gets refused or reported, as the policy's `enforcement` says: `strict` refuses and `warn` reports. See [What the tenant check requires](/reference/tenant-policy/#what-the-tenant-check-requires).
+- **The sensitive check** runs when your schema marks tables or columns `sensitive`. By default it reports the SQL that reads one, and in `"strict"` mode it refuses it.
 
-The checks split SQL into tokens and skip strings, quoted names and comments, so a keyword inside one doesn't count. They read a `$` in a name, a dollar-quoted string's tag and where a comment ends the way each engine does. They read backslashes in strings under each engine's default setting, and a MySQL-family `DialectSpec` with `backslashEscapes` unset reads as escapes on, the server default. If your server reads strings differently, set the dialect to match: see [Match your server's string settings](/guides/match-server-string-settings/). Rebinding a stored query with `bindPreparedQuery()` runs all three checks again, under the schema and scope you pass then.
+The checks split SQL into tokens and skip strings, quoted names and comments. So a keyword inside one doesn't count: a column named `"delete"` passes the read-only check. Three details follow from how they read SQL:
+
+- **Engine rules.** They read a `$` in a name, a dollar-quoted string's tag and where a comment ends the way each engine does.
+- **Backslashes.** They read backslashes in strings under each engine's default setting. A MySQL-family `DialectSpec` with `backslashEscapes` unset reads as escapes on, the server default. If your server reads strings differently, set the dialect to match: see [Match your server's string settings](/guides/match-server-string-settings/).
+- **Rebinding.** A stored query is a template from an earlier `ask()` that you run again with new values. Rebinding one with `bindPreparedQuery()` runs all three checks again, under the schema and scope you pass then.
 
 ### What these checks don't do
 
 - **No SQL parsing.** AskDB splits SQL into tokens but doesn't build a syntax tree, so it can't tell whether the SQL is valid for your engine. Your database reports syntax errors when you run the query.
 - **No guarantee they read SQL as your engine does.** Where a check reads a string, a name or a comment differently from the engine, SQL can pass that the engine runs differently. Each mismatch found is a public `security-hardening` bug, fixed in a normal release and listed in its release notes. Plan for ones not found yet.
-- **No system-schema filtering.** Queries against `pg_catalog`, `information_schema`, MySQL's `mysql` schema, SQL Server's `sys`, and so on are not rejected. What they return depends on your database's privileges, and on Postgres every role can read the catalog metadata (see [System catalogs](/guides/run-safely-in-prod/#system-catalogs)).
-- **No query rewriting.** AskDB never adds a tenant filter, a row limit, or a timeout to the SQL. The only change it makes to the tenant predicate is binding: it replaces the `:tenant_*_ids` placeholders the model wrote with your scope's IDs (escaped literals or driver parameter markers), and with several IDs it turns `=` into `IN (…)` and `!=` or `<>` into `NOT IN (…)`.
+- **No system-schema filtering.** AskDB doesn't reject a query against a system schema, such as `pg_catalog` or `information_schema`. The same holds for MySQL's `mysql` schema, SQL Server's `sys`, and so on. What they return depends on your database's privileges, and on Postgres every role can read the catalog metadata (see [System catalogs](/guides/run-safely-in-prod/#system-catalogs)).
+- **No query rewriting.** AskDB never adds a tenant filter, a row limit, or a timeout to the SQL. Its only change to the tenant predicate is binding. It replaces the `:tenant_*_ids` placeholders the model wrote with your scope's IDs, as escaped literals or driver parameter markers. With several IDs, it turns `=` into `IN (…)`. In the same case, it turns `!=` or `<>` into `NOT IN (…)`.
 - **No complete side-effect analysis.** The function denylist covers known built-in functions only. A call to one of your own functions that writes and a very expensive join both pass.
-- **No control over the locks a plain read takes.** Like the other checks, the locking-read check is defense in depth: it looks for locking words, not at the locks a statement takes. Your connection's isolation level still decides what a plain `SELECT` locks. On SQL Server, `REPEATABLE READ` and `SERIALIZABLE` hold shared locks on what a `SELECT` read until the transaction ends, and on MySQL and MariaDB, `SERIALIZABLE` reads every plain `SELECT` in a transaction as `FOR SHARE`. Run generated SQL in a short transaction with a lock timeout.
+- **No control over the locks a plain read takes.** Like the other checks, the locking-read check is defense in depth: it looks for locking words, not at the locks a statement takes. Your connection's isolation level still decides what a plain `SELECT` locks. On SQL Server, `REPEATABLE READ` and `SERIALIZABLE` hold shared locks on what a `SELECT` read until the transaction ends. On MySQL and MariaDB, `SERIALIZABLE` reads every plain `SELECT` in a transaction as `FOR SHARE`. Run generated SQL in a short transaction with a lock timeout.
 - **No complete tenant or sensitive coverage.** The tenant check doesn't check that joined scoped tables share a scope, and it checks a root reached through the hierarchy as a root only when the scope names it. The sensitive check can miss a table in some `FROM` forms, so a wildcard over it goes unreported. [SQL checks reference](/reference/sql-checks/) lists the known cases.
 
 A way past the checks is a bug, and we fix it. Still, plan for the checks to miss things.

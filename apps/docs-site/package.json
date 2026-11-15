@@ -9,12 +9,13 @@
     "preview": "astro preview",
     "dev": "astro dev --host 127.0.0.1 --port 4310",
     "lint": "astro check",
-    "test": "pnpm run test:errors && pnpm run test:exports && pnpm run test:diagrams && pnpm run test:markdown && pnpm run test:examples && ASTRO_BASE=/ pnpm run build && pnpm run test:links",
+    "test": "pnpm run test:errors && pnpm run test:exports && pnpm run test:diagrams && pnpm run test:markdown && pnpm run test:examples && pnpm run test:prose && ASTRO_BASE=/ pnpm run build && pnpm run test:links",
     "test:diagrams": "node --test ./plugins/remark-diagram.test.mjs ./plugins/remark-mermaid.test.mjs ./plugins/remark-link-cards.test.mjs",
     "test:examples": "node --test ./scripts/check-chart-example.test.mjs",
     "test:errors": "node --test ./scripts/check-error-reference.test.mjs && node ./scripts/check-error-reference.mjs",
     "test:exports": "node --test ./scripts/check-export-coverage.test.mjs && node ./scripts/check-export-coverage.mjs",
     "test:links": "node --test ./scripts/check-link-targets.test.mjs && node ./scripts/check-base-links.mjs / && node ./scripts/check-link-targets.mjs / && node ./scripts/check-markdown-twins.mjs /",
+    "test:prose": "node --test ./scripts/check-prose.test.mjs && node ./scripts/check-prose.mjs",
     "test:markdown": "node --test ./src/utils/markdown-twin.test.mjs ./src/utils/html-to-markdown.test.mjs ./src/utils/llms-txt.test.mjs ./scripts/check-markdown-twins.test.mjs"
   },
   "engines": {

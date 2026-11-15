@@ -2,17 +2,17 @@
 const items = [
   {
     title: "Your rows never reach the model",
-    body: "AskDB sends the question and your schema artifact — never your rows, your credentials, or your query results. The model writes SQL blind to your data.",
+    body: "AskDB sends the model the question and your schema artifact. It never sends your rows, your credentials, or your query results, so the model writes SQL blind to your data.",
     icon: "shield",
   },
   {
     title: "Reviewed schema, your app runs the SQL",
-    body: "Your team authors and reviews the schema context. AskDB returns SQL — your application chooses whether to log it, approve it, or run it.",
+    body: "Your team authors and reviews the schema context. AskDB returns SQL, and your application chooses whether to log it, approve it, or run it.",
     icon: "review",
   },
   {
     title: "SQL checks on every query",
-    body: "Every generated query is checked before AskDB returns it — read-only shape, tenant filters, sensitive columns. The checks catch common model mistakes; your database role and row-level security are the boundary.",
+    body: "AskDB checks every generated query before it returns it: read-only shape, tenant filters, sensitive columns. The checks catch common model mistakes. Your database role and row-level security are the boundary.",
     icon: "guard",
   },
   {

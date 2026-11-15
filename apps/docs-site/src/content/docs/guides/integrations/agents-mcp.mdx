@@ -5,7 +5,7 @@ description: "Wrap the AskDB library or HTTP API as a tool an agent can call, wi
 
 import AgentPrompt from "../../../../components/AgentPrompt.astro";
 
-An agent asks AskDB for SQL through the same surfaces you use: the library, the HTTP API or the CLI. This guide wraps the library as a tool an agent can call. AskDB has no MCP server yet: the first-party one comes after 1.0 ([mission](https://github.com/Ygilany/AskDB/blob/main/docs/mission.md)).
+An agent asks AskDB for SQL through the same surfaces you use: the library, the HTTP API or the CLI. This guide wraps the library as a tool an agent can call. AskDB has no MCP server yet. MCP, the Model Context Protocol, is how agent clients find tools. The first-party server comes after 1.0 ([mission](https://github.com/Ygilany/AskDB/blob/main/docs/mission.md)).
 
 <figure>
 
@@ -34,10 +34,10 @@ ask -> run
 | Surface | When to use it |
 | --- | --- |
 | **CLI** | Stable flags and structured logs. Good for scripted pipelines and CI. |
-| **Library** | Embed `ask()` directly in your agent runtime — fastest path for Node agents. See [Embed in a Node app](/guides/embed-in-node/). |
+| **Library** | Embed `ask()` directly in your agent runtime. It is the fastest path for Node agents. See [Embed in a Node app](/guides/embed-in-node/). |
 | **HTTP API** | `@askdb/http-api` for agents in any language. See [Deploy as HTTP service](/guides/deploy-as-http-service/). |
 
-The CLI and the HTTP API can't serve a schema with a tenant policy yet: neither accepts a tenant scope ([#277](https://github.com/Ygilany/AskDB/issues/277), [#343](https://github.com/Ygilany/AskDB/issues/343)). For a tenant-scoped agent tool, use the library.
+A tenant policy is the file that says which tables belong to a tenant. The CLI and the HTTP API can't serve a schema with one yet: neither accepts a tenant scope ([#277](https://github.com/Ygilany/AskDB/issues/277), [#343](https://github.com/Ygilany/AskDB/issues/343)). For a tenant-scoped agent tool, use the library.
 
 All three surfaces use the same `@askdb/core` pipeline and run the same SQL checks, whichever you wrap. Those checks are heuristic defense in depth, not a security boundary. An agent can send any question it likes, so run the SQL it gets back under a read-only, least-privilege role. See [Run generated SQL safely](/concepts/safety-boundaries/#run-generated-sql-safely).
 

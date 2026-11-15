@@ -79,13 +79,32 @@ if (result.unboundSql && result.params) {
 }
 ```
 
-Always pass `params` as returned. Every driver AskDB documents (`pg`, `mysql2`'s `query` and `execute`, `mssql`, `better-sqlite3`) refuses an array shorter than the statement's markers, so `unboundSql` run with the business values alone fails instead of binding one to a tenant marker. `node:sqlite` doesn't check the number of values it binds: it binds the values it gets in order and the rest as `NULL`, so a short array can return another tenant's rows.
+Always pass `params` as returned. Run `unboundSql` with the business values alone, and the array is shorter than the statement's markers. What happens next depends on the driver:
 
-Tenant substitution fails closed. It only replaces placeholders in SQL code (never inside string literals or quoted identifiers) and throws `TenantScopeError` when the SQL references a tenant root the scope has no IDs for (`UNRESOLVED_TENANT_PLACEHOLDER`), or when several IDs meet a predicate with no list form such as `<=` (`UNSUPPORTED_TENANT_PREDICATE`). With several IDs, `=` becomes `IN (…)` and `!=` / `<>` become `NOT IN (…)`. In `"sql-only"` mode, tenant IDs are inlined in `sql` with their quotes doubled, and a tenant ID that isn't printable ASCII (U+0020 to U+007E) or that contains a backslash throws `UNESCAPABLE_TENANT_ID` on every dialect, a custom `AskDialect` included. Any other literal can read differently on the server, depending on its string settings and connection charset (see [Match your server's string settings](/guides/match-server-string-settings/)). The default `"sql-params"` mode passes such IDs as driver parameters. In `"sql-only"` mode `ask()` also re-checks the rendered `sql`, as `bindPreparedQuery()` does, and refuses a statement that reads differently once the IDs are inlined with `SqlValidationError`.
+- **`pg`, `mysql2` (`query` and `execute`), `mssql`, `better-sqlite3`:** the driver refuses an array shorter than the statement's markers, so the call fails.
+- **`node:sqlite`, no error:** the driver doesn't check the number of values. It binds the values it gets in order and the rest as `NULL`, so a short array can return another tenant's rows.
+
+Tenant substitution fails closed. It only replaces placeholders in SQL code, never inside string literals or quoted identifiers. It throws `TenantScopeError` in two cases:
+
+- **No IDs for a root:** the SQL references a tenant root the scope has no IDs for (`UNRESOLVED_TENANT_PLACEHOLDER`).
+- **No list form:** several IDs meet a predicate with no list form, such as `<=` (`UNSUPPORTED_TENANT_PREDICATE`).
+
+With several IDs, `=` becomes `IN (…)` and `!=` / `<>` become `NOT IN (…)`.
+
+The two `tenantSqlMode` values treat tenant IDs differently:
+
+- **`"sql-params"` (default):** passes the IDs as driver parameters, including the ones `"sql-only"` refuses.
+- **`"sql-only"`:** inlines the IDs in `sql` with their quotes doubled. A tenant ID throws `UNESCAPABLE_TENANT_ID` on every dialect, a custom `AskDialect` included, if it isn't printable ASCII (U+0020 to U+007E) or contains a backslash. Any other literal can read differently on the server, depending on its string settings and connection charset (see [Match your server's string settings](/guides/match-server-string-settings/)). `ask()` also re-checks the rendered `sql`, as `bindPreparedQuery()` does. It refuses with `SqlValidationError` a statement that reads differently once the IDs are inlined.
 
 ### Guardrail verdict
 
-`ask()` runs up to three checks on the model's SQL, before it renders tenant IDs or binds values: the read-only check (built-in dialects and `DialectSpec`s only), the tenant check (with a tenant policy), and the sensitive-identifier check (unless `sensitiveGuardrailMode` is `"off"`). Each check reads the model's bound `sql` and its `sql-unbound` block, and one decision maps their findings to an outcome:
+`ask()` runs up to three checks on the model's SQL. It runs them before it renders tenant IDs or binds values:
+
+- **Read-only check:** built-in dialects and `DialectSpec`s only.
+- **Tenant check:** with a tenant policy.
+- **Sensitive-identifier check:** unless `sensitiveGuardrailMode` is `"off"`.
+
+Each check reads the model's bound `sql` and its `sql-unbound` block. One decision maps their findings to an outcome:
 
 | Check | `ask()` returns | `bindPreparedQuery()` rebinds |
 | --- | --- | --- |

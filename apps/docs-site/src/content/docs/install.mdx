@@ -5,7 +5,7 @@ description: "Choose the AskDB packages for your use case."
 
 import AgentPrompt from "../../components/AgentPrompt.astro";
 
-AskDB is a set of focused packages — install only what your use case needs. Pick your path below; each guide starts with the exact install commands, and the [package reference](/reference/packages/) covers every package individually.
+AskDB is a set of focused packages, so you install only what your use case needs. Pick your use case below. Its guide starts with the exact install commands, and the [package reference](/reference/packages/) covers every package individually.
 
 Upgrading from an earlier release? [Upgrade AskDB](/guides/upgrading/) shows the steps, and [Upgrade notes by release](/reference/upgrade-notes/) lists what to change for each release.
 
@@ -23,7 +23,9 @@ Each use case links to the guide that has its install commands.
 
 ## Install on the day of a release
 
-On the day an AskDB version is published, `pnpm dlx askdb@latest` and `yarn dlx askdb@latest` install an older one. pnpm 11 and later, and Yarn 4.18, skip versions less than a day old by default (pnpm's `minimumReleaseAge`, Yarn's `npmMinimalAgeGate`). npm installs the new version at once. Step 2 of the [Quickstart](/quickstart/#2-install-askdb-and-scaffold-the-config) shows the setting that lets pnpm and Yarn install AskDB's newest release.
+pnpm 11 and later, and Yarn 4.18, skip versions less than a day old by default. So on the day an AskDB version is published, `pnpm dlx askdb@latest` and `yarn dlx askdb@latest` install an older one. npm installs the new version at once.
+
+To install the newest release with pnpm or Yarn, change one setting: `minimumReleaseAge` in pnpm, or `npmMinimalAgeGate` in Yarn. Step 2 of the [Quickstart](/quickstart/#2-install-askdb-and-scaffold-the-config) shows how to set it so pnpm and Yarn install AskDB's newest release.
 
 ## Use with your agent
 

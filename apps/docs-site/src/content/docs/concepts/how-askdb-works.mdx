@@ -1,9 +1,9 @@
 ---
 title: "How AskDB works"
-description: "The end-to-end flow from a natural-language question to checked SQL that your application runs."
+description: "How a question becomes checked SQL in five steps, and where AskDB stops and your application takes over."
 ---
 
-AskDB is a function that turns a question and a schema artifact into checked SQL. Everything else — execution, approval, audit — happens in your application, not in AskDB.
+AskDB turns a question and a [schema artifact](/concepts/the-schema-artifact/) (the files that describe your database to the model) into checked SQL, and stops there. Your application decides whether to run that SQL, runs it, and keeps the audit trail.
 
 <figure>
 
@@ -39,59 +39,100 @@ check -> run: checked SQL
 
 ## The five steps
 
-When you call `ask()` (or the equivalent CLI / HTTP surface), AskDB runs the steps in the diagram, in order.
+Take a question from the [Quickstart](/quickstart/): "How much has each customer spent in total, highest first?"
+
+You call `ask()` from `@askdb/core` with that question, the loaded artifact, your model and the SQL dialect to write in:
+
+```ts
+import { ask } from "@askdb/core";
+
+const result = await ask({
+  question,
+  schema,             // the artifact, from loadSchema()
+  model,              // a Vercel AI SDK model
+  dialect: "sqlite",
+});
+```
+
+You get back one `SELECT` statement that has passed AskDB's checks, such as this one:
+
+```sql
+SELECT customers.name, SUM(products.price * orders.quantity) AS total_spent
+FROM customers
+JOIN orders ON customers.id = orders.customer_id
+JOIN products ON orders.product_id = products.id
+GROUP BY customers.id
+ORDER BY total_spent DESC;
+```
+
+Between the question and that SQL, AskDB runs the steps in the diagram, in order. The CLI and the HTTP API run the same steps.
 
 ### 1. Load the schema artifact
 
-The CLI, the HTTP API and `@askdb/client` load it from a directory, a bundle file or a `schema.json`. When you call `ask()` directly, you pass an artifact you loaded with `loadSchema()`.
+AskDB writes SQL from your schema artifact, so the artifact has to be in memory first. Who loads it depends on how you call AskDB:
+
+- **The CLI, the HTTP API and `@askdb/client`** load it for you, from a directory, a bundle file or a `schema.json`.
+- **When you call `ask()` directly,** you load it with `loadSchema()` and pass it in.
 
 ### 2. Retrieve relevant chunks (optional)
 
-When you pass a retriever, AskDB pulls only the slice of the artifact that's relevant to the question, using `@askdb/rag`. If you also pass the artifact's chunk count and it's at or below `retrievalThresholdChunks` (30 by default), AskDB uses the whole artifact instead.
+Some schemas are too large for one prompt. For those, you pass a [retriever](/guides/rag-for-large-schemas/), a search over the artifact's chunks: the small pieces it's split into for indexing. AskDB then sends the model only the chunks that match the question. Without a retriever, this step does nothing and the model gets the whole artifact.
+
+Two details:
+
+- The retriever comes from `@askdb/rag`.
+- A small schema can skip retrieval even with a retriever. To allow that, also pass the artifact's chunk count. At or below `retrievalThresholdChunks` chunks, 30 by default, AskDB uses the whole artifact.
 
 ### 3. Build the prompt
 
-The question, the schema text and the selected SQL dialect get assembled into the context the model sees. When you use a tenant policy, the prompt also holds the policy and the scope's advisory context. [Privacy model](/concepts/privacy-model/#what-the-model-sees) lists everything it holds.
+AskDB assembles what the model reads: your question, the schema text, and the SQL dialect to write in.
+
+Some artifacts have a [tenant policy](/concepts/tenant-isolation/), a file that says which tables belong to a tenant and which column filters them. For those, the prompt also holds the policy. Your application passes the caller's tenant scope with each call, to say whose data the caller may see. The prompt holds the scope's context, such as the caller's role, as advisory text. [Privacy model](/concepts/privacy-model/#what-the-model-sees) lists everything the prompt holds.
 
 ### 4. Generate
 
-AskDB calls the model you supplied — any provider compatible with the [Vercel AI SDK](/guides/bring-your-own-model/) — and the model returns SQL. AskDB does not host inference: your key, your billing.
+AskDB sends the prompt to the model you supplied, and the model returns SQL. Any provider that works with the [Vercel AI SDK](/guides/bring-your-own-model/) will do. AskDB does not host inference: your key, your billing.
 
-When the schema can't answer the question, or the question asks to change data, the model declines with a one-line reason instead. `ask()` then throws [`QuestionDeclinedError`](/reference/core-api/errors/#errors) before any check runs. A question that mixes a read with a change is declined as a whole.
+Sometimes the model declines instead, with a one-line reason. It does that in two cases:
+
+- The schema can't answer the question.
+- The question asks to change data. A question that mixes a read with a change is declined as a whole.
+
+`ask()` then throws [`QuestionDeclinedError`](/reference/core-api/errors/#errors) before any check runs.
 
 ### 5. Check
 
-AskDB runs its SQL checks on the returned SQL:
+A model can return SQL that you didn't ask for, so AskDB checks the SQL before it hands it to you. There are three checks:
 
 - **The read-only check** looks for one statement that only reads, and refuses SQL that isn't.
 - **The tenant check** runs when your artifact has a tenant policy. It looks for a tenant filter on each tenant-scoped table, and refuses or reports SQL that lacks one.
-- **The sensitive check** runs when your artifact marks tables or columns `sensitive`. It reports SQL that reads one, or refuses it in strict mode.
+- **The sensitive check** runs when your artifact marks tables or columns `sensitive`. It reports SQL that reads one, or refuses it when you set it to strict. You mark one with `sensitive: true` in the artifact ([Sensitivity rules](/reference/schema-artifact-format/#sensitivity-rules)).
 
-The checks catch common model mistakes but can miss things, so they aren't a security boundary. [SQL checks](/reference/sql-checks/) gives each check's rules, and [Safety boundaries](/concepts/safety-boundaries/) lists what they miss.
+The checks catch common model mistakes, but they can miss things, so they aren't a security boundary. [SQL checks](/reference/sql-checks/) gives each check's rules, and [Safety boundaries](/concepts/safety-boundaries/) lists what they miss.
 
-`ask()` returns the checked SQL, the values to bind when the SQL has parameters, and what the checks found. [`AskPipelineResult`](/reference/core-api/ask/#result--askpipelineresult) lists every field. What happens next is your call.
+`ask()` then returns three things: the checked SQL, the values to bind when the SQL has parameters, and what the checks found. [`AskPipelineResult`](/reference/core-api/ask/#result--askpipelineresult) lists every field. What happens next is your call.
 
 ## The runtime boundary
 
-AskDB stops at checked SQL. Your application — the code that imports `@askdb/core` or calls the HTTP API — owns everything past that:
+AskDB stops at checked SQL, and your application owns everything after it. "Your application" is the code that imports `@askdb/core` or calls the HTTP API. It owns:
 
 - The database driver and connection pool.
 - Read-only roles, and tenant isolation such as Postgres row-level security ([Enforce tenancy in the database](/guides/enforce-tenancy-in-the-database/)).
-- Query timeouts, row limits, and result pagination. The SQL comes back without a row limit; [Cap the rows a query returns](/guides/cap-the-rows-a-query-returns/) shows how to cap it on each engine.
+- Query timeouts, row limits, and result pagination. The SQL comes back without a row limit, and [Cap the rows a query returns](/guides/cap-the-rows-a-query-returns/) shows how to cap it on each engine.
 - Whether to show the SQL to the user, log it, queue it for review, or run it immediately.
 - Audit logging and observability.
 
-This split is intentional. AskDB is a code-generation step, not a runtime, so it slots into existing services and your existing security model: the database role you already trust to run queries is the one that bounds what generated SQL can do.
+This split is intentional. AskDB is a code-generation step, not a runtime, so it slots into the services and the security model you already have. Generated SQL can do only what its database role allows, and that's the role you already trust to run queries.
 
 ## Where the model lives
 
-You bring the model. AskDB calls whatever provider you wire in — typically through the Vercel AI SDK — using your API key. Requests go straight from your environment to the provider. AskDB does not proxy, log, or cache them.
+You bring the model. AskDB calls the provider you wire in, through the Vercel AI SDK, with your API key. Requests go straight from your environment to the provider. AskDB does not proxy, log, or cache them.
 
-The same model never sees your database connection, your credentials, or the rows your application returns. See [Privacy model](/concepts/privacy-model/) for the precise list of what crosses the boundary.
+That model never sees your database connection, your credentials, or the rows your application returns. [Privacy model](/concepts/privacy-model/) has the precise list of what crosses the boundary.
 
 ## After the rows: a chart
 
-AskDB's part ends at checked SQL, with one optional step after your application has run it. The experimental `@askdb/client/charts` entry point asks your model which chart fits the result, from the question, the SQL and the column kinds, and returns a chart spec. Your application draws the chart from its own rows, with its own charting library, so the rows still never reach the model. See [Chart planning](/concepts/chart-planning/).
+AskDB has one optional step after your application runs the SQL: it can suggest a chart for the result. The experimental `@askdb/client/charts` entry point asks your model which chart fits, and returns a chart spec. The model picks from the question, the SQL and the column kinds, such as date, measure or category. Your application draws the chart from its own rows, with its own charting library, so the rows still never reach the model. See [Chart planning](/concepts/chart-planning/).
 
 ## Read next
 

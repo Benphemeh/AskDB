@@ -20,6 +20,16 @@ In priority order (from `docs/mission.md`):
 
 The site follows ASD-STE100 (Simplified Technical English) about 80% of the way. Full STE reads dry, so the site keeps the STE rules that make text clear and softens the rest.
 
+**Write for a first read.** A reader meets a page once, in order, to do one thing. These five rules come first, and the rest serve them:
+
+- **The main path first, the exceptions after.** Open each section with the common case, in one or two sentences a newcomer can act on. A default, a threshold, an edge case or a failure mode that most readers won't meet goes below it, in a short list, or on the reference page with a link. Every one of them stays in the docs: move it, don't drop it.
+- **The reader's goal before the mechanism.** Say what the reader wants or what goes wrong, then what the software does about it: "To keep one tenant from seeing another's rows, declare a tenant policy", not "`loadSchema()` reads `tenant-policy.md`".
+- **One example before the rule.** Show a real question, table, file or result, then state the general case. On a concept page, each idea gets one.
+- **Few names per sentence.** A sentence in a tutorial, guide or concept page has two code spans or fewer where it can, and never more than three. A sentence that needs more is a table, a list or a code block.
+- **Short sentences.** No sentence is over 30 words, on any page. Aim for about 20 in a step and 25 in a description.
+
+`scripts/check-prose.mjs` counts the last two, and `pnpm test` fails on a sentence over either limit. It can't judge the first three: the cold read in the `docs-site` skill does.
+
 **Keep:**
 
 - **One idea per sentence.** When a sentence joins two ideas with "and", "which" or a semicolon, split it or make a list.
@@ -33,7 +43,7 @@ The site follows ASD-STE100 (Simplified Technical English) about 80% of the way.
 
 **Soften:**
 
-- **Sentence length is a target, not a cap.** Aim for about 20 words in a step and 25 in a description. A longer sentence is fine when splitting it would separate a condition from its result.
+- **Sentence length has a target and a cap.** The target is about 20 words in a step and 25 in a description; the cap is 30. When a split would separate a condition from its result, put the condition in its own sentence first: "Some schemas have a tenant policy. For those, …".
 - **Write for flow.** Contractions ("don't", "it's"), connecting words ("so", "but", "then", "because") and varied sentence openings are fine.
 - **Common phrasal verbs are fine:** "set up", "log in", "look up", "fall back".
 - **Warmth depends on the page type.** Tutorials and explanation pages may be warmer and more discursive than reference pages (see [Voice](#voice)).
@@ -128,7 +138,7 @@ Agents are the site's second reader, so each page must read well as plain Markdo
 - Content root: `apps/docs-site/src/content/docs/`
 - Navigation file: `apps/docs-site/astro.config.mjs` (`sidebar`)
 - Dev server: `pnpm docs:dev` (127.0.0.1:4310)
-- Build / check: `pnpm docs:build`; `pnpm -C apps/docs-site test` (builds the site, then fails on an internal link to a missing page or `#anchor`); `pnpm -C apps/docs-site lint` (`astro check`)
+- Build / check: `pnpm docs:build`; `pnpm -C apps/docs-site test` (checks the prose limits, builds the site, then fails on an internal link to a missing page or `#anchor`); `node scripts/check-prose.mjs guides/<page>.mdx` checks one page's sentences; `pnpm -C apps/docs-site lint` (`astro check`)
 - Look and feel: design tokens in `src/styles/tokens.css`; layout, prose and home styles in `layout.css`, `content.css` and `home.css` beside it. A page never sets its own colors, fonts or spacing. The `docs-site` skill (`.agents/skills/docs-site/`) has the design rules and a screenshot tool for checking a page in both themes.
 - Source lines: one line per paragraph, soft-wrapped by the editor (see `AGENTS.md`).
 - Internal links: root-absolute (`/guides/embed-in-node/`); a remark plugin rebases them.

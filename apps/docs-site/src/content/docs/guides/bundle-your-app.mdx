@@ -7,7 +7,7 @@ import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
 import InstallTabs from "../../../components/InstallTabs.astro";
 import AgentPrompt from "../../../components/AgentPrompt.astro";
 
-AskDB bundles into a Node service like most libraries, with one exception: from inside a bundle, `@askdb/config` can't load a TypeScript `askdb.config.ts`. Write the config in JavaScript, keep `@askdb/config` out of the bundle, or use no config file. This guide covers esbuild and webpack 5.
+AskDB bundles into a Node service like most libraries, with one exception. From inside a bundle, `@askdb/config` can't load a TypeScript `askdb.config.ts`. You have three ways around that: write the config in JavaScript, keep `@askdb/config` out of the bundle, or use no config file. This guide covers esbuild and webpack 5.
 
 ## Before you start
 
@@ -16,13 +16,13 @@ AskDB bundles into a Node service like most libraries, with one exception: from 
 
 ## 1. Choose where the settings come from
 
-`@askdb/config` loads `askdb.config.*` from disk when your service starts. It loads a JavaScript config (`.js`, `.cjs` or `.mjs`) with Node's own loader, which works from inside a bundle. A TypeScript config needs jiti, which `@askdb/config` uses to compile it, and jiti can't run from inside a bundle. Three setups work:
+`@askdb/config` loads `askdb.config.*` from disk when your service starts. It loads a JavaScript config (`.js`, `.cjs` or `.mjs`) with Node's own loader, which works from inside a bundle. A TypeScript config needs jiti to compile it, and jiti can't run from inside a bundle. Three setups work:
 
-- **A JavaScript config, `createAskDb()`:** bundle `@askdb/config` with the rest of your service, and deploy `askdb.config.mjs` (or `.js`, `.cjs`) next to the bundle. Nothing is installed beside the bundle, so the file can't import anything, `@askdb/config` included: write a plain `export default { … }` and read each variable from `process.env`.
-- **A TypeScript config, `createAskDb()`:** leave `@askdb/config` out of the bundle and install it next to the bundle when you deploy. `askdb.config.ts` then loads as it does without a bundler.
-- **No config, `ask()`:** build the model with the AI SDK in your own code, and load the schema from one JSON file. The bundle then needs nothing installed beside it.
+- **A JavaScript config, with `createAskDb()`.** Bundle `@askdb/config` with the rest of your service. Deploy `askdb.config.mjs` (or `.js`, `.cjs`) next to the bundle. Nothing is installed beside the bundle, so the file can't import anything. Write a plain `export default { … }` and read each variable from `process.env`.
+- **A TypeScript config, with `createAskDb()`.** Leave `@askdb/config` out of the bundle and install it next to the bundle when you deploy. `askdb.config.ts` then loads as it does without a bundler.
+- **No config, with `ask()`.** Build the model with the AI SDK in your own code, and load the schema from one JSON file. The bundle then needs nothing installed beside it.
 
-A JavaScript config for a bundled service looks like this. `@askdb/config` loads `.env` before the file, so `process.env` holds what `.env` sets:
+A JavaScript config for a bundled service looks like this. The config reads `process.env`. `@askdb/config` loads your `.env` file first, so `process.env` holds its values:
 
 ```js
 // askdb.config.mjs
@@ -44,7 +44,12 @@ Install `ai` and the AI SDK package of your provider, such as `@ai-sdk/openai`:
 
 <InstallTabs pkgs="ai @ai-sdk/openai" />
 
-`@askdb/ai` loads each provider's SDK only when it first builds a model. esbuild leaves out the SDKs you don't install; webpack 5 needs them listed in `externals`, as step 3 shows. The Vercel AI Gateway needs none. See [Provider SDKs](/reference/ai-api/#provider-sdks).
+`@askdb/ai` loads each provider's SDK only when it first builds a model. The bundlers differ on the SDKs you don't install:
+
+- **esbuild** leaves them out.
+- **webpack 5** needs them listed in `externals`, as step 3 shows.
+
+The Vercel AI Gateway needs no SDK. See [Provider SDKs](/reference/ai-api/#provider-sdks).
 
 ## 3. Bundle
 

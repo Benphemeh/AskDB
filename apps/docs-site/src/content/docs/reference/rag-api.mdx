@@ -24,7 +24,7 @@ Every export below comes from `@askdb/rag`. The stores and embedders also have t
 
 ## `buildSchemaIndex(options)`
 
-Chunks a schema artifact, embeds the chunks, upserts them into the vector store, and returns a bound retriever. Re-indexing is incremental: a chunk is skipped only when the store already holds, for its id, the hash of the same text embedded by the same embedder. Built-in stores report their hashes, so a lock file can't make the indexer skip chunks a fresh or different store doesn't have, and an interrupted embedder switch can't leave another model's vectors passing as current. For the memory store, which keeps nothing past the process, the lock file is neither read nor written.
+Chunks a schema artifact, embeds the chunks, upserts them into the vector store, and returns a bound retriever. Re-indexing is incremental: a chunk is skipped only when the store already holds, for its id, the hash of the same text embedded by the same embedder. Built-in stores report their hashes. So a lock file can't make the indexer skip chunks a fresh or different store doesn't have. Nor can an interrupted embedder switch leave another model's vectors passing as current. For the memory store, which keeps nothing past the process, the lock file is neither read nor written.
 
 ```ts
 import { buildSchemaIndex } from "@askdb/rag";
@@ -174,7 +174,12 @@ if (!match.ok) throw new Error(match.message);
 const retriever = createRetriever({ embedder, store });
 ```
 
-The embedder id must equal the one the lock records, since equal widths don't make two models' vectors comparable: a lock with no embedder id matches only a query without one, as in `buildSchemaIndex`. When both widths are known they must match. A lock written by an older `@askdb/rag` doesn't match until the index is rebuilt, and neither does a lock marked `incomplete` by a build that switched embedders and didn't finish (the store then holds two models' vectors). A missing or unreadable lock, or one for another schema id, has nothing to compare and returns `{ ok: true, lock: undefined }`.
+The embedder id must equal the one the lock records, since equal widths don't make two models' vectors comparable. A lock with no embedder id matches only a query without one, as in `buildSchemaIndex`. When both widths are known they must match. Two kinds of lock don't match until the index is rebuilt:
+
+- A lock written by an older `@askdb/rag`.
+- A lock marked `incomplete` by a build that switched embedders and didn't finish. The store then holds two models' vectors.
+
+A missing or unreadable lock, or one for another schema id, has nothing to compare and returns `{ ok: true, lock: undefined }`.
 
 #### `IndexMatch`
 
@@ -212,7 +217,7 @@ Re-exported from `@askdb/core`. Builds the schema text that `ask()` sends the mo
 | `unqualifiedNamespace` | `string` | optional | Tables in this namespace are listed without it (`TABLE agency`, not `TABLE public.agency`). `ask()` takes it from the dialect's `DialectSpec.unqualifiedNamespace`. |
 | `quoteIdentifier` | `(name: string) => string` | optional | How names are quoted. Pass `promptIdentifierQuoter(dialect)` from `@askdb/core` to match `ask()`. |
 
-Returns `{ ddl, tablesEmitted, tableIds, chunksUsed, mentionDroppedCount }`. `tableIds` lists the ids of the tables `ddl` shows, in schema order; `ask()` passes them on so the prompt's tenant block names no other table. `ddl` has a block for each table that a retrieved chunk refers to, with all of its columns, its foreign keys to the other tables `ddl` shows, and the table's retrieved CQL and business-context chunks under it. Each column's line carries its `Column notes` item, from the schema. After the tables come the concept, example-question and tenant-policy chunks, each kind in its own block. A concept the schema has is listed as the full-schema prompt lists it, and a tenant-policy section keeps its name. A relationship chunk only selects its two tables, whose foreign key their block already shows. A sensitive table's CQL and business context, and a sensitive column's note, are never shown. `mentionDroppedCount` counts the texts withheld with `omitSensitiveIdentifiersFromPrompt`.
+Returns `{ ddl, tablesEmitted, tableIds, chunksUsed, mentionDroppedCount }`. `tableIds` lists the ids of the tables `ddl` shows, in schema order; `ask()` passes them on so the prompt's tenant block names no other table. `ddl` has a block for each table that a retrieved chunk refers to. Each block holds all of the table's columns, its foreign keys to the other tables `ddl` shows, and the table's retrieved CQL and business-context chunks under it. Each column's line carries its `Column notes` item, from the schema. After the tables come the concept, example-question and tenant-policy chunks, each kind in its own block. A concept the schema has is listed as the full-schema prompt lists it, and a tenant-policy section keeps its name. A relationship chunk only selects its two tables, whose foreign key their block already shows. A sensitive table's CQL and business context, and a sensitive column's note, are never shown. `mentionDroppedCount` counts the texts withheld with `omitSensitiveIdentifiersFromPrompt`.
 
 ---
 
@@ -554,7 +559,7 @@ interface VectorStore {
 }
 ```
 
-Persist `UpsertRecord.hash` and implement `hashesByPrefix` so the indexer can verify what your store holds. The hash covers the chunk text and the embedder id, and the indexer skips only chunks stored with the same hash. Without it, the indexer falls back to the hashes in `schema.lock.json`, and only trusts them when `describe()` reports the same store and dimensions as the lock. A store with neither `hashesByPrefix` nor `describe()` re-embeds every chunk on each run, because a fresh, empty instance can't be told apart from the one the lock describes. Implement `idsBySchema` so chunks removed from the schema are pruned from your store without touching other schemas. Without it, the indexer prunes only the ids listed in the previous `schema.lock.json` and logs `askdb.rag.orphan_cleanup_limited`. If a lock was written for another schema id (a renamed schema, or a lock copied from another schema's directory), the indexer logs `askdb.rag.lock_schema_mismatch`, reindexes without it, and deletes none of the ids it lists; remove an old schema id's chunks yourself with `idsBySchema` and `delete`.
+Persist `UpsertRecord.hash` and implement `hashesByPrefix` so the indexer can verify what your store holds. The hash covers the chunk text and the embedder id, and the indexer skips only chunks stored with the same hash. Without it, the indexer falls back to the hashes in `schema.lock.json`, and only trusts them when `describe()` reports the same store and dimensions as the lock. A store with neither `hashesByPrefix` nor `describe()` re-embeds every chunk on each run, because a fresh, empty instance can't be told apart from the one the lock describes. Implement `idsBySchema` so chunks removed from the schema are pruned from your store without touching other schemas. Without it, the indexer prunes only the ids listed in the previous `schema.lock.json` and logs `askdb.rag.orphan_cleanup_limited`. A lock may have been written for another schema id, such as a renamed schema or a lock copied from another schema's directory. Then the indexer logs `askdb.rag.lock_schema_mismatch` and reindexes without the lock. It deletes none of the ids the lock lists. Remove an old schema id's chunks yourself with `idsBySchema` and `delete`.
 
 ### `VectorStoreDescriptor`
 

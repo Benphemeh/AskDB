@@ -183,9 +183,24 @@ html:not([data-has-sidebar]) main {
   text-wrap: pretty;
 }
 
+/* Wide: the heading holds the first column, and every paragraph and list stacks in the second. */
 @media (min-width: 56rem) {
   .home-split {
     grid-template-columns: minmax(0, 5fr) minmax(0, 8fr);
+    row-gap: 0; /* the heading spans rows that may be empty, so the second column spaces itself */
+  }
+
+  .sl-markdown-content .home-split > :not(.sl-heading-wrapper) ~ :not(.sl-heading-wrapper) {
+    margin-top: 1rem;
+  }
+
+  .home-split > * {
+    grid-column: 2;
+  }
+
+  .home-split > .sl-heading-wrapper {
+    grid-column: 1;
+    grid-row: 1 / span 12;
   }
 }
 

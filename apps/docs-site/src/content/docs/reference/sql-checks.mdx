@@ -56,7 +56,7 @@ verdict -> deny
 
 ## How the checks read SQL
 
-The checks don't parse SQL. All three split it into tokens with one shared lexer and skip strings, quoted names and comments, so a keyword inside one doesn't count. Each built-in dialect id is read with its engine's column of the table, under the engine's default string settings unless the `DialectSpec` sets `backslashEscapes`. SQL from a custom `AskDialect`, from a dialect id that is no built-in engine, or passed to a check with no dialect is read with every column, and must pass under each reading.
+The checks don't parse SQL. All three split it into tokens with one shared lexer and skip strings, quoted names and comments, so a keyword inside one doesn't count. Each built-in dialect id is read with its engine's column of the table, under the engine's default string settings unless the `DialectSpec` sets `backslashEscapes`. Some SQL has no built-in engine to read it with. That is SQL from a custom `AskDialect`, from a dialect id that is no built-in engine, or passed to a check with no dialect. It is read with every column, and must pass under each reading.
 
 | | `postgres`, `cockroachdb` | `mysql`, `mariadb` | `sqlite` | `sqlserver` |
 | --- | --- | --- | --- | --- |
@@ -67,7 +67,7 @@ The checks don't parse SQL. All three split it into tokens with one shared lexer
 | Where a `--` comment ends | At a line feed or a carriage return on Postgres, at a line feed only on CockroachDB. Both ids are read both ways. | At a line feed | At a line feed | At a line feed or a carriage return |
 | `$` | Inside a name, such as `a$$b`, part of the name. Elsewhere, `$$` or `$tag$` starts a dollar-quoted string (`$tag$…$tag$`), read only on these engines. A tag with non-ASCII letters (`$é$ … $é$`) is read as a string, as the engine does. | Inside a name, part of the name | Inside a name, part of the name | Starts a money literal such as `$1.5` |
 
-On SQL Server, a number also ends after `0x` or `1E` with no digits after it, and a name at whitespace such as a non-breaking space (U+00A0), U+200B or U+0085, so a keyword written right after one is read as a keyword, as SQL Server reads it ([#623](https://github.com/Ygilany/AskDB/issues/623)).
+On SQL Server, a number also ends after `0x` or `1E` with no digits after it. On SQL Server, a name also ends at whitespace such as a non-breaking space (U+00A0), U+200B or U+0085. So a keyword written right after one is read as a keyword, as SQL Server reads it ([#623](https://github.com/Ygilany/AskDB/issues/623)).
 
 ### Forms the checks refuse to read
 
@@ -84,7 +84,7 @@ The read-only check refuses each with its own rule, the tenant check reports it 
 
 ### When your server's settings differ
 
-The readings above assume each engine's default string settings. If your server reads backslashes differently, such as MySQL with `NO_BACKSLASH_ESCAPES` or Postgres with `standard_conforming_strings = off`, set `backslashEscapes` on a `DialectSpec` to match, or the checks can read a string differently from the server. [Match your server's string settings](/guides/match-server-string-settings/) shows how.
+The readings above assume each engine's default string settings. Your server may read backslashes differently, such as MySQL with `NO_BACKSLASH_ESCAPES` or Postgres with `standard_conforming_strings = off`. Then set `backslashEscapes` on a `DialectSpec` to match, or the checks can read a string differently from the server. [Match your server's string settings](/guides/match-server-string-settings/) shows how.
 
 If you upgrade from a beta release, the [upgrade notes](/reference/upgrade-notes/) say what each change to these readings asks of your app.
 
@@ -116,7 +116,13 @@ AskDB refuses the SQL if any of these appear as unquoted keywords: `INSERT`, `UP
 - **SQLite:** `ATTACH`, `DETACH`, `PRAGMA` and `REINDEX`.
 - **SQL Server:** `EXEC`, `EXECUTE`, `OPENROWSET`, `OPENQUERY`, `WAITFOR`, `SHUTDOWN`, `SET`, `USE`, control-flow verbs such as `DECLARE`, `BEGIN`, `IF`, `WHILE` and `RETURN`, and other T-SQL statement verbs, because T-SQL runs a batch without semicolons. `SQLSERVER_DIALECT.extraForbiddenKeywords` lists all 46.
 
-AskDB also refuses calls to known side-effecting functions, from each built-in spec's `blockedFunctions`: for example `pg_sleep`, `set_config`, `pg_read_file`, `dblink` and `nextval` on Postgres and CockroachDB (`POSTGRES_DIALECT.blockedFunctions` lists all 84), `SLEEP`, `LOAD_FILE`, and MariaDB's sequence writers `NEXTVAL` and `SETVAL` on MySQL and MariaDB, and `load_extension` on SQLite. On every engine, `NEXT VALUE FOR` is refused with the same rule code, because it advances a sequence on MariaDB and SQL Server, outside your transaction's rollback. MariaDB's `PREVIOUS VALUE FOR` and `LASTVAL()` return the value your session last drew, without changing the sequence, and pass. A dialect id that is no built-in engine gets every built-in spec's keywords and functions.
+AskDB also refuses calls to known side-effecting functions, from each built-in spec's `blockedFunctions`. For example:
+
+- **Postgres and CockroachDB:** `pg_sleep`, `set_config`, `pg_read_file`, `dblink` and `nextval` (`POSTGRES_DIALECT.blockedFunctions` lists all 84).
+- **MySQL and MariaDB:** `SLEEP`, `LOAD_FILE`, and MariaDB's sequence writers `NEXTVAL` and `SETVAL`.
+- **SQLite:** `load_extension`.
+
+On every engine, `NEXT VALUE FOR` is refused with the same rule code, because it advances a sequence on MariaDB and SQL Server, outside your transaction's rollback. MariaDB's `PREVIOUS VALUE FOR` and `LASTVAL()` return the value your session last drew, without changing the sequence, and pass. A dialect id that is no built-in engine gets every built-in spec's keywords and functions.
 
 Setting `extraForbiddenKeywords` or `blockedFunctions` on a `DialectSpec` replaces the built-in list, so spread a built-in spec (`{ ...POSTGRES_DIALECT, … }`) to keep it.
 
@@ -124,39 +130,84 @@ Setting `extraForbiddenKeywords` or `blockedFunctions` on a `DialectSpec` replac
 
 A locking read can hold locks that other sessions wait on until your transaction ends, so it's refused as `SQL_LOCKING_READ`. On every engine that means `FOR UPDATE`, `FOR NO KEY UPDATE`, `FOR SHARE`, `FOR KEY SHARE` and `LOCK IN SHARE MODE`, anywhere in the statement, subqueries and CTEs included.
 
-On SQL Server it also means the table hints `UPDLOCK`, `XLOCK`, `HOLDLOCK`, `PAGLOCK`, `TABLOCK`, `TABLOCKX`, `ROWLOCK`, `SERIALIZABLE` and `REPEATABLEREAD`: unquoted anywhere, inside `WITH (…)` or without it, and quoted when one stands alone in parentheses right after a name, at any depth and with trailing spaces (`FROM t ([UPDLOCK])`, `t (("UPDLOCK "))`), which SQL Server also reads as the hint. `NOLOCK`, `READUNCOMMITTED` and `READPAST` pass. SQL Server compares hint names loosely (it reads `UPDʟOCK` as `UPDLOCK`), so on SQL Server an unquoted name must also be printable ASCII, and so must a quoted name alone in parentheses right after a name. A SQL Server name that is a hint word or isn't plain ASCII must be quoted (`[rowlock]`, `[Größe]`), and the prompt lists it quoted and tells the model to quote such an alias too; when it's the only thing inside parentheses, qualify it too (`COUNT(t.[Größe])`), or, in a one-name column list (`WITH [集計] ([合計]) AS …`), name the column inside the query instead.
+On SQL Server it also means the table hints `UPDLOCK`, `XLOCK`, `HOLDLOCK`, `PAGLOCK`, `TABLOCK`, `TABLOCKX`, `ROWLOCK`, `SERIALIZABLE` and `REPEATABLEREAD`. The check refuses a hint in two forms:
+
+- **Unquoted**, anywhere, inside `WITH (…)` or without it.
+- **Quoted**, when one stands alone in parentheses right after a name, at any depth and with trailing spaces (`FROM t ([UPDLOCK])`, `t (("UPDLOCK "))`). SQL Server also reads that as the hint.
+
+`NOLOCK`, `READUNCOMMITTED` and `READPAST` pass.
+
+SQL Server compares hint names loosely (it reads `UPDʟOCK` as `UPDLOCK`). So on SQL Server, two kinds of name must also be printable ASCII: an unquoted name, and a quoted name alone in parentheses right after a name.
+
+A SQL Server name that is a hint word or isn't plain ASCII must be quoted (`[rowlock]`, `[Größe]`). The prompt lists it quoted and tells the model to quote such an alias too. Two cases need more:
+
+- **Only thing inside parentheses:** qualify it too (`COUNT(t.[Größe])`).
+- **A one-name column list** (`WITH [集計] ([合計]) AS …`): name the column inside the query instead.
 
 ### SQL Server statements
 
-SQL Server doesn't need `;` between statements, so the check also refuses a second statement written without one. It looks for three shapes: a `SELECT` that doesn't follow `UNION`, `EXCEPT` or `INTERSECT` and isn't the main query after a leading `WITH`; a parenthesized query right after a complete value, such as `SELECT 1 (SELECT 2)`; and a label, which is any `:` written directly against a name or value (`l:`). A subquery after a keyword, an operator, a comma or a function name still passes, but not one inside an ODBC escape such as `{fn UCASE((SELECT …))}`, which is refused.
+SQL Server doesn't need `;` between statements, so the check also refuses a second statement written without one. It looks for three shapes:
 
-Code outside strings and quoted names must also be plain, because SQL Server may split statements anywhere else: a character that isn't printable ASCII or a Unicode letter or digit (a non-breaking space, for example), a bare `$`, a `\`, a number written against a word (`1ESELECT`), or a `?` written against a name or number is refused. A second statement that starts with `FETCH`, or with `END`, `GET` or `MOVE CONVERSATION`, isn't detected, because those words also appear in ordinary queries (`OFFSET … FETCH`, `CASE … END`) or as column names.
+- A `SELECT` that doesn't follow `UNION`, `EXCEPT` or `INTERSECT` and isn't the main query after a leading `WITH`.
+- A parenthesized query right after a complete value, such as `SELECT 1 (SELECT 2)`.
+- A label, which is any `:` written directly against a name or value (`l:`).
+
+A subquery after a keyword, an operator, a comma or a function name still passes. One inside an ODBC escape such as `{fn UCASE((SELECT …))}` is refused.
+
+Code outside strings and quoted names must also be plain, because SQL Server may split statements anywhere else. The check refuses:
+
+- a character that isn't printable ASCII or a Unicode letter or digit (a non-breaking space, for example)
+- a bare `$`
+- a `\`
+- a number written against a word (`1ESELECT`)
+- a `?` written against a name or number
+
+A second statement that starts with `FETCH`, or with `END`, `GET` or `MOVE CONVERSATION`, isn't detected, because those words also appear in ordinary queries (`OFFSET … FETCH`, `CASE … END`) or as column names.
 
 ## The tenant check
 
-With a tenant policy, `ask()` refuses to run without a `tenantScope`, and checks the model's SQL before it binds the tenant IDs. The check runs under every dialect, a custom `AskDialect` included. [What the tenant check requires](/reference/tenant-policy/#what-the-tenant-check-requires) lists what passes: a query that starts with `SELECT` or `WITH`, no call it can't read through, and for each tenant-scoped table and each root table the scope covers, its tenant column compared with its placeholder, ANDed into the filter. Each finding has a rule from [`TenantGuardrailError` rules](/reference/core-api/errors/#tenantguardrailerror-rules).
+With a tenant policy, `ask()` refuses to run without a `tenantScope`, and checks the model's SQL before it binds the tenant IDs. The check runs under every dialect, a custom `AskDialect` included. [What the tenant check requires](/reference/tenant-policy/#what-the-tenant-check-requires) lists what passes:
 
-- **Statements.** A statement ends at each `;`, and on SQL Server also at a verb such as `EXEC`. Under `sqlserver`, code that SQL Server may split differently (see [SQL Server statements](#sql-server-statements)) is refused as `NOT_SELECT_OR_WITH` too, so in plain code, where SQL Server's token ends are unambiguous, the tenant check reads the same text the read-only check does ([#623](https://github.com/Ygilany/AskDB/issues/623)).
+- a query that starts with `SELECT` or `WITH`
+- no call it can't read through
+- for each tenant-scoped table and each root table the scope covers, its tenant column compared with its placeholder, ANDed into the filter
+
+Each finding has a rule from [`TenantGuardrailError` rules](/reference/core-api/errors/#tenantguardrailerror-rules).
+
+- **Statements.** A statement ends at each `;`, and on SQL Server also at a verb such as `EXEC`. Under `sqlserver`, code that SQL Server may split differently (see [SQL Server statements](#sql-server-statements)) is refused as `NOT_SELECT_OR_WITH` too. So in plain code, where SQL Server's token ends are unambiguous, the tenant check reads the same text the read-only check does ([#623](https://github.com/Ygilany/AskDB/issues/623)).
 - **Outcome.** The policy's `enforcement` decides it: `strict` throws `TenantGuardrailError`, and `warn` returns the SQL with the findings in `result.tenantGuardrail.warnings` and `result.verdict`. At rebind, a `warn` finding refuses the template unless you pass `acceptWarnings: ["tenant"]`. AskDB never adds a missing tenant filter.
 - **`global` scope.** The tenant check doesn't run, and SQL that still has a tenant placeholder throws `TenantScopeError` (`UNRESOLVED_TENANT_PLACEHOLDER`), since there are no IDs to bind.
 - **Tables named like keywords.** An unquoted name the engine reads as a table, such as `user` on MySQL or `lock` on Postgres, is a read and needs its predicate. So is a quoted one, such as `"order"`. `ORDER BY` and `GROUP BY` are read as keywords, not as a table named `order`, `group` or `by`.
 - **Each read, in its own `SELECT`.** Every read of a scoped table, and of a root the scope covers, needs its own predicate in the `SELECT` it appears in ([#399](https://github.com/Ygilany/AskDB/issues/399)).
   - A CTE body, a derived table, a subquery and each `UNION` branch are each their own `SELECT`.
-  - A qualified predicate (`o.agency_id`) counts only for the read it names. A read has a name only when written `table`, `table alias` or `table AS alias`, followed by what ends the source (for example a join, `ON`, `WHERE`, `GROUP BY`, a comma or a closing parenthesis); after any other clause, only an unqualified predicate filters it.
+  - A qualified predicate (`o.agency_id`) counts only for the read it names. A read has a name only when it is written `table`, `table alias` or `table AS alias`. What follows must end the source (for example a join, `ON`, `WHERE`, `GROUP BY`, a comma or a closing parenthesis). After any other clause, only an unqualified predicate filters it.
   - When a `SELECT` reads a table more than once, each read needs a distinct plain alias (`orders a JOIN orders b`), outside parentheses, and its own predicate qualified with that alias.
   - On MySQL, MariaDB and SQL Server, write an alias the same way each time. A qualifier in another case doesn't count.
   - A read inside a derived table or CTE also passes when every reference to that source is filtered on the tenant column. The source must pass the column through unrenamed (`SELECT *` over one table, or the column itself).
   - The source must also compute nothing across its rows: no aggregate, window, `GROUP BY`, `HAVING`, `QUALIFY`, `LIMIT`, `OFFSET`, `FETCH` or `TOP`.
   - A set operation in the source's body, or a column list on it or on a reference to it, fails closed.
   - So AskDB refuses `WITH t AS (SELECT id FROM orders WHERE agency_id = :tenant_agency_ids) SELECT * FROM orders`, and a root joined for a label from a CTE, derived table or scalar subquery needs its own predicate there.
-- **Joins on the declared columns.** A table scoped through a join path, and a root filtered through another table's column, count only when each join equates the columns the policy declares (`appointments.client_id = clients.id`), as a `col = col` conjunct or `col IN (SELECT col …)` in the same `SELECT`, and the last read is filtered with an allowed root's placeholder. A join on any other pair of columns links nothing, and in a `SELECT` with an outer join no `ON` equality does ([#400](https://github.com/Ygilany/AskDB/issues/400)).
-- **Known limit.** It doesn't check that two joined scoped tables share a scope, and only the roots the scope names are checked as root tables. An unqualified predicate in an `ON` can count for a read the join doesn't see where a name is spelled like a join word (`NATURAL` or `USING` as a SQL Server alias).
+- **Joins on the declared columns.** A table scoped through a join path, and a root filtered through another table's column, count only when two things hold. First, each join equates the columns the policy declares (`appointments.client_id = clients.id`), as a `col = col` conjunct or `col IN (SELECT col …)` in the same `SELECT`. Second, the last read is filtered with an allowed root's placeholder. A join on any other pair of columns links nothing. In a `SELECT` with an outer join, no `ON` equality counts ([#400](https://github.com/Ygilany/AskDB/issues/400)).
+- **Known limit.** It doesn't check that two joined scoped tables share a scope. Only the roots the scope names are checked as root tables. An unqualified predicate in an `ON` can count for a read the join doesn't see. That happens where a name is spelled like a join word (`NATURAL` or `USING` as a SQL Server alias).
 
 ## The sensitive check
 
-The sensitive check reports the tables and columns marked `sensitive: true` that the SQL reads: sensitive columns named in the SQL, sensitive tables read in `FROM` or `JOIN`, and sensitive columns reached through `SELECT *`, `t.*` or a whole-row reference such as `row_to_json(t)`. `ask()` attaches the result as `result.sensitiveGuardrail`. [`validateSensitiveReferences()`](/reference/core-api/checks/#validatesensitivereferencessql-schema-options) runs it on SQL you store and replay, and documents how it resolves names and when it fails closed.
+The sensitive check reports the tables and columns marked `sensitive: true` that the SQL reads:
 
-It can miss a table in some `FROM` forms, so a wildcard over it goes unreported: a parenthesized `FROM` item ([#306](https://github.com/Ygilany/AskDB/issues/306)), a comma-joined table after a `JOIN`'s `ON` or `USING` ([#307](https://github.com/Ygilany/AskDB/issues/307)), MySQL `STRAIGHT_JOIN` used as a join ([#308](https://github.com/Ygilany/AskDB/issues/308)), and Postgres `TABLE users` inside a derived table ([#309](https://github.com/Ygilany/AskDB/issues/309)). Mark sensitive data in the database too: keep it out of the read-only role's grants (see [Keep sensitive columns out of prompts](/guides/keep-sensitive-columns-out-of-prompts/)).
+- sensitive columns named in the SQL
+- sensitive tables read in `FROM` or `JOIN`
+- sensitive columns reached through `SELECT *`, `t.*` or a whole-row reference such as `row_to_json(t)`
+
+`ask()` attaches the result as `result.sensitiveGuardrail`. [`validateSensitiveReferences()`](/reference/core-api/checks/#validatesensitivereferencessql-schema-options) runs it on SQL you store and replay, and documents how it resolves names and when it fails closed.
+
+It can miss a table in some `FROM` forms, so a wildcard over it goes unreported:
+
+- a parenthesized `FROM` item ([#306](https://github.com/Ygilany/AskDB/issues/306))
+- a comma-joined table after a `JOIN`'s `ON` or `USING` ([#307](https://github.com/Ygilany/AskDB/issues/307))
+- MySQL `STRAIGHT_JOIN` used as a join ([#308](https://github.com/Ygilany/AskDB/issues/308))
+- Postgres `TABLE users` inside a derived table ([#309](https://github.com/Ygilany/AskDB/issues/309))
+
+Mark sensitive data in the database too: keep it out of the read-only role's grants (see [Keep sensitive columns out of prompts](/guides/keep-sensitive-columns-out-of-prompts/)).
 
 ## Read next
 

@@ -5,12 +5,12 @@ description: "Rerun a query AskDB generated with new values, such as another mon
 
 import AgentPrompt from "../../../components/AgentPrompt.astro";
 
-When a user asks the same question with a new value, such as another month, rebind the query AskDB already generated instead of calling the model again. AskDB checks the stored template again and takes the tenant IDs from the scope you pass now.
+A user asks "How many orders shipped in March?" and then asks again for April. Instead of calling the model again, you rebind the query AskDB already generated. AskDB checks the stored template again, and takes the tenant IDs from the scope you pass now.
 
 ## Before you start
 
 - A service that calls `ask()`, through `@askdb/client` or `@askdb/core`. [Embed in a Node app](/guides/embed-in-node/) sets one up.
-- `parameterize` left on, which is the default. `ask()` then asks the model for a template of the query as well, at the cost of some extra output tokens.
+- `parameterize` left on, which is the default. `ask()` then asks the model for a template of the query as well: the SQL with each changeable value replaced by a named parameter. That costs some extra output tokens.
 
 <figure>
 
@@ -31,12 +31,12 @@ askdb -> askdb: re-check
 askdb ..> app: `rebound.sql`
 ```
 
-<figcaption>Prepare once, store the <code>preparedQuery</code>, and bind it with new values later. <code>bind()</code> makes no model call, runs the SQL checks again, and takes tenant IDs from the scope you pass.</figcaption>
+<figcaption>Prepare once, store the <code>preparedQuery</code>, and bind it with new values later. <code>bind()</code> makes no model call and runs the SQL checks again. It takes tenant IDs from the scope you pass.</figcaption>
 </figure>
 
 ## 1. Keep the prepared query
 
-`ask()` returns a `preparedQuery` when the query has at least one value to change, such as a date or a name, and the model's template matches its SQL. It holds the template and the definition of each parameter, but no values. It's plain JSON, so you can store it with the question:
+`ask()` returns a `preparedQuery` that you can store with the question. It holds the template and the definition of each parameter, but no values. It's plain JSON:
 
 ```ts
 // askdb initialized at startup with createAskDb() — see Embed in a Node app.
@@ -47,7 +47,12 @@ if (result.preparedQuery) {
 }
 ```
 
-Without a `preparedQuery`, call `ask()` again for the new value. It's also absent with a custom `AskDialect`.
+Some results have no `preparedQuery`. Two cases:
+
+- **No usable template.** The query has no value to change, such as a date or a name, or the model's template doesn't match its SQL.
+- **A custom `AskDialect`.** `ask()` leaves it out.
+
+For a result without one, call `ask()` again for the new value.
 
 ## 2. Bind the new values
 
@@ -57,7 +62,7 @@ Pass the stored `preparedQuery`, the new values and the caller's tenant scope:
 const rebound = await askdb.bind(preparedQuery, { month: "2026-04" }, { tenantScope });
 ```
 
-Key each value by a parameter's `name`. Pass one for each entry in `preparedQuery.parameters` whose `source` is `"question"`, of its `type`. The entries with `source: "tenant"` are the tenant placeholders: AskDB fills them from the scope.
+Key each value by a parameter's `name`. Pass a value for each question parameter, of the parameter's `type`. A question parameter is an entry in `preparedQuery.parameters` with `source` set to `"question"`. The entries with `source: "tenant"` are the tenant placeholders: AskDB fills them from the scope.
 
 `askdb.bind()` makes no model call. It checks the template again, the way `ask()` checks the model's SQL:
 

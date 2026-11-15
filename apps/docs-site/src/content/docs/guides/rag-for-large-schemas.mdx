@@ -6,7 +6,7 @@ description: "When your schema is too big to fit in a prompt, index it with @ask
 import InstallTabs from "../../../components/InstallTabs.astro";
 import AgentPrompt from "../../../components/AgentPrompt.astro";
 
-Big databases need retrieval. `@askdb/rag` chunks the same schema artifact and indexes it in a vector store. Per question, AskDB retrieves the relevant slice instead of stuffing the whole thing into every prompt.
+Some schemas are too large for one prompt. For those, you index the schema artifact (the files that describe your tables to the model) with `@askdb/rag`. For each question, AskDB then retrieves the tables that matter and puts only those in the prompt. `@askdb/rag` chunks the artifact and stores the chunks in a vector store.
 
 ## Before you start
 
@@ -17,9 +17,9 @@ Big databases need retrieval. `@askdb/rag` chunks the same schema artifact and i
 
 ## When you need it
 
-A rule of thumb: if your schema artifact has more than ~22 tables, or if rendered DDL routinely exceeds 8K tokens, you'll save money and improve generation quality by retrieving instead of stuffing.
+As a rule of thumb, use retrieval when your schema artifact has more than about 22 tables. Use it too when the rendered DDL routinely exceeds 8K tokens. Retrieving instead of sending every table saves money and improves generation quality.
 
-When you pass a retriever, `ask()` retrieves on every call, unless you also pass the schema's chunk count: see [Wire retrieval into `ask()`](#wire-retrieval-into-ask).
+When you pass a retriever, `ask()` retrieves on every call. A small schema can skip retrieval if you also pass the schema's chunk count: see [Wire retrieval into `ask()`](#wire-retrieval-into-ask).
 
 <figure>
 
@@ -69,7 +69,7 @@ You'll also need an embedding model. The Vercel AI SDK providers from [Bring you
 
 pgvector is the recommended store: it lives in Postgres alongside your other data, you already know how to back it up, and AskDB ships ready-made DDL.
 
-There are three provisioning paths — pick the one that matches your deploy story.
+There are three ways to create the table. Pick the one that matches how you deploy.
 
 ### Path 1: Studio (local development)
 
@@ -97,13 +97,17 @@ export default defineConfig({
 });
 ```
 
-`rag.embedder: "ai"` embeds with the [`ai.embedding`](/reference/config/#aiembedding) model, and `ai.embedding.model` is required: AskDB has no default embedding model. Its provider defaults to `ai.provider`; to keep a language model from a provider without embeddings (such as Anthropic), set `ai.embedding.provider` and give that provider a connection. You don't set the vector width: AskDB learns it from the model when it first builds the index, and creates the pgvector table at that width. Set `ai.embedding.dimensions` only to request a smaller size from a model that lets you choose one.
+`rag.embedder: "ai"` embeds with the [`ai.embedding`](/reference/config/#aiembedding) model. `ai.embedding.model` is required, because AskDB has no default embedding model. Three details:
+
+- **Provider.** The embedding provider defaults to `ai.provider`. To keep a language model from a provider without embeddings (such as Anthropic), set `ai.embedding.provider` and give that provider a connection.
+- **Vector width.** You don't set it. AskDB learns the width from the model when it first builds the index, and creates the pgvector table at that width.
+- **Smaller vectors.** Set `ai.embedding.dimensions` only to request a smaller size from a model that lets you choose one.
 
 Launch Studio (`npx askdb studio --schema ./my-app.schema`) and build the index from the **RAG Index** page; the first build creates the table.
 
 ### Path 2: `askdb rag setup-store` (CI / staging)
 
-One idempotent command. All DDL uses `IF NOT EXISTS` so it's safe to re-run on every deploy. `setup-store` has no embedding model to ask, so pass the width yours returns (1536 for `text-embedding-3-small`; `detectEmbeddingDimensions(embedder)` tells you for any model).
+Run one command in CI or staging. All its DDL uses `IF NOT EXISTS`, so it's idempotent and safe to re-run on every deploy. `setup-store` has no embedding model to ask, so pass the width yours returns. That is 1536 for `text-embedding-3-small`, and `detectEmbeddingDimensions(embedder)` tells you for any model.
 
 ```bash
 npx askdb rag setup-store \
@@ -111,7 +115,12 @@ npx askdb rag setup-store \
   --dimensions 1536
 ```
 
-`--dimensions` is required, and 1536 here is `text-embedding-3-small`'s width: use your model's. `--pg-url` and `--pg-table` fall back to `rag.storeConfig.pgvector` in `askdb.config.*`. If the table already exists with different dimensions, the command fails instead of silently keeping the old size. See [`askdb rag`](/reference/cli/#askdb-rag) for every flag.
+`--dimensions` is required, and 1536 here is `text-embedding-3-small`'s width: use your model's. Two details:
+
+- **Fallbacks.** `--pg-url` and `--pg-table` are optional. Without them, the command reads `rag.storeConfig.pgvector` in `askdb.config.*`.
+- **Existing table.** If the table exists with different dimensions, the command fails instead of silently keeping the old size.
+
+See [`askdb rag`](/reference/cli/#askdb-rag) for every flag.
 
 Drop it into a deploy step:
 
@@ -122,7 +131,7 @@ Drop it into a deploy step:
 
 ### Path 3: Explicit migration (production)
 
-For production teams that want all DDL in a versioned migration file:
+In production you may want all DDL in a versioned migration file. Print it from the store:
 
 ```ts
 import { createPgvectorStore } from "@askdb/rag/stores/pgvector";
@@ -139,7 +148,7 @@ Paste the output (CREATE EXTENSION, CREATE TABLE, CREATE INDEX) into Flyway, Liq
 
 ## Index the schema artifact
 
-Index your schema's chunks. If none of the paths above created the table yet, `ensureSchema()` creates it at the width the embedding model returns:
+Index your schema's chunks. If none of the three ways above created the table yet, `ensureSchema()` creates it at the width the embedding model returns:
 
 ```ts
 import {
@@ -170,15 +179,22 @@ const { retriever, stats } = await buildSchemaIndex({
 });
 ```
 
-`buildSchemaIndex` chunks the artifact, embeds only the chunks the store doesn't already hold, and returns a ready-to-use `retriever` plus indexing stats. A changed `embedderId` re-embeds every chunk, and `force: true` re-embeds them unconditionally. The [lock file](/reference/rag-api/#lock-file) records the embedder, store and vector width.
+`buildSchemaIndex` chunks the artifact and embeds only the chunks the store doesn't already hold. It returns a ready-to-use `retriever` plus indexing stats. Two things force a full re-embed: a changed `embedderId`, and `force: true`. The [lock file](/reference/rag-api/#lock-file) records the embedder, store and vector width.
 
 ## Wire retrieval into `ask()`
 
-Pass the retriever to `ask()`. AskDB calls it with the question. The prompt then lists, in full, each table a retrieved chunk points to, instead of every table. Each listed table shows its foreign keys to the other listed tables. Retrieved common query language and business context go under their table, each listed column's note goes on its line, and the retrieved concepts, example questions and tenant policy text follow the tables. Business context and column notes reach the prompt with or without retrieval. [Privacy model](/concepts/privacy-model/#what-the-model-sees) lists everything that reaches the model.
+Pass the retriever to `ask()`. AskDB calls it with the question. The prompt then lists, in full, each table a retrieved chunk points to, instead of every table. What the prompt holds:
 
-With a tenant policy, the prompt's tenant block names only those tables too. A table outside them appears there only on a join path a retrieved table needs, and a root whose table wasn't retrieved appears by its label and placeholder ([#771](https://github.com/Ygilany/AskDB/issues/771)).
+- **Foreign keys.** Each listed table shows its foreign keys to the other listed tables.
+- **Under a table.** Retrieved common query language and business context go under their table.
+- **On a column.** Each listed column's note goes on its line.
+- **After the tables.** The retrieved concepts, example questions and tenant policy text follow the tables.
 
-If you just ran `buildSchemaIndex` in the same process, pass its returned `retriever` directly. To retrieve in a separate process (the common production shape), rebuild one from the store:
+Business context and column notes reach the prompt with or without retrieval. [Privacy model](/concepts/privacy-model/#what-the-model-sees) lists everything that reaches the model.
+
+With a tenant policy, the prompt's tenant block names only those tables too. A table outside them appears there only on a join path a retrieved table needs. A root whose table wasn't retrieved appears by its label and placeholder ([#771](https://github.com/Ygilany/AskDB/issues/771)).
+
+If you just ran `buildSchemaIndex` in the same process, pass its returned `retriever` directly. In production you usually retrieve in a separate process. There, rebuild a retriever from the store and the embedder, created as in the indexing step:
 
 ```ts
 import { createRetriever } from "@askdb/rag";
@@ -189,17 +205,24 @@ const retriever = createRetriever({ store, embedder });
 const { sql } = await askdb.ask(question, { retriever });
 ```
 
-With only a retriever, `ask()` retrieves on every call. To let a small schema skip retrieval, also pass `totalSchemaChunkCount`, the `stats.chunksTotal` that `buildSchemaIndex` returns. At or below `retrievalThresholdChunks` (30 by default), `ask()` then sends the whole schema instead.
+With only a retriever, `ask()` retrieves on every call. To let a small schema skip retrieval, also pass `totalSchemaChunkCount`, which is the `stats.chunksTotal` that `buildSchemaIndex` returns. At or below `retrievalThresholdChunks` (30 by default), `ask()` then sends the whole schema instead.
 
 ## Sensitive fields and embeddings
 
-Sensitive content stays out of the index by default. The chunker leaves out the text you wrote about sensitive tables and columns (descriptions, aliases, primary entity, enum values, notes, common query language, example questions and business context), and any text that names a sensitive column, whichever table it describes. Column names and types stay available to the model through `ask()`'s prompt. [Privacy model](/concepts/privacy-model/#large-schemas-and-the-embedding-provider) says what the embedding model receives.
+Sensitive content stays out of the index by default. The chunker leaves out two kinds of text:
 
-Set `chunkOptions: { includeSensitiveDescribable: true }` only if your trust model allows embedding that content. Chunks kept this way carry `sensitive: true`. With `omitSensitiveIdentifiersFromNlToSqlPrompt` on, `ask()` leaves the text of any retrieved chunk that carries `sensitive: true` or names a sensitive column out of the prompt, whichever retriever returned it, and still lists the tables the chunk points to. See the [schema artifact contract on GitHub](https://github.com/Ygilany/AskDB/blob/main/docs/contracts/schema-v2.md#sensitive-propagation) for the full rules.
+- **Text about a sensitive table or column.** That is the descriptions, aliases, primary entity, enum values, notes, common query language, example questions and business context you wrote.
+- **Text that names a sensitive column**, whichever table it describes.
+
+Column names and types stay available to the model through `ask()`'s prompt. [Privacy model](/concepts/privacy-model/#large-schemas-and-the-embedding-provider) says what the embedding model receives.
+
+Set `chunkOptions: { includeSensitiveDescribable: true }` only if your trust model allows embedding that content. Chunks kept this way carry `sensitive: true`.
+
+The option `omitSensitiveIdentifiersFromNlToSqlPrompt` changes what `ask()` does with them. With it on, `ask()` leaves out of the prompt the text of any retrieved chunk that carries `sensitive: true` or names a sensitive column. That holds whichever retriever returned the chunk. `ask()` still lists the tables the chunk points to. See the [schema artifact contract on GitHub](https://github.com/Ygilany/AskDB/blob/main/docs/contracts/schema-v2.md#sensitive-propagation) for the full rules.
 
 ## Custom table or dimensions
 
-Several schemas can share one table: [chunk ids](/reference/rag-api/#chunk) include the schema id, and reindexing one schema never removes another schema's chunks. Use a separate table when deployments use different embedding models or dimensions. To isolate multiple AskDB deployments in the same Postgres database, pass a custom table name and a matching embedding dimension:
+Several schemas can share one table. [Chunk ids](/reference/rag-api/#chunk) include the schema id, so reindexing one schema never removes another schema's chunks. Use a separate table when deployments use different embedding models or dimensions. To isolate several AskDB deployments in one Postgres database, pass a custom table name and a matching embedding dimension:
 
 ```bash
 npx askdb rag setup-store \
@@ -208,7 +231,7 @@ npx askdb rag setup-store \
   --dimensions 1536
 ```
 
-1536 is `text-embedding-3-small`'s width; pass your model's. Match the same `table` value in `askdb.config.ts` under `rag.storeConfig.pgvector.table`, which Studio and `askdb rag` read; with it set there, `askdb rag` needs no `--pg-table`.
+1536 is `text-embedding-3-small`'s width; pass your model's. Set the same table name in `askdb.config.ts`, as `rag.storeConfig.pgvector.table`. Studio and `askdb rag` read it there, so `askdb rag` then needs no `--pg-table`.
 
 ## Use with your agent
 

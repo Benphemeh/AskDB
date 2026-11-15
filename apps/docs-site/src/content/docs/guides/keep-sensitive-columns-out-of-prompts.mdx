@@ -5,7 +5,9 @@ description: "Mark sensitive tables and columns in the schema artifact, leave th
 
 import AgentPrompt from "../../../components/AgentPrompt.astro";
 
-Some columns, such as a social security number or an email address, shouldn't reach your model provider, even by name. Mark them sensitive in the schema artifact. AskDB can then leave them out of every prompt, flag the SQL that reads them, and keep them out of the RAG index. Their values never reach the model either way: AskDB doesn't read your rows.
+Some columns, such as a social security number or an email address, shouldn't reach your model provider, even by name. Mark them sensitive in the schema artifact (the files that describe your tables to the model). AskDB can then leave them out of every prompt when you turn that on, and flag the SQL that reads them. It also keeps them out of the RAG index (what AskDB searches when a schema is too large for one prompt). Their values never reach the model either way: AskDB doesn't read your rows.
+
+The marks are aids, not a security boundary. The database role is what stops a query from reading a column.
 
 ## Before you start
 
@@ -23,7 +25,7 @@ The steps set up four layers. Each does a different job:
 
 ## 1. Mark the tables and columns
 
-In Studio, open the table in **Tables** and use its **Sensitivity** tab. Or write the mark in the table's markdown front-matter:
+In Studio (AskDB's browser UI for schema enrichment), open the table in **Tables** and use its **Sensitivity** tab. Or write the mark in the table's markdown front-matter:
 
 ```yaml
 ---
@@ -51,7 +53,7 @@ export default defineConfig({
 
 The model then sees neither the sensitive columns nor the text that names them. [Privacy model](/concepts/privacy-model/#sensitive-columns) says exactly what each mode sends, and the one exception.
 
-The config setting is a floor: a single call can turn omission on, but not off. Each surface has its own switch:
+A single call can turn omission on, but not off. The config setting is the floor. Each surface has its own switch:
 
 | Surface | Turn omission on |
 | --- | --- |
@@ -76,7 +78,7 @@ if (result.sensitiveGuardrail && !result.sensitiveGuardrail.passed) {
 }
 ```
 
-To refuse that SQL instead, pass `sensitiveGuardrailMode: "strict"`, and the call throws `SensitiveReferenceError`. A rebind with `askdb.bind()` runs the same check again.
+To refuse that SQL instead, pass `sensitiveGuardrailMode: "strict"`, and the call throws `SensitiveReferenceError`. A rebind with `askdb.bind()` (a rerun of a stored query with new values) runs the same check again.
 
 SQL that reaches your database without `ask()` or a rebind isn't checked, such as a statement you cache and replay. Run `validateSensitiveReferences()` on every such path:
 
@@ -89,7 +91,7 @@ if (!passed) {
 }
 ```
 
-The check is heuristic, not a SQL parser — a review and enforcement aid, not a substitute for database-side column privileges. [Conservative failure](/reference/core-api/checks/#conservative-failure) says how it reports a statement it can't fully read.
+The check is heuristic, not a SQL parser. It is a review and enforcement aid, not a substitute for database-side column privileges. [Conservative failure](/reference/core-api/checks/#conservative-failure) says how it reports a statement it can't fully read.
 
 ## 4. Keep them out of the database role
 

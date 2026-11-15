@@ -57,7 +57,33 @@ const redshiftFlavor: DialectSpec = {
 
 `id` also selects how the SQL checks read strings, quoted names and comments: see [How the checks read SQL](/reference/sql-checks/#how-the-checks-read-sql). The built-in specs ship their own `extraForbiddenKeywords` and `blockedFunctions`; spread one (`{ ...POSTGRES_DIALECT, … }`) to keep them, since setting either field replaces the built-in list. These checks are defense in depth — run generated SQL under a read-only database role.
 
-`id` also decides how the prompt quotes names. A schema, table or column whose name is in `reservedWords`, is a word the SQL checks reject unquoted (the shared denylist plus `extraForbiddenKeywords`, such as `copy`, and on `sqlserver` and an id that is no built-in engine the lock hints, such as `rowlock`), isn't a plain identifier (on `sqlserver` and an id that is no built-in engine, anything beyond ASCII letters, digits, `_` and `$`), or (for `postgres` and `cockroachdb`, which fold unquoted names to lowercase) has capitals, is listed quoted (`billing."order"` for `postgres` and `cockroachdb`, ``billing.`order` `` for `mysql` and `mariadb`, `billing.[order]` for `sqlserver`, `"order"` for `sqlite`; a Prisma table `Post` is `public."Post"` on Postgres). When the prompt lists tables with their schema, it also tells the model to quote each part of a qualified name separately. On `sqlserver` and an id that is no built-in engine, it tells the model to quote a non-ASCII alias (`AS [注文数]`) and to qualify a quoted column that is alone in parentheses (`SUM(o.[金額])`), because the SQL checks reject both otherwise. An id that quotes with a backtick (`` identifierQuote: "`" ``) can't use a column named like a denylisted word, a lock hint, or a name that isn't plain ASCII yet: the checks read its SQL under every engine's lexer, SQL Server's included, where a backtick doesn't quote (#672). `promptIdentifierQuoter(dialect)` returns that quoting as a function; pass it as `quoteIdentifier` when you call `formatSchemaV2ForNlToSql` or `synthesizeRetrievedDdl` yourself.
+`id` also decides how the prompt quotes names. The prompt lists a schema, table or column quoted when its name meets any of these conditions:
+
+- **Reserved:** the name is in `reservedWords`.
+- **Rejected unquoted:** the SQL checks reject the name as a bare word. That covers the shared denylist plus `extraForbiddenKeywords`, such as `copy`. On `sqlserver` and an id that is no built-in engine, it also covers the lock hints, such as `rowlock`.
+- **Not a plain identifier:** on `sqlserver` and an id that is no built-in engine, the name has anything beyond ASCII letters, digits, `_` and `$`.
+- **Capitals:** for `postgres` and `cockroachdb`, which fold unquoted names to lowercase, the name has capitals.
+
+The quoted forms are:
+
+- **`postgres`, `cockroachdb`:** `billing."order"`. A Prisma table `Post` is `public."Post"`.
+- **`mysql`, `mariadb`:** ``billing.`order` ``.
+- **`sqlserver`:** `billing.[order]`.
+- **`sqlite`:** `"order"`.
+
+Three more prompt rules:
+
+- **Qualified names:** when the prompt lists tables with their schema, it tells the model to quote each part of a qualified name separately.
+- **Non-ASCII alias:** on `sqlserver` and an id that is no built-in engine, it tells the model to quote a non-ASCII alias (`AS [注文数]`), because the SQL checks reject it otherwise.
+- **Lone quoted column:** on the same ids, it tells the model to qualify a quoted column that is alone in parentheses (`SUM(o.[金額])`), because the SQL checks reject it otherwise.
+
+An id that quotes with a backtick (`` identifierQuote: "`" ``) has a limit (#672). The checks read its SQL under every engine's lexer, SQL Server's included, where a backtick doesn't quote. So it can't yet use a column that has any of these names:
+
+- a name like a denylisted word
+- a lock hint
+- a name that isn't plain ASCII
+
+`promptIdentifierQuoter(dialect)` returns that quoting as a function. Pass it as `quoteIdentifier` when you call `formatSchemaV2ForNlToSql` or `synthesizeRetrievedDdl` yourself.
 
 ## `AskDialect`
 
@@ -78,7 +104,14 @@ The `generate` method receives:
 - `question: string`
 - `schema: AnyNormalizedSchema`
 - `model: AskDbLanguageModel`
-- `options?: AskDialectGenerateOptions` — `{ logger, explain, omitSensitiveIdentifiersFromNlToSqlPrompt, generateText, providerOptions, abortSignal, prebuiltDdl, promptTableIds, tenantPolicy, tenantScope }`. Under retrieval, `prebuiltDdl` is the retrieved DDL and `promptTableIds` the ids of the tables it shows; a dialect that builds its prompt with `buildNlToSqlUserPrompt()` passes both, so the prompt's tenant block names no other table. Pass `abortSignal` to your model call so the caller's timeout cancels it; `ask()` doesn't wrap what `generate()` throws, so an abort surfaces as your dialect's own error (typically the AI SDK's `AbortError`) unless you map it. For the same reason, a dialect whose prompt lets the model decline throws `QuestionDeclinedError` itself; `extractSqlFromModelText()` does that for a reply in the `buildNlToSqlUserPrompt()` decline format. `tenantScope` is the scope after `ask()` expands a `subtree`: a `multi_root` scope with one entry per covered root, where a root the resolver returned no IDs for has `ids: []`. `validateTenantScope()` accepts it.
+- `options?: AskDialectGenerateOptions` — `{ logger, explain, omitSensitiveIdentifiersFromNlToSqlPrompt, generateText, providerOptions, abortSignal, prebuiltDdl, promptTableIds, tenantPolicy, tenantScope }`.
+
+Notes on `options`:
+
+- **Retrieval:** `prebuiltDdl` is the retrieved DDL, and `promptTableIds` the ids of the tables it shows. A dialect that builds its prompt with `buildNlToSqlUserPrompt()` passes both, so the prompt's tenant block names no other table.
+- **`abortSignal`:** pass it to your model call so the caller's timeout cancels it. `ask()` doesn't wrap what `generate()` throws. An abort surfaces as your dialect's own error (typically the AI SDK's `AbortError`) unless you map it.
+- **Declines:** for the same reason, a dialect whose prompt lets the model decline throws `QuestionDeclinedError` itself. `extractSqlFromModelText()` does that for a reply in the `buildNlToSqlUserPrompt()` decline format.
+- **`tenantScope`:** the scope after `ask()` expands a `subtree`. It is a `multi_root` scope with one entry per covered root. A root the resolver returned no IDs for has `ids: []`. `validateTenantScope()` accepts it.
 
 It must return `AskDialectGenerateResult`:
 
@@ -91,7 +124,15 @@ It must return `AskDialectGenerateResult`:
 | `unboundNamedSql` | `string \| undefined` | The same statement with `:name` placeholders for the values taken from the question. `ask()` runs its tenant and sensitive checks on it too, as the `"template"` form, but builds no reuse artifacts from a custom dialect. |
 | `parameterManifest` | `ParameterManifest \| undefined` | The placeholders' declarations. `ask()` reads it only with a built-in dialect or `DialectSpec`, so a custom dialect's is ignored. The `ParameterManifest` type isn't exported. |
 
-A custom `AskDialect` is responsible for its own read-only validation. `ask()` does not run [the read-only check](/reference/sql-checks/#the-read-only-check) on its output. If your generator should only emit read-only SQL, call `validateSelectSql(spec, sql)` before returning. The tenant and sensitive checks still run on what it returns: with a tenant policy, `ask()` checks the returned `sql` (and its `sql-unbound` block) with the `:tenant_<root>_ids` placeholders still in place, and then substitutes them, whatever the dialect. AskDB doesn't know how your engine reads SQL, so the checks read it every engine's way, and it must pass each: a tenant column written only as `"agency_id"` doesn't count as a predicate, since MySQL reads `"…"` as a string. See [When each check runs](/reference/sql-checks/#when-each-check-runs) and [What the tenant check requires](/reference/tenant-policy/#what-the-tenant-check-requires). With a tenant scope, a custom `AskDialect` must set `tenantSqlMode`, because AskDB can't know its driver's markers (see [`ask()` options](/reference/core-api/ask/#options)). Under `strict`, SQL that fails the tenant check throws `TenantGuardrailError`; passing it doesn't prove the SQL is scoped.
+A custom `AskDialect` is responsible for its own read-only validation. `ask()` does not run [the read-only check](/reference/sql-checks/#the-read-only-check) on its output. If your generator should only emit read-only SQL, call `validateSelectSql(spec, sql)` before returning.
+
+The tenant and sensitive checks still run on what it returns:
+
+- **Tenant check:** with a tenant policy, `ask()` checks the returned `sql` (and its `sql-unbound` block) with the `:tenant_<root>_ids` placeholders still in place. It then substitutes them, whatever the dialect.
+- **Every engine's reading:** AskDB doesn't know how your engine reads SQL, so the checks read it every engine's way. The SQL must pass each reading. A tenant column written only as `"agency_id"` doesn't count as a predicate, since MySQL reads `"…"` as a string.
+- **`strict`:** SQL that fails the tenant check throws `TenantGuardrailError`. Passing the check doesn't prove the SQL is scoped.
+
+See [When each check runs](/reference/sql-checks/#when-each-check-runs) and [What the tenant check requires](/reference/tenant-policy/#what-the-tenant-check-requires). With a tenant scope, a custom `AskDialect` must set `tenantSqlMode`, because AskDB can't know its driver's markers (see [`ask()` options](/reference/core-api/ask/#options)).
 
 Passing an unknown string dialect id, or a `DialectSpec` whose `id` isn't one of the six built-in ids, throws `UnknownDialectError`, which extends `AskDbError`. `ask()` refuses such a spec before any tenant check, retrieval or model call.
 

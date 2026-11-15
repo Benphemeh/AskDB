@@ -5,7 +5,7 @@ description: "Build a Postgres schema artifact from exported catalog query resul
 
 import AgentPrompt from "../../../components/AgentPrompt.astro";
 
-When the machine that runs `askdb` can't reach your Postgres database, or shouldn't hold its credentials, someone who can runs AskDB's catalog queries and hands you the results. AskDB builds the same schema artifact from them as from a live connection.
+When the machine that runs `askdb` can't reach your Postgres database, or shouldn't hold its credentials, someone who can runs AskDB's catalog queries and hands you the results. AskDB builds the same schema artifact (the files that describe your tables to the model) from them as from a live connection.
 
 This works for Postgres only. The other engines need a live connection.
 
@@ -65,7 +65,7 @@ sed -e 's/\$1::text\[\]/NULL::text[]/g' -e 's/\$2::text\[\]/NULL::text[]/g' \
   askdb-templates.sql > askdb-queries.sql
 ```
 
-To export only some schemas, put a list in place of every `$1` instead. Each query uses `$1` and `$2` twice, and the `g` at the end of each `sed` expression replaces them all:
+To export only some schemas, put a list in place of every `$1` instead. Each query uses both parameters twice. The `g` at the end of each `sed` expression replaces every use:
 
 ```bash
 sed -e "s/\$1::text\[\]/ARRAY['public','sales']::text[]/g" -e 's/\$2::text\[\]/NULL::text[]/g' \
@@ -76,7 +76,7 @@ You can also export everything and filter in step 4.
 
 ## 3. Run each query and save it as CSV
 
-The person with database access runs this, with their connection string in `DATABASE_URL`:
+Send the person with database access `askdb-queries.sql` from step 2. They run this, with their connection string in `DATABASE_URL`:
 
 ```bash
 mkdir askdb-queries askdb-export
@@ -89,7 +89,9 @@ echo '{ "engine": "postgres", "version": 1 }' > askdb-export/manifest.json
 
 The first command splits the file into one query per file in `askdb-queries/`. The loop runs each one and saves its result in `askdb-export/`.
 
-The export bundle, `askdb-export/`, now holds `manifest.json` and one CSV file for each query, such as `tables.csv` and `columns.csv`. `psql --csv` writes each file the way AskDB reads it: a header row with the query's column names, `t` and `f` for booleans, and an empty field for null. Hand over `askdb-export/`.
+The folder `askdb-export/` is the export bundle. It holds `manifest.json` and one CSV file for each query, such as `tables.csv` and `columns.csv`. Hand it over.
+
+`psql --csv` writes each file the way AskDB reads it: a header row with the query's column names, `t` and `f` for booleans, and an empty field for null.
 
 ## 4. Introspect from the export bundle
 
@@ -101,7 +103,7 @@ It writes the schema artifact to `introspection.outputDir` from your config, or 
 
 ## 5. Refresh it when the database changes
 
-When the database changes, repeat steps 3 and 4. Introspecting again into the same output folder (`introspection.outputDir` or `--out`) keeps your `tables/*.md`, `concepts.md` and `tenant-policy.md`, and each `"sensitive": true` in `schema.json`. [Enrich your schema](/guides/author-your-schema/#re-introspecting) has the steps after a table or column is renamed.
+When the database changes, repeat steps 3 and 4. Introspect into the same output folder as before (`introspection.outputDir` or `--out`). Your enrichment survives: the files in `tables/`, `concepts.md` and `tenant-policy.md`. So does each `"sensitive": true` in `schema.json`. [Enrich your schema](/guides/author-your-schema/#re-introspecting) has the steps after a table or column is renamed.
 
 ## If it fails
 

@@ -7,7 +7,7 @@ import { Aside, FileTree, Tabs, TabItem } from "@astrojs/starlight/components";
 import AgentPrompt from "../../components/AgentPrompt.astro";
 import ExampleLink from "../../components/ExampleLink.astro";
 
-In this tutorial, we'll create a small shop database, point AskDB at it, ask a question in plain English, and run the SQL that AskDB returns. At the end, we have an AskDB config, a schema artifact for our database, and the answer to a question, from SQL that our own code ran.
+In this tutorial, we'll create a small shop database, point AskDB at it, ask a question in plain English, and run the SQL that AskDB returns. At the end, we have an AskDB config, a schema artifact for our database, and the answer to a question, from SQL that our own code ran. The schema artifact is the file that describes our database to the model.
 
 <figure>
 
@@ -32,7 +32,7 @@ sql -> rows: piped to `run-query.mjs`
 <figcaption>What we'll make, and the step that makes each. AskDB reads the schema and returns checked SQL. Our own code runs it.</figcaption>
 </figure>
 
-<Aside type="tip" title="Skip the typing">The files this tutorial has you type (`shop.sql`, `make-shop.mjs` and `run-query.mjs`) are in <ExampleLink path="examples/quickstart-shop" />, with a `package.json` that lists AskDB. To fetch them into a new `askdb-shop` folder, run `npx gitpick Ygilany/AskDB/tree/main/examples/quickstart-shop askdb-shop`. Then, in that folder, run `npm install` and `node make-shop.mjs`, and continue from `askdb init` in step 2. The folder's README has the same commands for pnpm.</Aside>
+<Aside type="tip" title="Skip the typing">The files this tutorial has you type are `shop.sql`, `make-shop.mjs` and `run-query.mjs`. They're in <ExampleLink path="examples/quickstart-shop" />, with a `package.json` that lists AskDB. To fetch them into a new `askdb-shop` folder, run `npx gitpick Ygilany/AskDB/tree/main/examples/quickstart-shop askdb-shop`. Then, in that folder, run `npm install` and `node make-shop.mjs`, and continue from `askdb init` in step 2. The folder's README has the same commands for pnpm.</Aside>
 
 ## Before you start
 
@@ -161,9 +161,12 @@ It prints one line:
 Created shop.db
 ```
 
-A new `shop.db` file appears in the folder. That's our database. On Node 22, Node also prints an `ExperimentalWarning` about SQLite, which is safe to ignore here. To start over, delete `shop.db` first: running the script twice fails with `table customers already exists`.
+A new `shop.db` file appears in the folder. That's our database. Two things to know:
 
-Prefer a browser? Studio, AskDB's local web app, can do steps 2 to 4 from a setup wizard: install the CLI as in step 2, then run `npx askdb studio` instead of `askdb init`. See [Guided setup](/studio/#guided-setup). Studio is experimental, so this tutorial uses the CLI.
+- On Node 22, Node also prints an `ExperimentalWarning` about SQLite. It's safe to ignore here.
+- Running the script twice fails with `table customers already exists`. To start over, delete `shop.db` first.
+
+Prefer a browser? Studio, AskDB's local web app, can do steps 2 to 4 from a setup wizard. Install the CLI as in step 2, then run `npx askdb studio` instead of `askdb init`. See [Guided setup](/studio/#guided-setup). Studio is experimental, so this tutorial uses the CLI.
 
 ## 2. Install AskDB and scaffold the config
 
@@ -366,7 +369,7 @@ OPENAI_MODEL=
 
 `.env` holds your key, so keep it out of version control. `askdb.config.ts` holds no secrets and is safe to commit.
 
-Only the API key goes in `.env` here, because it's the only secret. A database server's connection URL holds a password, so it goes in `.env` too: the [Postgres fallback](#if-sqlite-wont-install-use-postgres-in-docker) below puts `DATABASE_URL` there.
+Here, only the API key goes in `.env`, because it's the only secret. With a database server, the connection URL holds a password, so it goes in `.env` as well: the [Postgres fallback](#if-sqlite-wont-install-use-postgres-in-docker) below puts `DATABASE_URL` there.
 
 ## 4. Read the schema
 
@@ -499,9 +502,12 @@ GROUP BY c.id, c.name
 ORDER BY total_spent DESC;
 ```
 
-The model writes the SQL, so yours can differ: other aliases, another layout, or other columns. Notice what AskDB did and didn't do. It checked the SQL before printing it: for example, it returns only read-only SQL. It didn't run the SQL. Running it is our job.
+The model writes the SQL, so yours can differ: other aliases, another layout, or other columns. Notice what AskDB did and didn't do:
 
-Ask something the shop database can't answer, such as "What's the weather like?", or ask it to change data, such as "delete all orders", and AskDB prints `AskDB can't answer this as a read-only query:` with the model's reason instead of SQL.
+- **It checked the SQL** before printing it. For example, it returns only read-only SQL.
+- **It didn't run the SQL.** Running it is our job.
+
+Some questions get no SQL. Ask something the shop database can't answer, such as "What's the weather like?", or ask it to change data, such as "delete all orders". AskDB then prints `AskDB can't answer this as a read-only query:` with the model's reason, on stderr, instead of SQL.
 
 If you see `no AI API key configured`, check that `.env` has your key (step 3).
 
@@ -577,7 +583,11 @@ We made a database, and AskDB read its schema. Then we asked a question in plain
 
 ## Use your own database
 
-Your own database works the same way. In your project, run `askdb init` for its engine, with `--ai-provider` if you don't use OpenAI, as in step 2. Then fill in `.env` as in step 3, with the database's location in `DATABASE_URL`. Run `askdb introspect` and `askdb ask` as in steps 4 and 5.
+Your own database works the same way:
+
+1. In your project, run `askdb init` for its engine, as in step 2. Add `--ai-provider` if you don't use OpenAI.
+2. Fill in `.env` as in step 3, with the database's location in `DATABASE_URL`.
+3. Run `askdb introspect` and `askdb ask` as in steps 4 and 5.
 
 <Tabs syncKey="engine">
   <TabItem label="PostgreSQL">

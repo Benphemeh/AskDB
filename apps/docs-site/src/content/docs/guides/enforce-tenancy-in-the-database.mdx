@@ -6,7 +6,7 @@ description: "Make Postgres the tenant boundary for the SQL AskDB generates: row
 import { Aside } from "@astrojs/starlight/components";
 import AgentPrompt from "../../../components/AgentPrompt.astro";
 
-AskDB's tenant check is a heuristic. It catches a model that forgot the tenant filter, but it can't prove a query is scoped. This guide makes Postgres the tenant boundary instead: row-level security keeps every query to the caller's tenants, whatever SQL arrives.
+AskDB's tenant check is a heuristic. It catches a model that forgot the tenant filter, but it can't prove a query is scoped. This guide makes Postgres the tenant boundary instead. Row-level security (a Postgres feature that filters each table's rows by a policy) keeps every query to the caller's tenants, whatever SQL arrives.
 
 <figure>
 
@@ -34,13 +34,13 @@ rls -> rows
 
 ## Before you start
 
-- **A tenant policy and a scope.** Your schema artifact has a tenant policy, and every `ask()` call passes a `tenantScope`. See [Scope queries to a tenant](/guides/multi-tenancy/), and [What enforces isolation](/concepts/tenant-isolation/#what-enforces-isolation) for how this guide fits with AskDB's check.
+- **A tenant policy and a scope.** Your schema artifact has a tenant policy (the file that says which tables belong to a tenant), and every `ask()` call passes a `tenantScope`. See [Scope queries to a tenant](/guides/multi-tenancy/), and [What enforces isolation](/concepts/tenant-isolation/#what-enforces-isolation) for how this guide fits with AskDB's check.
 - **A read-only role for generated SQL.** Here it's `askdb_reader`, set up as in [Database role](/guides/run-safely-in-prod/#database-role). It must not own the tenant tables, be a superuser, or have `BYPASSRLS`: Postgres skips row-level security for all three.
 - **PostgreSQL 15 or later** if the role reads views, for `security_invoker`. The examples were tested on PostgreSQL 17.
 
 The examples use tables like those in [Scope queries to a tenant](/guides/multi-tenancy/): `organizations` (the tenant root) and `documents`, with an `organization_id` column. Here the IDs are integers, not that guide's strings such as `org_abc123`, and a `comments` table reaches its organization through `document_id`.
 
-Keep `enforcement: strict` in your tenant policy. AskDB's check still stops most unscoped queries before they reach the database, so a model mistake shows up as an error you can log, and the database makes the mistakes that get past it harmless.
+Keep `enforcement: strict` in your tenant policy. AskDB's check still stops most unscoped queries before they reach the database, so a model mistake shows up as an error you can log. The database makes the mistakes that get past it harmless.
 
 ## 1. Add a policy to each tenant table
 
@@ -93,7 +93,13 @@ A policy keyed on a setting holds only while the SQL it guards can't change that
 - **`set_config()`.** One generated `SELECT` can call it to set its own tenant IDs before it reads.
 - **A `DO` block.** PL/pgSQL code in a `DO` statement can run `SET LOCAL`, read every tenant's rows, and return them in an error or notice message.
 
-This is documented Postgres behavior, not an AskDB bug. AskDB's checks already reject both: `set_config` is on the function denylist, a Unicode-escaped spelling such as `U&"set\005fconfig"` is refused as `SQL_UNICODE_ESCAPED_IDENTIFIER`, and `DO` doesn't start with `SELECT` or `WITH`. But those checks are heuristics. Close the gap in the database: revoke both from `PUBLIC`, then grant them back to the roles that need them.
+This is documented Postgres behavior, not an AskDB bug. AskDB's checks already reject both:
+
+- `set_config` is on the function denylist (the functions AskDB's read-only check refuses).
+- A Unicode-escaped spelling such as `U&"set\005fconfig"` is refused as `SQL_UNICODE_ESCAPED_IDENTIFIER`.
+- `DO` doesn't start with `SELECT` or `WITH`.
+
+But those checks are heuristics. Close the gap in the database: revoke both from `PUBLIC`, then grant them back to the roles that need them.
 
 ```sql
 REVOKE EXECUTE ON FUNCTION pg_catalog.set_config(text, text, boolean) FROM PUBLIC;
@@ -106,7 +112,7 @@ GRANT USAGE ON LANGUAGE plpgsql TO app_admin;
 
 Without `USAGE` on PL/pgSQL, a role can't run a `DO` block or create a PL/pgSQL function, but it can still call the functions that exist. If you installed another procedural language that runs `DO` blocks, such as PL/Perl, revoke its `USAGE` from `PUBLIC` too.
 
-Your application sets the tenant with a `SET LOCAL` statement instead, which needs neither privilege. Generated SQL can't run that statement as long as you run the SQL as a single statement: see [Run each query in its own transaction](#4-run-each-query-in-its-own-transaction).
+Your application sets the tenant with a `SET LOCAL` statement instead, which needs neither privilege. Generated SQL can't run `SET LOCAL` itself, as long as you run the SQL as a single statement: see [Run each query in its own transaction](#4-run-each-query-in-its-own-transaction).
 
 <Aside type="caution" title="The revokes apply to the whole database">
 Every role in the database loses `set_config()` and PL/pgSQL except the ones you grant them back to, so check what uses them before you revoke them. For example, `pg_dump` run as a non-superuser fails with `permission denied for function set_config`, and so do functions you wrote for PostgREST or Supabase that set response headers with `set_config()`. A migration role that creates PL/pgSQL functions or runs `DO` blocks fails with `permission denied for language plpgsql`. Grant each privilege back to the roles that need it. The role that runs AskDB's SQL must never get either one back.
@@ -137,7 +143,7 @@ SET LOCAL app.organization_ids = '1,3';
 ROLLBACK;
 ```
 
-Use `SET LOCAL`, never `SET`. `SET LOCAL` lasts until the transaction ends, so the next request on a pooled connection starts with no tenant and sees no rows. A plain `SET` lasts for the whole session: the connection goes back to the pool still set to this request's tenants, and the next request that doesn't set its own reads their rows.
+Use `SET LOCAL`, never `SET`. A plain `SET` lasts for the whole session. The connection goes back to the pool still set to this request's tenants, and the next request that doesn't set its own reads their rows. `SET LOCAL` lasts until the transaction ends, so the next request on a pooled connection starts with no tenant and sees no rows.
 
 In node-postgres, with `askdb` created by `createAskDb()` as in [Embed in a Node app](/guides/embed-in-node/):
 
@@ -186,7 +192,13 @@ Run these checks against a real database before you rely on the setup, and again
    SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = 'askdb_reader';
    ```
 
-2. **Every relation the role can read is protected.** Every table (`relkind` `r` or `p`) must have `relrowsecurity` set to `true`, unless your tenant policy lists it under `globalTables`. Every view (`v`) must have `security_invoker=true` in `reloptions`. No materialized view (`m`) or foreign table (`f`) may appear. The query also lists a table the role can read only some columns of:
+2. **Every relation the role can read is protected.** Check each kind of relation in the result:
+
+   - A table has `relkind` `r` or `p`. It must have `relrowsecurity` set to `true`, unless your tenant policy lists it under `globalTables` (tables shared by every tenant).
+   - A view (`v`) must have `security_invoker=true` in `reloptions`.
+   - No materialized view (`m`) or foreign table (`f`) may appear.
+
+   The query also lists a table the role can read only some columns of:
 
    ```sql
    SELECT c.oid::regclass AS relation, c.relkind, c.relrowsecurity, c.reloptions

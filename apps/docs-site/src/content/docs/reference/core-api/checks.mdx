@@ -97,7 +97,7 @@ import { schemaHasSensitiveIdentifiers } from "@askdb/core";
 schemaHasSensitiveIdentifiers(schema: AnyNormalizedSchema): boolean
 ```
 
-`true` when the schema marks at least one table or column `sensitive`. Cheap pre-check for hosts that want to skip the sensitive check entirely on schemas with no markers — `ask()` uses it for exactly that, which is why `result.sensitiveGuardrail` is absent on unmarked schemas.
+`true` when the schema marks at least one table or column `sensitive`. Use it as a cheap pre-check to skip the sensitive check on schemas with no markers. `ask()` does this, so `result.sensitiveGuardrail` is absent on unmarked schemas.
 
 ## `formatSensitiveReference(ref)`
 

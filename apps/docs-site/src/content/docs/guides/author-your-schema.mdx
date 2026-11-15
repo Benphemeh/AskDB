@@ -6,9 +6,9 @@ description: "Use Studio to enrich your introspected schema with descriptions, a
 import { Aside, FileTree, Tabs, TabItem } from "@astrojs/starlight/components";
 import AgentPrompt from "../../../components/AgentPrompt.astro";
 
-Raw introspection gives the model structure, which may be enough for simple schemas and simple queries. Enrichment is what gives it real meaning and context: descriptions, business concepts, and domain phrasing that make generation reliable.
+Introspection gives the model your tables and columns. That may be enough for a simple schema and simple questions. Enrichment adds what the names don't say: descriptions, business concepts and the phrases your users use. This page shows how to add them in Studio, so the model's SQL is more reliable.
 
-<Aside type="tip">Studio is the recommended way to enrich your schema: a local browser UI that edits your schema artifact directly. You can also edit the artifact's files by hand, in the [schema artifact format](/reference/schema-artifact-format/).</Aside>
+<Aside type="tip">Studio is the recommended way to enrich your schema. It is a local browser UI that edits your schema artifact (the files that describe your tables to the model). You can also edit the artifact's files by hand, in the [schema artifact format](/reference/schema-artifact-format/).</Aside>
 
 ## Before you start
 
@@ -22,7 +22,10 @@ Studio is the browser-based editor. Launch it from your project root:
 npx askdb studio
 ```
 
-The command opens the schema directory in `introspection.outputDir` from `askdb.config.ts`, or `./askdb/` when that isn't set. Pass `--schema <dir>` to open another directory for this run. By default Studio serves on `http://127.0.0.1:5556`; `studio.listen.port` and `studio.listen.host` change that. It reads and writes the files in your schema folder directly — no separate database, no separate copy of your schema.
+The command opens your schema folder and serves Studio at `http://127.0.0.1:5556`. Studio reads and writes the files in that folder directly. It keeps no separate database and no separate copy of your schema. Two details:
+
+- **Which folder.** Studio opens `introspection.outputDir` from `askdb.config.ts`, or `./askdb/` when that isn't set. Pass `--schema <dir>` to open another folder for one run.
+- **Where it serves.** `http://127.0.0.1:5556` is the default. `studio.listen.port` and `studio.listen.host` change the address.
 
 <FileTree>
 
@@ -39,7 +42,7 @@ The command opens the schema directory in `introspection.outputDir` from `askdb.
 Write descriptions in plain language, with the words your users say: AskDB folds them into the prompt next to the tables and columns they describe ([What the model actually receives](/concepts/the-schema-artifact/#what-the-model-actually-receives)). What you can edit, all of it optional:
 
 - **Tables.** Per-table description, aliases (the names users actually use), and a "common query language" section that captures domain phrasing.
-- **Columns.** Descriptions, enums, and sensitivity markers. Mark columns like `email`, `ssn`, or `internal_notes` as `sensitive` so the prompt-construction layer can tag or omit them — and so `validateSensitiveReferences` can flag any SQL that touches them before it runs. Sensitivity overrides are escalate-only: marking a table or column sensitive always takes effect, but "Not sensitive" can't un-mark something `schema.json` already marks sensitive.
+- **Columns.** Descriptions, enums, and sensitivity markers. Mark a column such as `email` or `ssn` as `sensitive`. The prompt can then tag or omit it, and `validateSensitiveReferences` can flag any SQL that touches it before it runs. Sensitivity overrides only add marks. Marking a table or column sensitive always takes effect. "Not sensitive" can't un-mark something `schema.json` already marks sensitive.
 - **Concepts.** Cross-table business concepts (`customer`, `active subscription`, `paid order`) that don't map to one table.
 - **Tenant policy.** When your app is multi-tenant, declare tenant roots and scoped tables. See [Scope queries to a tenant](/guides/multi-tenancy/) for the full walkthrough.
 
@@ -102,7 +105,7 @@ INSERT INTO subscriptions VALUES
   (5, 4, 2, 'A', '2099-01-01', NULL);
 ```
 
-`status` holds a one-letter code: `A` is active, `T` trial, `P` past due and `C` cancelled. Subscription 5 starts in 2099.
+`status` holds a one-letter code: A is active, T is trial, P is past due and C is cancelled. Subscription 5 starts in 2099.
 
 Create `extend-shop.mjs`, which loads the file into `shop.db`:
 
@@ -220,11 +223,11 @@ WHERE (subscriptions.status = 'A' OR subscriptions.status = 'P')
   AND (subscriptions.ended_at IS NULL OR subscriptions.ended_at > date('now'));
 ```
 
-The answer is `38`: Ada's Pro plan (29.00) and Margaret's past-due Basic plan (9.00). The model writes the SQL, so yours can differ in layout, but it should return the same answer.
+The answer is `38`: Ada's Pro plan (29.00) and Margaret's past-due Basic plan (9.00). Ada and Margaret are customers from the Quickstart's shop. The model writes the SQL, so yours can differ in layout, but it should return the same answer.
 
 ## Re-introspecting
 
-When your database schema changes (new columns, renamed tables, added relationships), re-run introspection. The physical layer (`schema.json`) is regenerated; your enrichment markdown (`tables/*.md`, `concepts.md`, `tenant-policy.md`) is preserved.
+When your database changes, re-run introspection. A change is a new column, a renamed table or an added relationship. Introspection regenerates the physical layer, `schema.json`. It preserves your enrichment files: `tables/*.md`, `concepts.md` and `tenant-policy.md`.
 
 ```bash
 npx askdb introspect

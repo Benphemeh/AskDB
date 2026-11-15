@@ -309,7 +309,14 @@ function defineLiveConnectorProvider(spec: LiveConnectorProviderSpec): Connector
 | `formatConnectionLabel(engine, parts)` | `<engine>://host[:port][/database]`, or the file path. When `parts` is `undefined`, isn't a plain object, or has a part that fails its allowlist, it returns `configured <engine> connection`. It never throws, and never copies anything but the parsed parts, so no user name, password or query string reaches a label. |
 | `parseConnectionUrl(input, schemes)` | Parses `scheme://[user[:password]@]host[:port][/database][?query]` into label parts, for engines whose driver has no parser to reuse. Pass `schemes` in lower case. It returns `undefined` for another scheme, whitespace, control characters or `#`, an `@` after the authority, or a path with more than one segment. User info and the query string are never returned. The built-in engines don't use it (see below). |
 
-The built-in engines parse with their drivers' own rules instead: Postgres takes its parts from `pg-connection-string` and SQL Server's ADO.NET strings from `@tediousjs/connection-string`; MySQL reads a `mysql://` URL with the mapping `mysql2` applies; SQL Server's `mssql://` and Prisma-style `sqlserver://` URLs go through `@askdb/sqlserver`'s own parser; SQLite labels the file path. So `postgres://app:S3cret@db:5432/app` becomes `postgres://db:5432/app`.
+The built-in engines parse with their drivers' own rules instead:
+
+- **Postgres:** takes its parts from `pg-connection-string`.
+- **MySQL:** a `mysql://` URL, with the mapping `mysql2` applies.
+- **SQL Server:** ADO.NET strings go through `@tediousjs/connection-string`, and `mssql://` and Prisma-style `sqlserver://` URLs through `@askdb/sqlserver`'s own parser.
+- **SQLite:** labels the file path.
+
+So `postgres://app:S3cret@db:5432/app` becomes `postgres://db:5432/app`.
 
 ## Engine packages
 
@@ -393,9 +400,15 @@ Driver: `mssql` (optional peer, `>=12`).
 
 In the Prisma `sqlserver://` form, `resolveConnectionInput` reads curly braces as Prisma does where its earlier parser couldn't read the value, so strings that worked before keep the same values:
 
-- A value is an escape when it starts with `{`, has a `;` before its first `}`, and ends at the first `}` that is followed only by blanks and then a `;` or the end of the string, where the `;`-separated piece that ends at that `}` has no `=`. Everything between the braces is the value, read verbatim: `password={Pass:Word;}` is `Pass:Word;`, and `{{a;b}}` is `{a;b}`.
+- A value is an escape when all of these hold:
+  - It starts with `{`.
+  - It has a `;` before its first `}`.
+  - It ends at the first `}` that is followed only by blanks and then a `;` or the end of the string.
+  - The `;`-separated piece that ends at that `}` has no `=`.
+
+  Everything between the braces is the value, read verbatim: `password={Pass:Word;}` is `Pass:Word;`, and `{{a;b}}` is `{a;b}`.
 - Any other brace is a plain character: `password={abc}` is `{abc}`, and a `{` that is never closed is part of the value.
-- Prisma reads every `{…}` as an escape, so a string shared with Prisma that braces a value without a `;` (such as `password={Pass:Word}`) reaches SQL Server with its braces when AskDB connects.
+- Prisma reads every `{…}` as an escape. A string shared with Prisma that braces a value without a `;` (such as `password={Pass:Word}`) reaches SQL Server with its braces when AskDB connects.
 - Prisma's credential keys `username`, `uid` and `pwd` are read when `user` or `password` is absent (`username` before `uid`). The canonical key wins when both are set.
 
 [Connect to SQL Server](/guides/connect-to-sql-server/) covers the formats and TLS settings in practice.

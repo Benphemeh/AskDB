@@ -5,7 +5,11 @@ description: "Every export of @askdb/ai: the provider registry, the built-in pro
 
 import InstallTabs from "../../../components/InstallTabs.astro";
 
-`@askdb/ai` turns a provider and a model setting into a Vercel AI SDK model, the `model` that `ask()` takes. `@askdb/client` builds its registry for you. Import it yourself to build a model outside the client and share it with your app's own AI SDK calls, to restrict or extend the set of providers, or to share one registry across clients.
+`@askdb/ai` turns a provider and a model setting into a Vercel AI SDK model, the `model` that `ask()` takes. `@askdb/client` builds its registry for you. Import it yourself for any of these:
+
+- to build a model outside the client and share it with your app's own AI SDK calls
+- to restrict or extend the set of providers
+- to share one registry across clients
 
 <InstallTabs pkgs="@askdb/ai ai" />
 
@@ -59,7 +63,12 @@ const ai = createAiRegistry(); // every built-in provider; or createAiRegistry([
 const model = await ai.createLanguageModelFromSection(rt.ai.language); // undefined without an API key
 ```
 
-`providers` is an `AiProviderAdapters`: a list of `AiProviderSelector`s, each a built-in provider's name or alias (an `AiProvider`, a string such as `"openai"` or `"foundry"`) or an [adapter](#aiprovideradapter) object, or a record of adapters keyed by provider name. Names and aliases match without regard to case or surrounding spaces.
+`providers` is an `AiProviderAdapters`. It takes either of these forms:
+
+- **A list of `AiProviderSelector`s.** Each is a built-in provider's name or alias (an `AiProvider`, a string such as `"openai"` or `"foundry"`) or an [adapter](#aiprovideradapter) object.
+- **A record of adapters,** keyed by provider name.
+
+Names and aliases match without regard to case or surrounding spaces.
 
 ### `AiRegistry`
 
@@ -196,7 +205,7 @@ function resolveReasoningEffort(
 ## Errors and messages
 
 - **`AiBaseUrlCredentialsError`** is thrown when a model base URL holds a username or password. Its `setting` names where the URL came from: `connection.baseUrl` from the section methods, the variable from an env map (such as `OPENAI_BASE_URL`), or `baseURL` when a built-in adapter builds a model from an `AiConfig`. The message never repeats the URL: `connection.baseUrl contains a username or password, which AskDB won't send in a URL. …`
-- **A provider the registry doesn't have** throws an `Error`. For a built-in provider it says to register it and which SDK to install; for any other name it points to an adapter, or to passing a model to `ask()` directly.
+- **A provider the registry doesn't have** throws an `Error`. For a built-in provider, the message says to register it and which SDK to install. For any other name, it points to an adapter, or to passing a model to `ask()` directly.
 - **`keyMissingMessage(context)`** on a registry says how to configure a key for each of its providers, from their `configHint`s.
 - **A missing provider SDK** throws `Provider '<name>' requires the optional peer dependency @ai-sdk/<name>. Install it: npm i @ai-sdk/<name>`.
 

@@ -112,7 +112,12 @@ const { sql, usage, unboundSql, params, preparedQuery } = await askdb.ask(
 
 Runs the same pipeline as `@askdb/core`'s `ask()`. Returns `AskPipelineResult` — see [@askdb/core API → Result](/reference/core-api/ask/#result--askpipelineresult). The facade forwards options and returns the core result verbatim, including `verdict` and the optional `unboundSql` / `params` / `parameters` / `preparedQuery` when `parameterize` is on (default). Rebind a stored `preparedQuery` with [`client.bind()`](#clientbindprepared-values-options).
 
-The model comes from the first of these that is set: the call's `model`, the call's `deps.generateText`, `dev.mockSql` in `askdb.config.ts` (every call returns that SQL, with no model call), then the registry's model for `ai` in the config.
+The model comes from the first of these that is set:
+
+1. The call's `model`.
+2. The call's `deps.generateText`.
+3. `dev.mockSql` in `askdb.config.ts`. Every call returns that SQL, with no model call.
+4. The registry's model for `ai` in the config.
 
 ### Overrides — `AskOverrides`
 
@@ -152,7 +157,7 @@ const rebound = await askdb.bind(preparedQuery!, { month: "2026-04" }, { tenantS
 await pool.query(rebound.unboundSql, rebound.params);
 ```
 
-Rebinds a stored `preparedQuery` with new values, without calling the model. It resolves the schema the way `ask()` does, expands a `subtree` scope with core's [`expandTenantScope()`](/reference/core-api/tenancy/#expandtenantscopepolicy-scope-resolvetenantdescendants) and your `resolveTenantDescendants`, and forwards to core's [`bindPreparedQuery()`](/reference/core-api/rebind/#bindpreparedqueryprepared-values-guardrails), which re-checks the template under that schema, the scope and the modes before binding. Returns `Promise<BoundQuery>`: `sql` (with `tenantParams` in `"sql-params"` mode), `unboundSql` + `params`, `bindings`, and the `verdict`. It throws the same errors as `bindPreparedQuery()`.
+Rebinds a stored `preparedQuery` with new values, without calling the model. It resolves the schema the way `ask()` does. It expands a `subtree` scope with core's [`expandTenantScope()`](/reference/core-api/tenancy/#expandtenantscopepolicy-scope-resolvetenantdescendants) and your `resolveTenantDescendants`. Then it forwards to core's [`bindPreparedQuery()`](/reference/core-api/rebind/#bindpreparedqueryprepared-values-guardrails). That function re-checks the template under that schema, the scope and the modes before binding. Returns `Promise<BoundQuery>`: `sql` (with `tenantParams` in `"sql-params"` mode), `unboundSql` + `params`, `bindings`, and the `verdict`. It throws the same errors as `bindPreparedQuery()`.
 
 ### Options — `BindOptions`
 

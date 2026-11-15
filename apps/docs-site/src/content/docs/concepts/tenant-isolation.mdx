@@ -5,7 +5,7 @@ description: "How AskDB keeps generated SQL to the caller's tenants: it prompts 
 
 import { Aside } from "@astrojs/starlight/components";
 
-With a tenant policy, AskDB helps the model write the tenant filter, checks that the filter is there, and binds the caller's tenant IDs. It doesn't make the database return only the caller's rows: that's the database's job. This page explains the split.
+With a tenant policy, AskDB asks the model to filter by tenant, checks that it did, and binds the caller's tenant IDs. The database enforces it: AskDB doesn't make the database return only the caller's rows. This page explains the split.
 
 <figure>
 
@@ -41,12 +41,21 @@ run -> db
 
 ## How AskDB scopes a query
 
-Tenant policy is a file (`tenant-policy.md`) in your schema artifact. It declares the tables that belong to a tenant, which column carries the tenant ID, and which tables are global.
+Take a SaaS app where organizations are the tenants, and each document carries an `organization_id`. A user in organization 42 asks how many documents their organization has. The model writes the tenant filter with a placeholder where the ID goes:
+
+```sql
+SELECT count(*) FROM documents
+WHERE organization_id IN (:tenant_organization_ids)
+```
+
+AskDB checks that the filter is there, then binds 42 in place of the placeholder. The model never sees 42.
+
+The rules come from the tenant policy, a file (`tenant-policy.md`) in your schema artifact (the files that describe your tables to the model). It declares the tables that belong to a tenant, which column carries the tenant ID, and which tables are global.
 
 AskDB doesn't execute queries, and it doesn't rewrite them to add a tenant filter. It works in three steps:
 
 1. **Prompt.** The policy and the caller's scope go into the prompt. The model is told to filter every scoped table with a named placeholder such as `:tenant_organization_ids`.
-2. **Check.** AskDB checks the model's SQL while the placeholders are still in place: each tenant-scoped table named in the statement, and each root table the scope covers, needs a tenant predicate that filters. See [What the tenant check requires](/reference/tenant-policy/#what-the-tenant-check-requires). Text inside string literals and comments doesn't count.
+2. **Check.** AskDB checks the model's SQL while the placeholders are still in place. Each tenant-scoped table named in the statement needs a tenant predicate that filters. So does each root table the scope covers: a table whose rows are the tenants, such as `organizations`. Text inside string literals and comments doesn't count. See [What the tenant check requires](/reference/tenant-policy/#what-the-tenant-check-requires).
 3. **Bind.** AskDB replaces the placeholders with the IDs from your `tenantScope`, as escaped inline literals or as your driver's parameter markers. A placeholder it can't bind throws instead of being returned raw.
 
 Your application supplies the tenant scope per call and is responsible for authorizing it.
@@ -65,7 +74,12 @@ Three layers can keep a query to the caller's tenants. Only the database holds w
 | **Your application** | Adds or checks the tenant filter itself before it runs the query. | Only as far as your code covers every shape of query. |
 | **AskDB's policy and check** | The prompt tells the model to filter by tenant, and the check rejects or flags SQL that looks unscoped. | No. It's a heuristic over the SQL's tokens, not a boundary. |
 
-AskDB's layer alone isn't enough to isolate tenants that don't trust each other. It still earns its place: the model writes the filter, so queries return the right rows and can use your tenant indexes, and `enforcement: strict` stops the common mistakes before anything runs. The database makes a mistake that gets past the check harmless. To set that up on Postgres, follow [Enforce tenancy in the database](/guides/enforce-tenancy-in-the-database/).
+AskDB's layer alone isn't enough to isolate tenants that don't trust each other. It still earns its place, for two reasons:
+
+- **The model writes the filter,** so queries return the right rows and can use your tenant indexes.
+- **`enforcement: strict` stops the common mistakes** before anything runs. It is the policy setting that throws on SQL the check flags, where `warn` returns the SQL with the findings.
+
+The database makes a mistake that gets past the check harmless. To set that up on Postgres, follow [Enforce tenancy in the database](/guides/enforce-tenancy-in-the-database/).
 
 ## Known limits
 
@@ -74,7 +88,7 @@ The tenant check reads the SQL's tokens and doesn't parse it, so it can pass SQL
 - **Roots reached through the hierarchy.** Only the roots the scope names are checked as root tables: under an agency `ids` scope, a read of `sub_agencies` isn't. An expanded `subtree` scope names every level it covers.
 - **Joined scoped tables.** It doesn't check that two joined scoped tables share a scope.
 - **A column list on a joined table.** On Postgres and CockroachDB, `JOIN clients c (sub_agency_id, x)` renames the table's columns, and the check still reads them by the policy's names, so a join path can pass on the wrong column ([#400](https://github.com/Ygilany/AskDB/issues/400)).
-- **A name spelled like a join word.** An unqualified predicate in an `ON` counts for the reads the check takes as that join's operands. Where SQL Server reads `NATURAL` or `USING` as an alias, or a table is named `using`, those can include a read the `ON` doesn't see.
+- **A name spelled like a join word.** An unqualified predicate in an `ON` counts for the reads the check takes as that join's operands. Those can include a read the `ON` doesn't see. That happens where SQL Server reads `NATURAL` or `USING` as an alias, or where a table is named `using`.
 
 [What the tenant check requires](/reference/tenant-policy/#what-the-tenant-check-requires) lists what it does refuse. These limits are why the database should be the tenant boundary.
 
@@ -83,7 +97,7 @@ The tenant check reads the SQL's tokens and doesn't parse it, so it can pass SQL
 This recipe is for Postgres. On every engine, AskDB's tenant check stays a heuristic, so the database or your application must keep each query to its tenants. The other engines AskDB supports haven't been tested with a recipe like this one:
 
 - **CockroachDB** has row-level security from v25.2, with `FORCE ROW LEVEL SECURITY` for table owners. Its docs pass the tenant in `application_name` rather than a custom setting, and list features that skip the policies. See [Row-level security](https://www.cockroachlabs.com/docs/stable/row-level-security).
-- **SQL Server and Azure SQL** have row-level security from SQL Server 2016: a security policy with a filter predicate function, which can read a tenant ID your application sets with `sp_set_session_context` and `@read_only = 1`. Microsoft warns that crafted queries can infer filtered rows from errors, which matters for generated SQL. See [Row-level security](https://learn.microsoft.com/en-us/sql/relational-databases/security/row-level-security).
+- **SQL Server and Azure SQL** have row-level security from SQL Server 2016. It is a security policy with a filter predicate function. That function can read a tenant ID your application sets with `sp_set_session_context` and `@read_only = 1`. Microsoft warns that crafted queries can infer filtered rows from errors, which matters for generated SQL. See [Row-level security](https://learn.microsoft.com/en-us/sql/relational-databases/security/row-level-security).
 - **MySQL and MariaDB** document no row-level security policies. A view can't read a system or user variable, so a view can't take the tenant per request ([MySQL](https://dev.mysql.com/doc/refman/8.4/en/create-view.html), [MariaDB](https://mariadb.com/docs/server/server-usage/views/create-view)). Give each tenant its own database, or its own account that can read only that tenant's views.
 - **SQLite** has no users or grants ([omitted features](https://www.sqlite.org/omitted.html)). Give each tenant its own database file. Its [authorizer](https://www.sqlite.org/c3ref/set_authorizer.html) works on tables and columns, not rows.
 
