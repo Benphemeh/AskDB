@@ -3,7 +3,7 @@ title: "Enrich your schema"
 description: "Use Studio to enrich your introspected schema with descriptions, aliases, concepts, sensitive markers, and tenant policy."
 ---
 
-import { Aside } from "@astrojs/starlight/components";
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
 
 <p class="doc-eyebrow">Schema author guide</p>
 
@@ -33,6 +33,159 @@ Write descriptions in plain language, with the words your users say: AskDB folds
 - **Tenant policy.** When your app is multi-tenant, declare tenant roots and scoped tables. See [Scope queries to a tenant](/guides/multi-tenancy/) for the full walkthrough.
 
 Studio also offers AI-assisted drafts: describe a table or concept in plain language and Studio proposes a draft for your review. Suggestions are always confirmed by a human before they land in the artifact. See the [Studio tour](/studio/) for a view-by-view walkthrough.
+
+If you work with a coding agent, give it the [askdb-enrich-schema skill](/skills/askdb-enrich-schema/SKILL.md): it asks you what ambiguous columns mean and writes your answers into `tables/*.md` and `concepts.md`.
+
+## Example: extend the Quickstart's shop
+
+The [Quickstart](/quickstart/)'s three tables need no enrichment, because the model answers from their column names alone. This example adds two tables whose meaning the names don't carry, then fixes a wrong answer with enrichment. Run it in the Quickstart's `askdb-shop` folder, with its SQLite `shop.db`. The dates are stored as text, so on the Quickstart's Postgres fallback the SQL the model writes differs from the SQL shown here.
+
+### 1. Add plans and subscriptions
+
+Create `extend-shop.sql`. It adds 2 plans and 5 subscriptions:
+
+```sql title="extend-shop.sql"
+CREATE TABLE plans (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  monthly_price NUMERIC(10, 2) NOT NULL
+);
+CREATE TABLE subscriptions (
+  id INTEGER PRIMARY KEY,
+  customer_id INTEGER NOT NULL REFERENCES customers (id),
+  plan_id INTEGER NOT NULL REFERENCES plans (id),
+  status TEXT NOT NULL,
+  started_at TEXT NOT NULL,
+  ended_at TEXT
+);
+INSERT INTO plans VALUES (1, 'Basic', 9.00), (2, 'Pro', 29.00);
+INSERT INTO subscriptions VALUES
+  (1, 1, 2, 'A', '2026-01-05', NULL),
+  (2, 2, 1, 'C', '2026-02-10', '2026-05-10'),
+  (3, 3, 2, 'T', '2026-10-28', NULL),
+  (4, 4, 1, 'P', '2026-04-20', NULL),
+  (5, 4, 2, 'A', '2099-01-01', NULL);
+```
+
+`status` holds a one-letter code: `A` is active, `T` trial, `P` past due and `C` cancelled. Subscription 5 starts in 2099.
+
+Create `extend-shop.mjs`, which loads the file into `shop.db`:
+
+```js title="extend-shop.mjs"
+import { readFileSync } from "node:fs";
+import { DatabaseSync } from "node:sqlite";
+
+new DatabaseSync("shop.db").exec(readFileSync("extend-shop.sql", "utf8"));
+console.log("Added plans and subscriptions to shop.db");
+```
+
+Run it, then introspect again so the schema artifact has the new tables:
+
+<Tabs syncKey="pkg">
+  <TabItem label="npm">
+
+```bash
+node extend-shop.mjs
+npx askdb introspect
+```
+
+  </TabItem>
+  <TabItem label="pnpm">
+
+```bash
+node extend-shop.mjs
+pnpm exec askdb introspect
+```
+
+  </TabItem>
+  <TabItem label="yarn">
+
+```bash
+node extend-shop.mjs
+yarn askdb introspect
+```
+
+  </TabItem>
+</Tabs>
+
+`askdb introspect` prints `Wrote askdb/schema.json: 5 tables (sqlite).`
+
+### 2. Ask a question the names can't answer
+
+Ask for the monthly recurring revenue, and pipe the SQL into the Quickstart's `run-query.mjs`:
+
+```bash
+npx askdb ask --question "What's our monthly recurring revenue from active subscriptions?" | node run-query.mjs
+```
+
+The model has only names and types to go on, so it guesses what "active" means:
+
+```sql
+SELECT SUM(plans.monthly_price) AS monthly_recurring_revenue
+FROM subscriptions
+JOIN plans ON subscriptions.plan_id = plans.id
+WHERE subscriptions.status = 'active';
+```
+
+No row has the status `active`, so the sum is `null`.
+
+### 3. Enrich the subscriptions table
+
+The schema needs two things: what the `status` codes mean, and the rule for an active subscription. Codes alone aren't enough. With only those, the model writes `status = 'A'` and gets `58`: it counts subscription 5, which hasn't started, and leaves out subscription 4, which is past due but still active.
+
+1. Run `npx askdb studio`, open **Tables** and select `subscriptions`.
+2. On the **Enrichment** tab, under **Columns**, find `status`. Set its **Description** to `Subscription state, as a one-letter code: A = active, T = trial, P = past due, C = cancelled.`, and its **Enum notes** to `A, T, P, C`.
+3. Under **Common Query Language**, put the business rules in **Business vocabulary**:
+
+   ```text
+   - An active subscription has status A or P (past due still counts), started_at on or before today, and ended_at NULL or after today. A trial (T) is not active.
+   - MRR (monthly recurring revenue) is the sum of plans.monthly_price over active subscriptions.
+   ```
+
+4. Click **Save**.
+
+Studio writes `askdb/tables/subscriptions.md`. To enrich without Studio, create the file yourself. This is what Studio writes, without the column entries it adds for the columns you left empty:
+
+```markdown title="askdb/tables/subscriptions.md"
+---
+id: 'table:public.subscriptions'
+name: subscriptions
+schemaId: askdb
+columns:
+  - id: 'table:public.subscriptions#status'
+    enum:
+      - A
+      - T
+      - P
+      - C
+    description: >-
+      Subscription state, as a one-letter code: A = active, T = trial, P = past
+      due, C = cancelled.
+---
+# Table: subscriptions
+
+## Common query language
+
+- An active subscription has status A or P (past due still counts), started_at on or before today, and ended_at NULL or after today. A trial (T) is not active.
+- MRR (monthly recurring revenue) is the sum of plans.monthly_price over active subscriptions.
+```
+
+A rule that spans several tables, such as *customer* in a schema with both `users` and `leads`, fits a concept in `concepts.md` instead.
+
+### 4. Ask again
+
+Run the same command. The model now applies the rule:
+
+```sql
+SELECT SUM(plans.monthly_price) AS mrr
+FROM subscriptions
+JOIN plans ON subscriptions.plan_id = plans.id
+WHERE (subscriptions.status = 'A' OR subscriptions.status = 'P')
+  AND subscriptions.started_at <= date('now')
+  AND (subscriptions.ended_at IS NULL OR subscriptions.ended_at > date('now'));
+```
+
+The answer is `38`: Ada's Pro plan (29.00) and Margaret's past-due Basic plan (9.00). The model writes the SQL, so yours can differ in layout, but it should return the same answer.
 
 ## Re-introspecting
 
