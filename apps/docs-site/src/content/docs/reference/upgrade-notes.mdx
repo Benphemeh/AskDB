@@ -7,6 +7,16 @@ import InstallTabs from "../../../components/InstallTabs.astro";
 
 What each AskDB release asks of your app, newest first. Each section lists only the changes that need something from you, and the package CHANGELOGs list everything else. [Upgrade AskDB](/guides/upgrading/) says how to apply them.
 
+## 1.0.0-rc.3
+
+### Expect `UNCHECKABLE_RELATION` for Postgres statistics relations
+
+With a tenant policy and any scope but `global`, the tenant check now refuses a Postgres planner-statistics relation, wherever the SQL names it, under every dialect ([#929](https://github.com/Ygilany/AskDB/issues/929)). The relations are `pg_stats`, `pg_stats_ext`, `pg_stats_ext_exprs`, `pg_statistic` and `pg_statistic_ext_data`, qualified with `pg_catalog` or not. They hold values sampled from the rows of every table the querying role can read (`most_common_vals`, `histogram_bounds`), a tenant table's included, and the per-table checks look only at tables the policy names. Before, the check passed `SELECT id, (SELECT histogram_bounds::text FROM pg_stats WHERE tablename = 'orders' LIMIT 1) AS h FROM orders WHERE agency_id = :tenant_agency_ids` under the built-in Postgres dialect, because the read of `orders` carries its tenant predicate. Now `ask()` throws `TenantGuardrailError` under `enforcement: strict`, and returns an `UNCHECKABLE_RELATION` warning under `warn`. `bindPreparedQuery()` and `askdb.bind()` refuse a stored template that names one too (under `warn`, unless you pass `acceptWarnings: ["tenant"]`). Every other system relation still passes.
+
+- **A column, alias, table or parameter named like one of these relations** (`pg_stats`, `pg_statistic`) is refused too, because the check matches a listed name anywhere in the SQL. If your schema has such a name, every query that names it is refused under a tenant policy: rename it, or expose it through a view under another name.
+- **Code that handles every `TenantGuardrailRuleCode`,** such as an exhaustive `switch`, needs a case for `UNCHECKABLE_RELATION`.
+- **If Postgres enforces tenancy with row-level security,** the role already read none of these values: Postgres hides a table's planner statistics from a role that table's row-level security applies to. [Enforce tenancy in the database](/guides/enforce-tenancy-in-the-database/#3-close-the-bypasses) lists the roles it doesn't apply to.
+
 ## 1.0.0-rc.2
 
 ### Handle a declined question
