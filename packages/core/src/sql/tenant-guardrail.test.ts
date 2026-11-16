@@ -667,6 +667,141 @@ describe("validateTenantGuardrails — a call the tenant check can't read throug
   });
 });
 
+// The per-table checks look only at tables the policy names. Postgres's planner statistics hold
+// values sampled from every table's rows (`pg_stats.most_common_vals`, `histogram_bounds`), so a
+// query on them reads a tenant table's values with no tenant table in the SQL.
+describe("validateTenantGuardrails — a Postgres statistics relation is refused", () => {
+  const warnPolicy: NormalizedTenantPolicy = { ...policy, enforcement: "warn" };
+  const rules = (sql: string, dialect?: DialectSpec) =>
+    validateTenantGuardrails(sql, warnPolicy, agencyScope, { dialect }).warnings.map((w) => w.rule);
+  const everyDialect = [undefined, POSTGRES_DIALECT, MYSQL_DIALECT, SQLSERVER_DIALECT, SQLITE_DIALECT];
+  const scoped = "SELECT id FROM orders WHERE agency_id = :tenant_agency_ids";
+  const stats = (relation: string) =>
+    `SELECT string_agg(CAST(most_common_vals AS TEXT), '|' ORDER BY attname) AS m FROM ${relation} WHERE schemaname = 'public' AND tablename = 'orders'`;
+
+  it.each([
+    ["bare", stats("pg_stats")],
+    ["qualified with pg_catalog", stats("pg_catalog.pg_stats")],
+    ["quoted", stats(`"pg_stats"`)],
+    ["qualified and quoted", stats(`"pg_catalog"."pg_stats"`)],
+    // Postgres lower-cases an unquoted name.
+    ["in upper case", stats("PG_STATS")],
+    ["in mixed case, qualified", stats("PG_Catalog.Pg_Stats")],
+    ["with a comment before it", stats("/* x */ pg_stats")],
+    // Postgres skips a comment on either side of the dot, so this is still `pg_catalog.pg_stats`.
+    ["with a comment between the schema's dot and the name", stats("pg_catalog./* x */pg_stats")],
+    ["with comments and spaces around the schema's dot", stats("pg_catalog /* x */ . -- y\n pg_stats")],
+    // The lexer reads `:pg_stats` as a placeholder; Postgres reads `:` and then the name.
+    ["after the colon of an array slice", "SELECT (ARRAY[1, 2])[1:pg_stats] AS v FROM orders WHERE agency_id = :tenant_agency_ids"],
+    ["as TABLE pg_stats", "TABLE pg_stats"],
+  ])("refuses pg_stats written %s", (_label, sql) => {
+    const expected = sql.startsWith("TABLE") ? ["NOT_SELECT_OR_WITH", "UNCHECKABLE_RELATION"] : ["UNCHECKABLE_RELATION"];
+    expect(rules(sql, POSTGRES_DIALECT)).toEqual(expected);
+    expect(rules(sql)).toEqual(expected);
+  });
+
+  // The list, typed out, so a misspelled or dropped entry in the check's own list fails a test.
+  it.each(["pg_stats", "pg_stats_ext", "pg_stats_ext_exprs", "pg_statistic", "pg_statistic_ext_data"])(
+    "refuses a read of %s under every dialect",
+    (relation) => {
+      for (const dialect of everyDialect) {
+        expect(rules(`SELECT * FROM ${relation}`, dialect), dialect?.id ?? "custom").toEqual(["UNCHECKABLE_RELATION"]);
+        expect(rules(`SELECT * FROM pg_catalog.${relation}`, dialect), dialect?.id ?? "custom").toEqual(["UNCHECKABLE_RELATION"]);
+      }
+    },
+  );
+
+  // The read sits beside a query that carries its tenant predicates, so every per-table check passes.
+  it.each([
+    ["a derived table", `SELECT v.*, s.m FROM (${scoped}) AS v CROSS JOIN (${stats("pg_stats")}) AS s`],
+    ["a derived table, qualified", `SELECT v.*, s.m FROM (${scoped}) AS v CROSS JOIN (${stats("pg_catalog.pg_stats")}) AS s`],
+    ["a CTE", `WITH s AS (${stats("pg_stats")}) SELECT o.id, s.m FROM orders o CROSS JOIN s WHERE o.agency_id = :tenant_agency_ids`],
+    ["a scalar subquery", `SELECT id, (SELECT histogram_bounds::text FROM pg_stats WHERE tablename = 'orders' LIMIT 1) AS h FROM orders WHERE agency_id = :tenant_agency_ids`],
+    ["a WHERE subquery", `${scoped} AND EXISTS (SELECT 1 FROM pg_stats_ext_exprs WHERE tablename = 'orders')`],
+  ])("refuses a statistics relation read in %s beside a scoped query", (_label, sql) => {
+    for (const dialect of everyDialect) {
+      expect(rules(sql, dialect), dialect?.id ?? "custom").toEqual(["UNCHECKABLE_RELATION"]);
+    }
+  });
+
+  it("names the relation in its message, with no table id", () => {
+    const { warnings } = validateTenantGuardrails(stats("pg_catalog.PG_STATS"), warnPolicy, agencyScope, { dialect: POSTGRES_DIALECT });
+    expect(warnings.map((w) => [w.rule, w.tableId])).toEqual([["UNCHECKABLE_RELATION", ""]]);
+    expect(warnings[0]!.message).toContain("pg_stats");
+  });
+
+  it("throws under strict enforcement", () => {
+    expect(() => validateTenantGuardrails(stats("pg_stats"), policy, agencyScope, { dialect: POSTGRES_DIALECT })).toThrow(TenantGuardrailError);
+  });
+
+  // The tenant check doesn't run under a global scope.
+  it("passes under a global scope", () => {
+    const result = validateTenantGuardrails(stats("pg_stats"), warnPolicy, { access: { kind: "global" } }, { dialect: POSTGRES_DIALECT });
+    expect(result).toEqual({ passed: true, warnings: [] });
+  });
+
+  // The check doesn't parse a FROM clause, so a listed name counts in any code position, as a
+  // listed function's does: a false positive the rule accepts.
+  it.each([
+    ["a column", `SELECT pg_stats FROM orders WHERE agency_id = :tenant_agency_ids`],
+    ["an alias", `SELECT note AS pg_statistic FROM orders WHERE agency_id = :tenant_agency_ids`],
+    ["a table alias", `SELECT pg_stats.id FROM orders AS pg_stats WHERE pg_stats.agency_id = :tenant_agency_ids`],
+    // The lexer reads `:pg_stats` as one placeholder token, and a listed name in one counts.
+    ["a placeholder", `${scoped} AND note = :pg_stats`],
+  ])("refuses a listed name used as %s", (_label, sql) => {
+    for (const dialect of everyDialect) {
+      expect(rules(sql, dialect), dialect?.id ?? "custom").toEqual(["UNCHECKABLE_RELATION"]);
+    }
+  });
+
+  // MySQL reads `"…"` as a string, and with ANSI_QUOTES as a name, so a listed name in one counts.
+  it.each([
+    ["in a table's place", `SELECT * FROM "pg_stats"`],
+    ["as a string value", `${scoped} AND note = "pg_stats"`],
+  ])("refuses a listed name in double quotes under MySQL, %s", (_label, sql) => {
+    expect(rules(sql, MYSQL_DIALECT)).toEqual(["UNCHECKABLE_RELATION"]);
+  });
+
+  // Postgres decodes U&"\0070g_stats" to pg_stats. This rule matches names as written and doesn't
+  // decode it; the Unicode-escape rule refuses the statement instead, under every reading that
+  // includes Postgres.
+  it.each([
+    ["bare", `SELECT * FROM U&"\\0070g_stats"`],
+    ["qualified", `SELECT * FROM pg_catalog.U&"\\0070g_stats"`],
+    ["with UESCAPE", `SELECT * FROM U&"!0070g_stats" UESCAPE '!'`],
+    ["beside a scoped query", `SELECT v.id, s.tablename FROM (${scoped}) AS v CROSS JOIN U&"\\0070g_stats" AS s`],
+  ])("a Unicode-escaped spelling of pg_stats, %s, is refused by the Unicode-escape rule", (_label, sql) => {
+    for (const dialect of [POSTGRES_DIALECT, COCKROACHDB_DIALECT, undefined, customEngine()]) {
+      expect(rules(sql, dialect), String(dialect?.id)).toEqual(["UNICODE_ESCAPED_IDENTIFIER"]);
+    }
+    expect(() => validateTenantGuardrails(sql, policy, agencyScope, { dialect: POSTGRES_DIALECT })).toThrow(TenantGuardrailError);
+  });
+
+  // Text inside a string literal isn't code, and a longer name isn't a listed one.
+  it.each([
+    ["inside a string", `${scoped} AND note = 'pg_stats'`],
+    ["inside a string, qualified", `${scoped} AND note = 'SELECT * FROM pg_catalog.pg_stats'`],
+    ["inside a dollar-quoted string", `${scoped} AND note = $$pg_stats$$`, [POSTGRES_DIALECT]],
+    ["as part of a longer name", `SELECT pg_stats_id, my_pg_stats FROM orders WHERE agency_id = :tenant_agency_ids`],
+    ["as another system relation", `SELECT o.id, (SELECT count(*) FROM pg_catalog.pg_class) AS n FROM orders o WHERE o.agency_id = :tenant_agency_ids`],
+  ] as Array<[string, string, DialectSpec[]?]>)("passes a listed name %s", (_label, sql, dialects) => {
+    for (const dialect of dialects ?? everyDialect) {
+      expect(rules(sql, dialect), dialect?.id ?? "custom").toEqual([]);
+    }
+  });
+
+  // Text inside a comment isn't code either. The tenant check reads past comments; the read-only
+  // check is what refuses them.
+  it.each([
+    ["a block comment", `SELECT id /* pg_stats */ FROM orders WHERE agency_id = :tenant_agency_ids`],
+    ["a line comment", `SELECT id FROM orders -- FROM pg_catalog.pg_stats\nWHERE agency_id = :tenant_agency_ids`],
+  ])("passes a listed name inside %s", (_label, sql) => {
+    for (const dialect of everyDialect) {
+      expect(rules(sql, dialect), dialect?.id ?? "custom").toEqual([]);
+    }
+  });
+});
+
 describe("validateTenantGuardrails — Unicode-escaped names (#704, #692)", () => {
   const warnPolicy: NormalizedTenantPolicy = { ...policy, enforcement: "warn" };
   const findings = (sql: string, dialect?: DialectSpec) =>
