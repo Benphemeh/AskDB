@@ -37,11 +37,11 @@ NL-to-SQL isn't a new problem. Systems have answered English questions from a da
 
 The hard part is the work around that call, and you repeat it for every new project. AskDB turns it into one process:
 
-- **Read the schema.** `askdb introspect` reads your database and writes its tables, columns, types and relationships to files. [The schema artifact](/concepts/the-schema-artifact/) explains them.
+- **Read the schema.** `askdb introspect` reads your database and writes its tables, columns, types and relationships to one file. [The schema artifact](/concepts/the-schema-artifact/) explains it.
 - **Write down what the names don't say.** Your team adds the business context and definitions a model gets wrong, in Studio or by hand, and commits them. [Enrich your schema](/guides/author-your-schema/) shows how.
 - **Retrieve when the schema is large.** `@askdb/rag` indexes those files and puts only the tables that matter to a question in the prompt. [RAG for large schemas](/guides/rag-for-large-schemas/) sets it up.
 
-The same config, commands and files work on your next project.
+Your next project uses the same commands, config and file layout.
 
 </section>
 
