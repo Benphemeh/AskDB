@@ -15,7 +15,7 @@ With a tenant policy and any scope but `global`, the tenant check now refuses a 
 
 - **A column, alias, table or parameter named like one of these relations** (`pg_stats`, `pg_statistic`) is refused too, because the check matches a listed name anywhere in the SQL. If your schema has such a name, every query that names it is refused under a tenant policy: rename it, or expose it through a view under another name.
 - **Code that handles every `TenantGuardrailRuleCode`,** such as an exhaustive `switch`, needs a case for `UNCHECKABLE_RELATION`.
-- **If Postgres enforces tenancy with row-level security,** the role already read none of these values: Postgres hides a table's planner statistics from a role that table's row-level security applies to. [Enforce tenancy in the database](/guides/enforce-tenancy-in-the-database/#close-the-bypasses) lists the roles it doesn't apply to.
+- **If Postgres enforces tenancy with row-level security,** the role already read none of these values: Postgres hides a table's planner statistics from a role that table's row-level security applies to. [Enforce tenancy in the database](/guides/enforce-tenancy-in-the-database/#3-close-the-bypasses) lists the roles it doesn't apply to.
 
 ## 1.0.0-rc.2
 
