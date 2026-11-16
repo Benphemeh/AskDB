@@ -30,3 +30,9 @@ askdb-*/
 # Vitest JSON reporter output
 .vitest/
 
+
+# Skills restored from skills-lock.json (npx skills install); their source repo is private.
+.agents/skills/docs-site/
+.agents/skills/commit/
+.claude/skills/docs-site
+.claude/skills/commit

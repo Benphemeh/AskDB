@@ -37,6 +37,8 @@ pnpm preflight
 
 ## Agent skills
 
+Most skills are committed under `.agents/skills/`. `skills-lock.json` names the rest, from the maintainer's private skills repo: run `npx skills install` to restore them if you have access. The house rules they rely on are linked below.
+
 ### Issue tracker
 
 GitHub Issues on `Ygilany/AskDB`, via `gh`. Unimplemented plans (label `plan`), specs and doc/behavior discrepancies (label `discrepancy`) live there, not as new files in the repo. See `docs/agents/issue-tracker.md`.
