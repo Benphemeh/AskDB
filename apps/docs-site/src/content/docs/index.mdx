@@ -33,7 +33,15 @@ import HomePrivacyBoundary from "../../components/HomePrivacyBoundary.astro";
 
 ## Why this toolkit exists
 
-NL-to-SQL isn't a new problem. Systems that answer English questions from a database go back to BASEBALL (1961) and LUNAR (1971). Studies of large language models such as OpenAI's Codex writing SQL began in early 2022. In production, the LLM call isn't the hard part. The hard part is capturing the business context behind your schema, getting the right enrichment into the prompt, and wiring up RAG when the schema is too big to fit. Then you repeat that work for every new project. AskDB is the toolkit for *that* part.
+NL-to-SQL isn't a new problem. Systems have answered English questions from a database since the 1960s, and published studies of language models writing SQL began in 2022. In production, the LLM call isn't the hard part.
+
+The hard part is the work around that call, and you repeat it for every new project. AskDB turns it into one process:
+
+- **Read the schema.** `askdb introspect` reads your database and writes its tables, columns, types and relationships to files. [The schema artifact](/concepts/the-schema-artifact/) explains them.
+- **Write down what the names don't say.** Your team adds the business context and definitions a model gets wrong, in Studio or by hand, and commits them. [Enrich your schema](/guides/author-your-schema/) shows how.
+- **Retrieve when the schema is large.** `@askdb/rag` indexes those files and puts only the tables that matter to a question in the prompt. [RAG for large schemas](/guides/rag-for-large-schemas/) sets it up.
+
+The same config, commands and files work on your next project.
 
 </section>
 

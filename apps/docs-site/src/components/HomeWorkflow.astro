@@ -17,13 +17,18 @@ const steps = [
   },
   {
     number: "04",
+    title: "Retrieve",
+    body: "Optional, for a schema too large for one prompt. Index the schema artifact with @askdb/rag, and AskDB puts only the tables that matter to each question in the prompt.",
+  },
+  {
+    number: "05",
     title: "Use",
     body: "Call ask() from your app, or POST to the HTTP API. AskDB returns checked SQL. Your application logs it, approves it, and runs it through your own pool.",
   },
 ];
 ---
 
-<ol class="home-steps" aria-label="The four steps of using AskDB">
+<ol class="home-steps" aria-label="The five steps of using AskDB">
   {steps.map((step) => (
     <li class="home-step">
       <span class="home-step-number" aria-hidden="true">{step.number}</span>
