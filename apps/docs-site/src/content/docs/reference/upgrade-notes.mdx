@@ -17,6 +17,10 @@ With a tenant policy and any scope but `global`, the tenant check now refuses a 
 - **Code that handles every `TenantGuardrailRuleCode`,** such as an exhaustive `switch`, needs a case for `UNCHECKABLE_RELATION`.
 - **If Postgres enforces tenancy with row-level security,** the role already read none of these values: Postgres hides a table's planner statistics from a role that table's row-level security applies to. [Enforce tenancy in the database](/guides/enforce-tenancy-in-the-database/#3-close-the-bypasses) lists the roles it doesn't apply to.
 
+### Other changes you may notice in rc.3
+
+- **The sensitive-column warning ends "Review carefully before sharing or running this SQL."** ([#1015](https://github.com/Ygilany/AskDB/issues/1015)). It used to end "…running this SQL outside AskDB.", which implied AskDB can run SQL. `askdb ask` prints it to stderr and Studio's Playground shows it, both reworded. If a script matches the old sentence, match "Generated SQL references sensitive columns" or the new ending instead.
+
 ## 1.0.0-rc.2
 
 ### Handle a declined question
