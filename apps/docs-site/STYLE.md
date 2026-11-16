@@ -12,7 +12,7 @@ In priority order (from `docs/mission.md`):
 
 ## Voice
 
-- Second person ("you"); "we" only inside tutorials, as the teacher alongside the learner.
+- Second person ("you"), on every page, tutorials included. Never "we", "us" or "our": the docs speak for AskDB, so a reader can take "we run the SQL" to mean AskDB runs it, which is the one thing AskDB never does. Name who acts every time: "you", "your application", "AskDB", "the model". The project's own commitments name the project: "AskDB's maintainers fix it", not "we fix it".
 - US spelling. Sentence-case headings. No emoji.
 - The register follows the page type. Reference is austere and neutral. How-to guides are direct. Tutorials and explanation pages may be warmer and more discursive: a tutorial can point out what the learner should notice, and an explanation can weigh alternatives and give the project's view.
 
