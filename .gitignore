@@ -20,7 +20,7 @@ askdb-*/
 !apps/docs-site/public/skills/askdb-*/
 .gstack/
 
-# The vendored /improve skill writes plans here; plans live in GitHub issues
+# The old local plans folder; plans live in GitHub issues
 # (docs/agents/issue-tracker.md).
 /plans/
 

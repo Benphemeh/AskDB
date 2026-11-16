@@ -12,12 +12,6 @@
       "sourceType": "github",
       "skillPath": "skills/askdb/docs-site/SKILL.md",
       "computedHash": "ee41e3e8b253888c7db3306b6a72043978e0ead2f354ade1933db71ae3126309"
-    },
-    "improve": {
-      "source": "shadcn/improve",
-      "sourceType": "github",
-      "skillPath": "skills/improve/SKILL.md",
-      "computedHash": ""
     }
   }
 }
