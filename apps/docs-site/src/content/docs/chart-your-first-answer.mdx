@@ -10,9 +10,9 @@ import ExampleLink from "../../components/ExampleLink.astro";
 import chartLight from "../../assets/charts/total-spent-light.svg";
 import chartDark from "../../assets/charts/total-spent-dark.svg";
 
-In this tutorial, we'll add a chart to the project the Quickstart left us. We'll ask the same question from a script, run the SQL ourselves, let the model pick a chart without showing it a row, and draw that chart with ECharts. At the end, a chart of what each customer spent is open in our browser.
+In this tutorial, you'll add a chart to the project the Quickstart left you. You'll ask the same question from a script, run the SQL yourself, let the model pick a chart without showing it a row, and draw that chart with ECharts. At the end, a chart of what each customer spent is open in your browser.
 
-We draw with ECharts here, but AskDB isn't tied to it. AskDB returns a chart spec, and any charting library can draw it. The one piece you write for your library is a small function that maps the spec to that library's config.
+You draw with ECharts here, but AskDB isn't tied to it. AskDB returns a chart spec, and any charting library can draw it. The one piece you write for your library is a small function that maps the spec to that library's config. Step 4 of [Chart a query result](/guides/plan-a-chart/#4-draw-the-chart-from-your-rows) has it for two libraries, in the tabs "ECharts" and "shadcn/ui (Recharts)".
 
 <Aside type="caution" title="Experimental">
 The chart functions come from `@askdb/client/charts`, which is outside AskDB's stability promise: a minor release of `@askdb/client` may change it.
@@ -25,13 +25,13 @@ You need:
 - The project from the [Quickstart](/quickstart/), in its `askdb-shop` folder. It holds `shop.db`, the `askdb/` folder and `.env`. Run every command on this page in that folder.
 - An OpenAI API key in `.env`, which is what the Quickstart's steps set up. If you chose Anthropic or Google there, [Bring your own model](/guides/bring-your-own-model/) shows how to build that provider's model for step 1.
 
-The two files we'll write, `first-chart.mjs` and `to-echarts.mjs`, are in <ExampleLink path="examples/chart-a-result" />. Compare yours with them if a step doesn't work.
+The two files you'll write, `first-chart.mjs` and `to-echarts.mjs`, are in <ExampleLink path="examples/chart-a-result" />. Compare yours with them if a step doesn't work.
 
 The output on this page is from one recorded run of that example's `chart.mjs`, with gpt-4o-mini on 2026-11-15. The model writes the SQL and the chart's title, so yours can differ.
 
 ## 1. Ask the question from a script
 
-In the Quickstart, we asked with the `askdb ask` command and piped the SQL into `run-query.mjs`. A chart needs the question, the SQL and the rows in one place, so now we'll do both from one script.
+In the Quickstart, you asked with the `askdb ask` command and piped the SQL into `run-query.mjs`. A chart needs the question, the SQL and the rows in one place, so now you'll do both from one script.
 
 First, add the packages the script uses:
 
@@ -56,7 +56,7 @@ pnpm add @askdb/client @askdb/core ai @ai-sdk/openai echarts
 yarn add @askdb/client @askdb/core ai @ai-sdk/openai echarts zod
 ```
 
-Yarn 4 gives a package only the packages we list for it, and `@ai-sdk/openai` needs `zod`. npm and pnpm install it for us.
+Yarn 4 gives a package only the packages you list for it, and `@ai-sdk/openai` needs `zod`. npm and pnpm install it for you.
 
   </TabItem>
 </Tabs>
@@ -73,7 +73,7 @@ import { ask, loadSchema } from "@askdb/core";
 const question = "How much has each customer spent in total, highest first?";
 const model = openai(process.env.OPENAI_MODEL || "gpt-4o-mini"); // reads OPENAI_API_KEY
 
-// 1. AskDB returns the SQL. Our own code runs it.
+// 1. AskDB returns the SQL. Your own code runs it.
 const { sql } = await ask({ question, schema: loadSchema("./askdb"), model, dialect: "sqlite" });
 const statement = new DatabaseSync("shop.db", { readOnly: true }).prepare(sql);
 const rows = statement.all().map((row) => ({ ...row })); // plain objects, for ECharts in step 4
@@ -81,7 +81,7 @@ console.log(sql);
 console.table(rows);
 ```
 
-The script builds the model from the key in `.env` and asks our question. Then it runs the SQL on `shop.db`, read-only, as `run-query.mjs` did. Run it:
+The script builds the model from the key in `.env` and asks your question. Then it runs the SQL on `shop.db`, read-only, as `run-query.mjs` did. Run it:
 
 <Tabs syncKey="pkg">
   <TabItem label="npm">
@@ -109,7 +109,7 @@ Yarn 4 keeps packages where plain `node` doesn't look, so `yarn node` starts Nod
   </TabItem>
 </Tabs>
 
-`--env-file=.env` gives the script the API key we put in `.env` in the Quickstart. The output should look something like this:
+`--env-file=.env` gives the script the API key you put in `.env` in the Quickstart. The output should look something like this:
 
 ```
 SELECT customers.name, SUM(products.price * orders.quantity) AS total_spent
@@ -128,11 +128,11 @@ ORDER BY total_spent DESC;
 └─────────┴────────────┴─────────────┘
 ```
 
-That's the Quickstart's answer again, this time from our own script. Notice that the script keeps the rows in `rows`. The next steps use them, and the model never gets them. On Node 22, Node also prints an `ExperimentalWarning` about SQLite, as it did in the Quickstart.
+That's the Quickstart's answer again, this time from your own script. Notice that the script keeps the rows in `rows`. The next steps use them, and the model never gets them. On Node 22, Node also prints an `ExperimentalWarning` about SQLite, as it did in the Quickstart.
 
 ## 2. Classify the columns
 
-To pick a chart, we need to know what each column holds: names to group by, or numbers to plot. `classifyResult()` works that out in our own process, with no model call. Add the highlighted lines:
+To pick a chart, you need to know what each column holds: names to group by, or numbers to plot. `classifyResult()` works that out in your own process, with no model call. Add the highlighted lines:
 
 - The import from `@askdb/client/charts`, which also brings in `planChart` for step 3.
 - The lines under the `// 2.` comment.
@@ -146,14 +146,14 @@ import { ask, loadSchema } from "@askdb/core";
 const question = "How much has each customer spent in total, highest first?";
 const model = openai(process.env.OPENAI_MODEL || "gpt-4o-mini"); // reads OPENAI_API_KEY
 
-// 1. AskDB returns the SQL. Our own code runs it.
+// 1. AskDB returns the SQL. Your own code runs it.
 const { sql } = await ask({ question, schema: loadSchema("./askdb"), model, dialect: "sqlite" });
 const statement = new DatabaseSync("shop.db", { readOnly: true }).prepare(sql);
 const rows = statement.all().map((row) => ({ ...row })); // plain objects, for ECharts in step 4
 console.log(sql);
 console.table(rows);
 
-// 2. Classify the columns, here in our own process.
+// 2. Classify the columns, here in your own process.
 const columns = statement.columns().map(({ name }) => ({ name }));
 const result = classifyResult({ columns, rowCount: rows.length, rows });
 console.log(result.shape);
@@ -172,11 +172,11 @@ Run the script again, with the same command as in step 1. After the SQL and the 
 }
 ```
 
-`name` is a category, and `total_spent` is currency. Notice what isn't here: no `Grace`, no `398`. The column names, their kinds and the row count are all the model will get of our result.
+`name` is a category, and `total_spent` is currency. Notice what isn't here: no `Grace`, no `398`. The column names, their kinds and the row count are all the model will get of your result.
 
 ## 3. Ask the model for a chart
 
-Now we pass `planChart()` the question, the SQL and that classified result, with the same model that wrote the SQL. Of the result, only its `shape` reaches the model. Add the highlighted lines, the ones under the `// 3.` comment:
+Now you pass `planChart()` the question, the SQL and that classified result, with the same model that wrote the SQL. Of the result, only its `shape` reaches the model. Add the highlighted lines, the ones under the `// 3.` comment:
 
 ```js title="first-chart.mjs" ins={21-23}
 import { DatabaseSync } from "node:sqlite";
@@ -187,14 +187,14 @@ import { ask, loadSchema } from "@askdb/core";
 const question = "How much has each customer spent in total, highest first?";
 const model = openai(process.env.OPENAI_MODEL || "gpt-4o-mini"); // reads OPENAI_API_KEY
 
-// 1. AskDB returns the SQL. Our own code runs it.
+// 1. AskDB returns the SQL. Your own code runs it.
 const { sql } = await ask({ question, schema: loadSchema("./askdb"), model, dialect: "sqlite" });
 const statement = new DatabaseSync("shop.db", { readOnly: true }).prepare(sql);
 const rows = statement.all().map((row) => ({ ...row })); // plain objects, for ECharts in step 4
 console.log(sql);
 console.table(rows);
 
-// 2. Classify the columns, here in our own process.
+// 2. Classify the columns, here in your own process.
 const columns = statement.columns().map(({ name }) => ({ name }));
 const result = classifyResult({ columns, rowCount: rows.length, rows });
 console.log(result.shape);
@@ -220,11 +220,11 @@ Run the script again. It makes a second model call, and then prints the plan:
 }
 ```
 
-`primary` is a **chart spec**. It names a chart type, the column for the labels (`category`), the columns to plot (`series`), a title and a description. It holds no rows, and it draws nothing. Drawing is our job, as running the SQL was. `source` says the model picked this chart, and `latencyMs` says how long that took.
+`primary` is a **chart spec**. It names a chart type, the column for the labels (`category`), the columns to plot (`series`), a title and a description. It holds no rows, and it draws nothing. Drawing is your job, as running the SQL was. `source` says the model picked this chart, and `latencyMs` says how long that took.
 
 ## 4. Draw the chart
 
-ECharts draws from an option object, so we need a function that turns a chart spec into one. This function is the only part of the tutorial that's tied to ECharts. Create `to-echarts.mjs`:
+ECharts draws from an option object, so you need a function that turns a chart spec into one. This function is the only part of the tutorial that's tied to ECharts. For shadcn/ui, the "shadcn/ui (Recharts)" tab in [step 4 of the guide](/guides/plan-a-chart/#4-draw-the-chart-from-your-rows) has the same mapping as a React component. Create `to-echarts.mjs`:
 
 ```js title="to-echarts.mjs"
 /**
@@ -266,9 +266,9 @@ export function toEChartsOption(spec, rows) {
 }
 ```
 
-It has a path for each chart type a chart spec can name. Ours takes the `horizontal-bar` path: one bar per row, with the names down the side.
+It has a path for each chart type a chart spec can name. Your chart spec takes the `horizontal-bar` path: one bar per row, with the names down the side.
 
-Now draw the chart from our rows. Add the highlighted lines to `first-chart.mjs`: the three new imports, and the lines under the `// 4.` comment.
+Now draw the chart from your rows. Add the highlighted lines to `first-chart.mjs`: the three new imports, and the lines under the `// 4.` comment.
 
 ```js title="first-chart.mjs" ins={1,6-7,28-33}
 import { writeFileSync } from "node:fs";
@@ -282,14 +282,14 @@ import { toEChartsOption } from "./to-echarts.mjs";
 const question = "How much has each customer spent in total, highest first?";
 const model = openai(process.env.OPENAI_MODEL || "gpt-4o-mini"); // reads OPENAI_API_KEY
 
-// 1. AskDB returns the SQL. Our own code runs it.
+// 1. AskDB returns the SQL. Your own code runs it.
 const { sql } = await ask({ question, schema: loadSchema("./askdb"), model, dialect: "sqlite" });
 const statement = new DatabaseSync("shop.db", { readOnly: true }).prepare(sql);
 const rows = statement.all().map((row) => ({ ...row })); // plain objects, for ECharts in step 4
 console.log(sql);
 console.table(rows);
 
-// 2. Classify the columns, here in our own process.
+// 2. Classify the columns, here in your own process.
 const columns = statement.columns().map(({ name }) => ({ name }));
 const result = classifyResult({ columns, rowCount: rows.length, rows });
 console.log(result.shape);
@@ -298,7 +298,7 @@ console.log(result.shape);
 const plan = await planChart({ question, sql, result, model, dialect: "sqlite" });
 console.log(plan);
 
-// 4. Draw the chart ourselves, from our own rows.
+// 4. Draw the chart yourself, from your own rows.
 const chart = echarts.init(null, null, { renderer: "svg", ssr: true, width: 480, height: 300 });
 chart.setOption({ ...toEChartsOption(plan.primary, rows), animation: false });
 writeFileSync("chart.svg", chart.renderToSVGString());
@@ -320,13 +320,13 @@ Open `chart.svg` in a browser, for example by dragging the file onto a browser w
   <figcaption>The chart from the recorded run, drawn by ECharts from that run's 4 rows. The model picked the horizontal bars, the two columns and the title, with gpt-4o-mini on 2026-11-15.</figcaption>
 </figure>
 
-That's our chart. ECharts drew it from the four rows our own code read from `shop.db`. The model chose the bars, the columns and the title, and it never saw a row.
+That's your chart. ECharts drew it from the four rows your own code read from `shop.db`. The model chose the bars, the columns and the title, and it never saw a row.
 
-## What we built
+## What you built
 
-We asked a question from a script and ran the SQL ourselves. `classifyResult()` described the columns in our own process. `planChart()` had the model pick a chart from that description, and ECharts drew the chart from our rows. AskDB returned the SQL and the chart spec. Our code did the running and the drawing.
+You asked a question from a script and ran the SQL yourself. `classifyResult()` described the columns in your own process. `planChart()` had the model pick a chart from that description, and ECharts drew the chart from your rows. AskDB returned the SQL and the chart spec. Your code did the running and the drawing.
 
-ECharts was our choice, not AskDB's. To draw with another library, replace `to-echarts.mjs` with a function that maps the same chart spec to that library's config. [Chart a query result](/guides/plan-a-chart/#4-draw-the-chart-from-your-rows) names the matching settings in Chart.js, Recharts and Vega-Lite.
+ECharts is this tutorial's choice, not AskDB's. To draw with another library, replace `to-echarts.mjs` with a function that maps the same chart spec to that library's config. Step 4 of [Chart a query result](/guides/plan-a-chart/#4-draw-the-chart-from-your-rows) has that mapping for shadcn/ui charts, which are Recharts, in its "shadcn/ui (Recharts)" tab. Its "ECharts" tab is this tutorial's function. It also names the matching settings in Chart.js and Vega-Lite.
 
 Try another question. Change `question` to "How many units of each product were sold?", run the script, and open `chart.svg` again. The script draws any answer that has rows to group and a number to plot. Any other answer stops with an error at the drawing step, such as one number or one with no chart. [Chart a query result](/guides/plan-a-chart/) handles those.
 
@@ -339,6 +339,8 @@ Add a chart of a query result to this project by following the tutorial at https
 The goal: a script that asks the question with `ask()`, runs the SQL through the project's own read-only connection, classifies the result with `classifyResult()`, plans a chart with `planChart()`, and draws it from the project's own rows.
 
 Draw with the charting library this project already uses. Look for one in its dependencies first, such as Recharts (shadcn/ui charts are Recharts), Chart.js, ECharts, Vega-Lite or D3. If the project has none, ask which one to add; the tutorial uses ECharts. Then write one function that maps the chart spec to that library's config, as the tutorial's `to-echarts.mjs` does for ECharts: `type` picks the chart, `category` and `series` name columns of the rows, and `title` and `description` are its text.
+
+Start from a ready-made mapping when one fits. Step 4 of https://askdb.tools/guides/plan-a-chart.md has two, one in each tab: `to-echarts.mjs` for ECharts, and `components/spec-chart.tsx`, a React component for shadcn/ui charts and Recharts. In the AskDB repo they are `examples/chart-a-result/to-echarts.mjs` and `examples/chart-a-result/shadcn/components/spec-chart.tsx`.
 
 - AskDB returns SQL and a chart spec. It runs no SQL and draws nothing: this project's code does both.
 - Never put a row in a prompt. `planChart()` gets the question, the SQL and the classified result.

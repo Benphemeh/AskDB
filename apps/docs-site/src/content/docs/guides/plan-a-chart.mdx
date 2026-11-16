@@ -68,15 +68,15 @@ run -> draw: rows
 
 - A service that calls `ask()` or `client.ask()` and runs the SQL under your own connection. [Embed in a Node app](/guides/embed-in-node/) builds one.
 - A row cap on that connection. A chart from a cut result needs to know it was cut; [Cap the rows a query returns](/guides/cap-the-rows-a-query-returns/) returns `{ rows, truncated }`.
-- A charting library. This guide uses [Apache ECharts](https://echarts.apache.org/); step 4 says what changes for another one.
+- A charting library. Step 4 has the code for [Apache ECharts](https://echarts.apache.org/) and for [shadcn/ui charts](https://ui.shadcn.com/docs/components/chart), which are Recharts. It also says what changes for another library.
 - Room for one more model call per chart, after the call `ask()` makes.
 
-Install `@askdb/client`, which holds the `@askdb/client/charts` entry point, and ECharts. A service from [Embed in a Node app](/guides/embed-in-node/) has all of these but ECharts, and the package for its model. Two details on the packages:
+Install `@askdb/client`, which holds the `@askdb/client/charts` entry point. A service from [Embed in a Node app](/guides/embed-in-node/) has all of these, and the package for its model. You install your charting library in step 4. Two details on the packages:
 
 - **Imports.** The entry point imports only `@askdb/core` and `ai`.
 - **Peer.** `@askdb/config` is a peer of `@askdb/client`.
 
-<InstallTabs pkgs="@askdb/client @askdb/core @askdb/config ai echarts" />
+<InstallTabs pkgs="@askdb/client @askdb/core @askdb/config ai" />
 
 The whole flow, on the Quickstart's shop database, is in <ExampleLink path="examples/chart-a-result" />. Its `draw-recorded.mjs` draws the chart above with no API key. The output in each step below is from that example's recorded run.
 
@@ -199,7 +199,18 @@ The recorded run returned this plan:
 
 ## 4. Draw the chart from your rows
 
-Map the chart spec onto your charting library's config, and give the library your rows. For ECharts:
+The chart spec is the same for every charting library. The only code that depends on your library is one mapping from the spec to that library's config. Your rows go in as they are.
+
+Pick your library. Each tab has its install line, the mapping as a table, the code that does it, and the code that calls it.
+
+<Tabs syncKey="chart-lib">
+  <TabItem label="ECharts">
+
+Install ECharts:
+
+<InstallTabs pkgs="echarts" />
+
+Map the chart spec onto an ECharts option, and give ECharts your rows:
 
 | Chart spec | ECharts option |
 | --- | --- |
@@ -271,12 +282,137 @@ if (!spec) {
 }
 ```
 
+  </TabItem>
+  <TabItem label="shadcn/ui (Recharts)">
+
+Add shadcn/ui's chart component to your project. It installs Recharts, and adds `components/ui/chart.tsx` and `components/ui/card.tsx`:
+
+```bash
+npx shadcn@latest add chart
+```
+
+Map the chart spec onto shadcn's `ChartContainer` and the Recharts components inside it, and give the chart your rows:
+
+| Chart spec | shadcn/ui and Recharts |
+| --- | --- |
+| Your rows | `data` on the chart, or on the `Pie` |
+| `title`, `description` | `CardTitle` and `CardDescription`, in the `Card` header |
+| Each name in `series` | One key in the `ChartConfig`, with a label, and one `Bar`, `Line` or `Area` with that `dataKey` and a color |
+| `type: "bar"` | `BarChart`, with `<XAxis dataKey={category} />` |
+| `type: "horizontal-bar"` | `BarChart layout="vertical"`, with `<YAxis type="category" dataKey={category} />` and `<XAxis type="number" />` |
+| `type: "line"` | `LineChart`, with a `Line` for each series |
+| `type: "area"` | `AreaChart`, with an `Area` for each series |
+| `type: "pie"` | `PieChart` with one `Pie` and a `ChartLegend`. Each row is a slice, with the `category` value as its name, the `series[0]` value as a number, and a `fill`. |
+| `type: "metric"` | No chart. Show `rows[0][series[0]]` as a number, under the title. |
+
+This component does that mapping for every chart type. Save it next to shadcn's components:
+
+```tsx title="components/spec-chart.tsx"
+"use client";
+
+import type { ChartSpec } from "@askdb/client/charts";
+import type { ReactNode } from "react";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Line, LineChart, Pie, PieChart, XAxis, YAxis } from "recharts";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { type ChartConfig, ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+
+type Row = Record<string, unknown>;
+/** The five theme colors, then the same five at 55% strength: enough for a pie's 8 slices. */
+const color = (index: number) => {
+  const theme = `var(--chart-${(index % 5) + 1})`;
+  return index % 10 < 5 ? theme : `color-mix(in oklab, ${theme} 55%, transparent)`;
+};
+
+/**
+ * Draws a chart spec from @askdb/client/charts with shadcn/ui's chart component, which is Recharts.
+ * Recharts reads your rows as they are and picks columns by name with `dataKey`,
+ * so the spec's `category` and `series` go in as they are.
+ * A metric is one number, not a chart: it shows the value under the title.
+ * The config holds labels only: a color in it makes shadcn write the column name, which the model chose, into a <style> element.
+ */
+export function SpecChart({ spec, rows }: { spec: ChartSpec; rows: Row[] }) {
+  // Number(): a pie draws nothing from strings, which drivers return for bigint and numeric columns.
+  const slices = rows.map((row, index) => ({ name: String(row[spec.category!]), value: Number(row[spec.series[0]]), fill: color(index) }));
+  const labels = spec.type === "pie" ? slices.map((slice) => slice.name) : spec.series;
+  const config: ChartConfig = Object.fromEntries(labels.map((label) => [label, { label }]));
+  const value = rows[0]?.[spec.series[0]];
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{spec.title}</CardTitle>
+        <CardDescription>{spec.description}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {spec.type === "metric" ? (
+          <p className="text-4xl font-semibold tabular-nums">{typeof value === "number" ? value.toLocaleString() : String(value)}</p>
+        ) : (
+          <ChartContainer config={config} className="min-h-[200px] w-full">
+            {spec.type === "pie" ? (
+              <PieChart accessibilityLayer>
+                <ChartTooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
+                <ChartLegend content={<ChartLegendContent nameKey="name" />} />
+                <Pie data={slices} dataKey="value" nameKey="name" />
+              </PieChart>
+            ) : (
+              <CartesianChart spec={spec} rows={rows} type={spec.type} />
+            )}
+          </ChartContainer>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/** For each cartesian chart type, the Recharts chart and the line, area or bar it draws for one column. */
+const cartesian: Record<Exclude<ChartSpec["type"], "pie" | "metric">, { Chart: typeof BarChart; draw: (column: string, color: string) => ReactNode }> = {
+  line: { Chart: LineChart, draw: (column, color) => <Line key={column} dataKey={column} stroke={color} dot={false} /> },
+  area: { Chart: AreaChart, draw: (column, color) => <Area key={column} dataKey={column} stroke={color} fill={color} fillOpacity={0.4} /> },
+  bar: { Chart: BarChart, draw: (column, color) => <Bar key={column} dataKey={column} fill={color} radius={4} /> },
+  "horizontal-bar": { Chart: BarChart, draw: (column, color) => <Bar key={column} dataKey={column} fill={color} radius={4} /> },
+};
+
+/** Line, area, bar and horizontal bar: one Recharts chart, with one line, area or bar for each column in `series`. */
+function CartesianChart({ spec, rows, type }: { spec: ChartSpec; rows: Row[]; type: keyof typeof cartesian }) {
+  const { Chart, draw } = cartesian[type];
+  const horizontal = type === "horizontal-bar";
+  return (
+    <Chart accessibilityLayer data={rows} layout={horizontal ? "vertical" : "horizontal"}>
+      <CartesianGrid horizontal={!horizontal} vertical={horizontal} />
+      {horizontal ? <XAxis type="number" /> : <XAxis dataKey={spec.category} />}
+      {horizontal ? <YAxis type="category" dataKey={spec.category} /> : <YAxis />}
+      <ChartTooltip content={<ChartTooltipContent />} />
+      {spec.series.length > 1 && <ChartLegend content={<ChartLegendContent />} />}
+      {spec.series.map((column, index) => draw(column, color(index)))}
+    </Chart>
+  );
+}
+```
+
+The title and description go in a shadcn `Card`, as in shadcn's own chart examples. Without a card, put them in your own heading and keep the `ChartContainer`. The colors come from shadcn's `--chart-1` to `--chart-5` CSS variables, and a pie's sixth to eighth slices take the same colors at 55% strength. The colors go on the lines, areas, bars and slices, and the `ChartConfig` holds labels only. A color in it would put its key, a column name that the model chose, into a `<style>` element.
+
+Use it where your application shows the result. `ResultTable` stands for your own table component:
+
+```tsx title="components/answer.tsx"
+import type { ChartPlan } from "@askdb/client/charts";
+import { ResultTable } from "@/components/result-table"; // your own table
+import { SpecChart } from "@/components/spec-chart";
+
+export function Answer({ plan, rows }: { plan: ChartPlan; rows: Record<string, unknown>[] }) {
+  if (!plan.primary) return <ResultTable rows={rows} />; // no chart fits this result
+  return <SpecChart spec={plan.primary} rows={rows} />;
+}
+```
+
+The example's tests render both components for every chart type, with React and shadcn's own `chart.tsx`, and no browser.
+
+  </TabItem>
+</Tabs>
+
 Your page then shows a chart like the one at the top of this guide. The rows reach the browser from your own API, the way they reach a table. The chart spec can go with them: it holds no row.
 
-If you use another library, map the same five fields. Chart.js, Recharts and Vega-Lite also take an array of row objects and a column name for each axis. The option that names the column:
+If you use another library, map the same five fields. Chart.js and Vega-Lite also take an array of row objects and a column name for each axis. The option that names the column:
 
 - **Chart.js.** `parsing.xAxisKey` and `parsing.yAxisKey`.
-- **Recharts.** `dataKey`.
 - **Vega-Lite.** `encoding.x.field`.
 
 ## 5. Handle a fallback and a result with no chart
@@ -315,7 +451,8 @@ Constraints:
 
 - AskDB returns SQL and a chart spec. This application runs the SQL and draws the chart from its own rows, with its own charting library.
 - Use the charting library this project already has. Look for one in its dependencies first, such as Recharts (shadcn/ui charts are Recharts), Chart.js, ECharts, Vega-Lite or D3. If it has none, ask which one to add. Don't add a second library beside one that is there.
-- Write one function or component that maps the chart spec to that library's config. `type` picks the chart, `category` and `series` name columns of the rows, and `title` and `description` are its text. The guide's `to-echarts.mjs` is the ECharts version: port it, covering all six types, with `metric` as a number and not a chart.
+- Write one function or component that maps the chart spec to that library's config. `type` picks the chart, `category` and `series` name columns of the rows, and `title` and `description` are its text. Cover all six types, with `metric` as a number and not a chart.
+- Start from a ready-made mapping when one fits. Step 4 of the guide has two, one in each tab: `to-echarts.mjs` for ECharts, and `components/spec-chart.tsx` for shadcn/ui charts and Recharts. In the AskDB repo they are `examples/chart-a-result/to-echarts.mjs` and `examples/chart-a-result/shadcn/components/spec-chart.tsx`. For another library, port the closer one.
 - Pass `classifyResult()` the result's columns, row count and `truncated` flag. Never put a row in a prompt.
 - `@askdb/client/charts` is experimental. Draw `plan.primary` when it is set, show the table when it is `null`, and log `plan.fallbackReason` and `plan.issues`.
 

@@ -7,7 +7,7 @@ import { Aside, FileTree, Tabs, TabItem } from "@astrojs/starlight/components";
 import AgentPrompt from "../../components/AgentPrompt.astro";
 import ExampleLink from "../../components/ExampleLink.astro";
 
-In this tutorial, we'll create a small shop database, point AskDB at it, ask a question in plain English, and run the SQL that AskDB returns. At the end, we have an AskDB config, a schema artifact for our database, and the answer to a question, from SQL that our own code ran. The schema artifact is the file that describes our database to the model.
+In this tutorial, you'll create a small shop database, point AskDB at it, ask a question in plain English, and run the SQL that AskDB returns. At the end, you have an AskDB config, a schema artifact for your database, and the answer to a question, from SQL that your own code ran. The schema artifact is the file that describes your database to the model.
 
 <figure>
 
@@ -29,7 +29,7 @@ schema -> sql: `askdb ask` + your question
 sql -> rows: piped to `run-query.mjs`
 ```
 
-<figcaption>What we'll make, and the step that makes each. AskDB reads the schema and returns checked SQL. Our own code runs it.</figcaption>
+<figcaption>What you'll make, and the step that makes each. AskDB reads the schema and returns checked SQL. Your own code runs it.</figcaption>
 </figure>
 
 <Aside type="tip" title="Skip the typing">The files this tutorial has you type are `shop.sql`, `make-shop.mjs` and `run-query.mjs`. They're in <ExampleLink path="examples/quickstart-shop" />, with a `package.json` that lists AskDB. To fetch them into a new `askdb-shop` folder, run `npx gitpick Ygilany/AskDB/tree/main/examples/quickstart-shop askdb-shop`. Then, in that folder, run `npm install` and `node make-shop.mjs`, and continue from `askdb init` in step 2. The folder's README has the same commands for pnpm.</Aside>
@@ -161,7 +161,7 @@ It prints one line:
 Created shop.db
 ```
 
-A new `shop.db` file appears in the folder. That's our database. Two things to know:
+A new `shop.db` file appears in the folder. That's your database. Two things to know:
 
 - On Node 22, Node also prints an `ExperimentalWarning` about SQLite. It's safe to ignore here.
 - Running the script twice fails with `table customers already exists`. To start over, delete `shop.db` first.
@@ -202,7 +202,7 @@ Yarn installs only releases that are at least a day old, so for a day after an A
   </TabItem>
 </Tabs>
 
-Then let `askdb init` write the config for our database:
+Then let `askdb init` write the config for your database:
 
 <Tabs syncKey="pkg">
   <TabItem label="npm">
@@ -344,7 +344,7 @@ export default defineConfig({
 
 The config has three blocks:
 
-- `introspection` says where our database is. For SQLite, that's a file path. A path isn't a secret, so `askdb init` wrote it here, not in `.env`.
+- `introspection` says where your database is. For SQLite, that's a file path. A path isn't a secret, so `askdb init` wrote it here, not in `.env`.
 - `ai` says which model provider to call. `providerConfig` reads the API key from the `OPENAI_API_KEY` environment variable. `language` is the language model, the one that writes the SQL. When `OPENAI_MODEL` is empty, AskDB uses OpenAI's default model.
 - `rag` sets up retrieval for large schemas. It's experimental, and this tutorial doesn't use it.
 
@@ -373,7 +373,7 @@ Here, only the API key goes in `.env`, because it's the only secret. With a data
 
 ## 4. Read the schema
 
-Now let AskDB read the structure of our database:
+Now let AskDB read the structure of your database:
 
 <Tabs syncKey="pkg">
   <TabItem label="npm">
@@ -405,7 +405,7 @@ When it's done, it prints one line:
 Wrote askdb/schema.json: 3 tables (sqlite).
 ```
 
-`askdb/schema.json` is the **schema artifact**. It lists our three tables, their columns and types, and the two links from `orders` to `customers` and `products`.
+`askdb/schema.json` is the **schema artifact**. It lists your three tables, their columns and types, and the two links from `orders` to `customers` and `products`.
 
 The project folder now holds the files from steps 1 to 4:
 
@@ -426,7 +426,7 @@ The project folder now holds the files from steps 1 to 4:
 
 </FileTree>
 
-The schema artifact is what AskDB gives the model. When we ask a question, AskDB sends the model our question and this schema, never the rows in `shop.db`. [Privacy model](/concepts/privacy-model/) lists everything that's sent.
+The schema artifact is what AskDB gives the model. When you ask a question, AskDB sends the model your question and this schema, never the rows in `shop.db`. [Privacy model](/concepts/privacy-model/) lists everything that's sent.
 
 <details>
 <summary>What the model receives for the question in step 5</summary>
@@ -505,7 +505,7 @@ ORDER BY total_spent DESC;
 The model writes the SQL, so yours can differ: other aliases, another layout, or other columns. Notice what AskDB did and didn't do:
 
 - **It checked the SQL** before printing it. For example, it returns only read-only SQL.
-- **It didn't run the SQL.** Running it is our job.
+- **It didn't run the SQL.** Running it is your job.
 
 Some questions get no SQL. Ask something the shop database can't answer, such as "What's the weather like?", or ask it to change data, such as "delete all orders". AskDB then prints `AskDB can't answer this as a read-only query:` with the model's reason, on stderr, instead of SQL.
 
@@ -513,7 +513,7 @@ If you see `no AI API key configured`, check that `.env` has your key (step 3).
 
 ## 6. Run the SQL
 
-`askdb ask` prints only the SQL on stdout, and everything else on stderr. Its `-- sql --` line is a SQL comment. So we can pipe the output straight into our own code, with no copying.
+`askdb ask` prints only the SQL on stdout, and everything else on stderr. Its `-- sql --` line is a SQL comment. So you can pipe the output straight into your own code, with no copying.
 
 Create `run-query.mjs`. It reads the SQL from stdin, opens `shop.db` read-only and runs the SQL:
 
@@ -566,7 +566,7 @@ The output should look something like this:
 └─────────┴────┴────────────┴─────────────┘
 ```
 
-That's the answer to our question: Grace bought two monitors, so she has spent the most. The model wrote the SQL again, so it can differ from step 5's, but the answer should be the same.
+That's the answer to your question: Grace bought two monitors, so she has spent the most. The model wrote the SQL again, so it can differ from step 5's, but the answer should be the same.
 
 To read the SQL before you run it, save it to a file first, and then run the file:
 
@@ -577,9 +577,9 @@ node run-query.mjs < query.sql
 
 <Aside type="caution">AskDB's SQL checks are heuristics, not a security boundary. Before your application runs generated SQL against real data, read [Run generated SQL safely](/concepts/safety-boundaries/#run-generated-sql-safely): use a read-only, least-privilege database role, set timeouts, and enforce tenant isolation in the database.</Aside>
 
-## What we built
+## What you built
 
-We made a database, and AskDB read its schema. Then we asked a question in plain English and got back checked SQL. Our own code ran that SQL read-only and printed the answer. Try another question, such as "Which products has nobody from the US bought?", and pipe its SQL into `run-query.mjs` the same way.
+You made a database, and AskDB read its schema. Then you asked a question in plain English and got back checked SQL. Your own code ran that SQL read-only and printed the answer. Try another question, such as "Which products has nobody from the US bought?", and pipe its SQL into `run-query.mjs` the same way.
 
 ## Use your own database
 

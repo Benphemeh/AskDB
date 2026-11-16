@@ -63,7 +63,7 @@ The checks split SQL into tokens and skip strings, quoted names and comments. So
 - **No control over the locks a plain read takes.** Like the other checks, the locking-read check is defense in depth: it looks for locking words, not at the locks a statement takes. Your connection's isolation level still decides what a plain `SELECT` locks. On SQL Server, `REPEATABLE READ` and `SERIALIZABLE` hold shared locks on what a `SELECT` read until the transaction ends. On MySQL and MariaDB, `SERIALIZABLE` reads every plain `SELECT` in a transaction as `FOR SHARE`. Run generated SQL in a short transaction with a lock timeout.
 - **No complete tenant or sensitive coverage.** The tenant check doesn't check that joined scoped tables share a scope, and it checks a root reached through the hierarchy as a root only when the scope names it. The sensitive check can miss a table in some `FROM` forms, so a wildcard over it goes unreported. [SQL checks reference](/reference/sql-checks/) lists the known cases.
 
-A way past the checks is a bug, and we fix it. Still, plan for the checks to miss things.
+A way past the checks is a bug, and AskDB's maintainers fix it. Still, plan for the checks to miss things.
 
 ## Run generated SQL safely
 

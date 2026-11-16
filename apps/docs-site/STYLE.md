@@ -12,7 +12,7 @@ In priority order (from `docs/mission.md`):
 
 ## Voice
 
-- Second person ("you"); "we" only inside tutorials, as the teacher alongside the learner.
+- Second person ("you"), on every page, tutorials included. Never "we", "us" or "our": the docs speak for AskDB, so a reader can take "we run the SQL" to mean AskDB runs it, which is the one thing AskDB never does. Name who acts every time: "you", "your application", "AskDB", "the model". The project's own commitments name the project: "AskDB's maintainers fix it", not "we fix it".
 - US spelling. Sentence-case headings. No emoji.
 - The register follows the page type. Reference is austere and neutral. How-to guides are direct. Tutorials and explanation pages may be warmer and more discursive: a tutorial can point out what the learner should notice, and an explanation can weigh alternatives and give the project's view.
 
@@ -146,7 +146,7 @@ Agents are the site's second reader, so each page must read well as plain Markdo
 ## Components
 
 - `InstallTabs` (`<InstallTabs pkgs="…" />`) for every package install. Two pages use hand-written `Tabs` (`syncKey="pkg"`) for npm, pnpm and Yarn instead: the Quickstart, since its install is a dev dependency, and "Chart your first answer", since its Yarn tab adds `zod` and runs the script with `yarn node`. `InstallTabs` can't express either.
-- `Tabs` with a `syncKey` so choices persist site-wide: `pkg` (labels exactly npm / pnpm / yarn), `engine` (labels exactly PostgreSQL / MySQL / SQLite / SQL Server, in that order; a tab covers MariaDB under MySQL; add engine tabs wherever a page shows code that differs by engine), `wiring` (config-driven vs direct model).
+- `Tabs` with a `syncKey` so choices persist site-wide: `pkg` (labels exactly npm / pnpm / yarn), `engine` (labels exactly PostgreSQL / MySQL / SQLite / SQL Server, in that order; a tab covers MariaDB under MySQL; add engine tabs wherever a page shows code that differs by engine), `wiring` (config-driven vs direct model), `chart-lib` (labels exactly ECharts / shadcn/ui (Recharts), in that order; the charting library a chart page's code draws with).
 - `Aside` for a real hazard or a fact the reader must not miss: `note`, `tip`, `caution`, `danger`. At most two on a page. A prerequisite goes in "Before you start", not an aside.
 - `Steps` (from `@astrojs/starlight/components`) for a short procedure inside a section. A guide's main procedure uses numbered `##` headings instead, so each step is in the table of contents.
 - `FileTree` for a directory layout, with a comment on each file that needs one.
