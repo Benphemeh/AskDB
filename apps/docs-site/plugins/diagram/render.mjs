@@ -41,6 +41,9 @@ export function textAlternative(diagram) {
     return wrapper(`<ol>${items.join("")}</ol>`);
   }
   const byId = new Map(steps.map((step) => [step.id, step]));
+  // A dashed link is a reply when the step it goes back to links to this one, and an optional path otherwise.
+  const dashedNote = (link) =>
+    !link.dashed ? "" : links.some((other) => other.from === link.to && other.to === link.from) ? " (in reply)" : " (optional)";
   const ordered = [...steps].sort((a, b) => a.row - b.row || a.lane - b.lane);
   const items = ordered.map((step) => {
     const group = step.group === undefined ? "" : ` (${html(groups[step.group].label)})`;
@@ -49,7 +52,7 @@ export function textAlternative(diagram) {
       .map((link) =>
         step.decision
           ? `<li>${html(link.label)} → ${html(byId.get(link.to).label)}</li>`
-          : `<li>→ ${html(byId.get(link.to).label)}${link.label ? `: ${html(link.label)}` : ""}${link.dashed ? " (optional)" : ""}</li>`,
+          : `<li>→ ${html(byId.get(link.to).label)}${link.label ? `: ${html(link.label)}` : ""}${dashedNote(link)}</li>`,
       );
     return `<li><strong>${html(lanes[step.lane].label)}${group}:</strong> ${step.decision ? "Decision: " : ""}${html(step.label)}${out.length ? `<ul>${out.join("")}</ul>` : ""}</li>`;
   });
