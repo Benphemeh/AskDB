@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 import { playgroundSubtitle, SENSITIVE_REVIEW_ADVICE } from "./playground-copy";
 
 describe("playgroundSubtitle", () => {
-  it("does not mention running SQL when execute is off", () => {
-    expect(playgroundSubtitle(false)).toBe("Generate SQL from natural language");
+  it("does not mention running SQL when execute is off, unknown or has no connection", () => {
+    for (const status of [undefined, null, { enabled: false, configured: true }, { enabled: true, configured: false }]) {
+      expect(playgroundSubtitle(status)).toBe("Generate SQL from natural language");
+    }
   });
 
-  it("says Studio can run the SQL when execute is on", () => {
-    expect(playgroundSubtitle(true)).toContain("run it through the connection you configured");
+  it("says Studio can run the SQL when execute is on with a connection", () => {
+    expect(playgroundSubtitle({ enabled: true, configured: true })).toContain("run it through the connection you configured");
   });
 });
 

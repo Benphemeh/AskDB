@@ -1616,7 +1616,7 @@ select:focus-visible {
 
 /* Last, so the `font` shorthands above (which reset these) can not undo it. */
 /* Show `<=`, `!=` and `->` as the characters the SQL holds, not as one joined glyph. */
-code, pre, kbd, samp, .mono, .code-block, .kbd, .main-hd .main-sub,
+code, pre, kbd, samp, .mono, .font-mono, .code-block, .kbd, .main-hd .main-sub,
 .concept-id-prefix, .concept-id-slug, .links-chip, .links-dropdown-label {
   font-variant-ligatures: none;
   font-feature-settings: "liga" 0, "calt" 0;

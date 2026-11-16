@@ -65,7 +65,7 @@ export function PlaygroundPage() {
       <div className="main-hd">
         <div className="main-title">
           <h1><Play size={18} style={{ display: "inline", marginRight: 8 }} />Query Playground</h1>
-          <div className="main-sub">{playgroundSubtitle(Boolean(executeStatus?.enabled))}</div>
+          <div className="main-sub">{playgroundSubtitle(executeStatus)}</div>
         </div>
       </div>
       <div className="main-body" style={{ overflow: "hidden", padding: 0 }}>
