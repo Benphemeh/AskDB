@@ -408,7 +408,8 @@ function TenancyCreateForm({
 
   const selectedRootTable = tables.find((t) => t.physical.id === rootTableId);
   const manualFrontmatter = manualTenantPolicyFrontmatter(schemaId, state);
-  const scopableTables = tables.filter((t) => t.physical.id !== rootTableId && !globalTableIds.includes(t.physical.id));
+  const globalTableIdSet = new Set(globalTableIds);
+  const scopableTables = tables.filter((t) => t.physical.id !== rootTableId && !globalTableIdSet.has(t.physical.id));
 
   async function handleDraftWithAi() {
     dispatch({ type: "set_draftStatus", payload: { kind: "loading", text: "Analyzing schema and drafting tenant policy..." } });

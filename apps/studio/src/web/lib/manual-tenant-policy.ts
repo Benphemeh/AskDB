@@ -29,9 +29,12 @@ export function manualTenantPolicyFrontmatter(
   // The root can't also be global, and neither can be scoped: the form hides them, and drops a
   // choice made before the table became the root or global.
   const globalTableIds = form.globalTableIds.filter((tableId) => tableId !== form.rootTableId);
-  const scopedTables = Object.entries(form.scopedTableColumns)
-    .filter(([tableId, column]) => column && tableId !== form.rootTableId && !globalTableIds.includes(tableId))
-    .map(([tableId, column]) => ({ id: tableId, scopeThrough: [{ root: form.rootTableId, column }] }));
+  const globalIds = new Set(globalTableIds);
+  const scopedTables = Object.entries(form.scopedTableColumns).flatMap(([tableId, column]) =>
+    column && tableId !== form.rootTableId && !globalIds.has(tableId)
+      ? [{ id: tableId, scopeThrough: [{ root: form.rootTableId, column }] }]
+      : [],
+  );
   return {
     schemaId,
     enforcement: form.enforcement,
