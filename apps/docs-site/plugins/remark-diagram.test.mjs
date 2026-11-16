@@ -261,3 +261,13 @@ test("the kit measures labels with Inter and JetBrains Mono, the first families 
   assert.equal(first("--sl-font"), "Inter Variable");
   assert.equal(first("--sl-font-mono"), "JetBrains Mono Variable");
 });
+
+test("the text alternative calls a dashed link a reply when it answers a link the other way, and optional otherwise", () => {
+  const text = textAlternative(
+    parseDiagram(
+      "flow\ntitle: A call and its reply.\nlane askdb: AskDB\nlane model: Your model provider\nstep generate @askdb: generate\n+ step write @model: writes the SQL\nstep retrieve @askdb: retrieve chunks\ngenerate -> write: prompt\nwrite ..> generate: SQL\ngenerate ..> retrieve: with a retriever",
+    ),
+  );
+  assert.match(text, /<li>→ generate: SQL \(in reply\)<\/li>/);
+  assert.match(text, /<li>→ retrieve chunks: with a retriever \(optional\)<\/li>/);
+});
