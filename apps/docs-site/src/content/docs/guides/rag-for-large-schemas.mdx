@@ -221,7 +221,7 @@ To check a question, run `askdb rag query` after `askdb rag index`:
 npx askdb rag query --question "What's our monthly recurring revenue from active subscriptions?"
 ```
 
-The results are the chunks `ask()` would retrieve, nearest first. Each `id` names the table it points to. If a table the SQL needs isn't among them, fix it in the schema artifact:
+The results are the chunks `ask()` would retrieve, nearest first. Each result's `refs` lists the tables it points to, and a table or column result's `id` names its table too. If a table the SQL needs isn't among them, fix it in the schema artifact:
 
 - **Describe the table itself.** Give `tables/plans.md` a description, aliases such as `subscription plans`, and a business-context line naming the measure it feeds. A note about `plans` in another table's file doesn't help, because that chunk points to the other table.
 - **Add a concept for a term that spans tables.** A retrieved concept puts every table in its `links` into the prompt. A monthly recurring revenue concept that links `subscriptions` and `plans` brings both.

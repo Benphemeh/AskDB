@@ -26,7 +26,7 @@ You need Node.js 22.23.4 or newer and an OpenAI API key. The [tutorial](https://
 npm install
 node make-saas.mjs
 npx askdb init --yes --database sqlite --sqlite-file ./saas.db
-cp .env.example .env            # then set OPENAI_API_KEY and OPENAI_MODEL
+cp .env.example .env            # then set OPENAI_API_KEY; leave OPENAI_MODEL empty to match the recorded runs
 npx askdb introspect
 mkdir -p askdb/tables && cp enrichment/subscriptions.md askdb/tables/
 ```

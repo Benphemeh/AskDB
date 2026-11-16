@@ -229,7 +229,7 @@ npx askdb rag query --question "What's our monthly recurring revenue from active
 0.341  table:public.subscription_events#id
 ```
 
-The command prints JSON. This block shows each result's score, higher meaning nearer, and its id, shortened. `#cql` is the common query language section you copied, and any other name after `#` is a column. All 8 results come from subscription and usage tables. The `plans` table has no text beyond its name and its two columns, `name` and `monthly_price`, so nothing about it looks near the question.
+The command prints JSON. This block shows each result's score, higher meaning nearer, and its id, shortened. `#cql` is the common query language section you copied, and any other name after `#` is a column. All 8 results come from subscription and usage tables. The plans table has no text beyond its own name and its column names: `id`, `name` and `monthly_price`. Nothing about it looks near the question.
 
 ## 5. Describe plans and the revenue term
 
@@ -256,7 +256,7 @@ The subscription plans a customer can be on, with each plan's monthly price. Eve
 - Monthly recurring revenue (MRR) is the sum of plans.monthly_price over active subscriptions, joined through subscriptions.plan_id.
 ```
 
-The aliases, the description and the business context each become text that retrieval can match. They also reach the model when `plans` is in the prompt.
+The aliases, the description and the business context each become text that retrieval can match. The aliases and description reach the model whenever `plans` is in the prompt. The business context reaches it when retrieval returns its chunk.
 
 Then write down the term itself. A concept is a business term that spans tables, written in `askdb/concepts.md`. Revenue needs both `subscriptions` and `plans`, so it's a concept. Create the file:
 
