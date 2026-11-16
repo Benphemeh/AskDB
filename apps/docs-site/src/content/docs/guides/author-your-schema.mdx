@@ -52,7 +52,7 @@ If you work with a coding agent, give it the [askdb-enrich-schema skill](/skills
 
 ## Example: extend the Quickstart's shop
 
-The [Quickstart](/quickstart/)'s three tables need no enrichment, because the model answers from their column names alone. This example adds two tables whose meaning the names don't carry, then fixes a wrong answer with enrichment. Run it in the Quickstart's `askdb-shop` folder, with its SQLite `shop.db`. The dates are stored as text, so on the Quickstart's Postgres fallback the SQL the model writes differs from the SQL shown here.
+The [Quickstart](/quickstart/)'s three tables need no enrichment, because the model answers from their column names alone. This example adds two tables whose meaning the names don't carry, then uses enrichment to get a question about them answered right. Run it in the Quickstart's `askdb-shop` folder, with its SQLite `shop.db`. The dates are stored as text, so on the Quickstart's Postgres fallback the SQL the model writes differs from the SQL shown here.
 
 <figure>
 
@@ -156,20 +156,19 @@ Ask for the monthly recurring revenue, and pipe the SQL into the Quickstart's `r
 npx askdb ask --question "What's our monthly recurring revenue from active subscriptions?" | node run-query.mjs
 ```
 
-The model has only names and types to go on, so it guesses what "active" means:
+With AskDB's default OpenAI model, `gpt-4o-mini`, the model declines the question. AskDB prints why and exits `1`:
 
-```sql
-SELECT SUM(plans.monthly_price) AS monthly_recurring_revenue
-FROM subscriptions
-JOIN plans ON subscriptions.plan_id = plans.id
-WHERE subscriptions.status = 'active';
+```text
+AskDB can't answer this as a read-only query: The question refers to "active" subscriptions, which is not defined in the schema.
 ```
 
-No row has the status `active`, so the sum is `null`.
+The model has only names and types to go on, and they don't say what "active" means. So AskDB tells you what the schema is missing, instead of returning a wrong number. `run-query.mjs` gets no SQL and runs nothing.
+
+Model output varies. An older or different model may instead guess a value, such as `WHERE subscriptions.status = 'active'`. No row has the status `active`, so the sum is `null`. Enrichment fixes both outcomes.
 
 ### 3. Enrich the subscriptions table
 
-The schema needs two things: what the `status` codes mean, and the rule for an active subscription. Codes alone aren't enough. With only those, the model writes `status = 'A'` and gets `58`: it counts subscription 5, which hasn't started, and leaves out subscription 4, which is past due but still active.
+The schema needs two things: what the `status` codes mean, and the rule for an active subscription. Codes alone aren't enough. With only those, `gpt-4o-mini` still declines, because nothing says which codes count as active. A model that guesses writes `status = 'A'` and gets `58`: it counts subscription 5, which hasn't started, and leaves out subscription 4, which is past due but still active.
 
 1. Run `npx askdb studio`, open **Tables** and select `subscriptions`.
 2. On the **Enrichment** tab, under **Columns**, find `status`. Set its **Description** to `Subscription state, as a one-letter code: A = active, T = trial, P = past due, C = cancelled.`, and its **Enum notes** to `A, T, P, C`.
@@ -264,7 +263,7 @@ The schema artifact is source code. Check it into the repo, review changes in PR
 
 Enrich this project's schema artifact. Follow https://askdb.tools/guides/author-your-schema.md, and use the askdb-enrich-schema skill at https://askdb.tools/skills/askdb-enrich-schema/SKILL.md if you have it.
 
-Goal: write descriptions, aliases, enum notes, concepts and sensitive markers for the tables the model gets wrong, in `tables/*.md` and `concepts.md`.
+Goal: write descriptions, aliases, enum notes, concepts and sensitive markers for the tables the model gets wrong or declines to answer about, in `tables/*.md` and `concepts.md`.
 
 - Ask me what each ambiguous column means. Don't guess.
 - Keep enrichment in `tables/*.md` and `concepts.md`: re-running `askdb introspect` regenerates `schema.json` and preserves them. After a rename, put back any `"sensitive": true` mark it dropped.
