@@ -12,6 +12,8 @@ import chartDark from "../../assets/charts/total-spent-dark.svg";
 
 In this tutorial, we'll add a chart to the project the Quickstart left us. We'll ask the same question from a script, run the SQL ourselves, let the model pick a chart without showing it a row, and draw that chart with ECharts. At the end, a chart of what each customer spent is open in our browser.
 
+We draw with ECharts here, but AskDB isn't tied to it. AskDB returns a chart spec, and any charting library can draw it. The one piece you write for your library is a small function that maps the spec to that library's config.
+
 <Aside type="caution" title="Experimental">
 The chart functions come from `@askdb/client/charts`, which is outside AskDB's stability promise: a minor release of `@askdb/client` may change it.
 </Aside>
@@ -222,7 +224,7 @@ Run the script again. It makes a second model call, and then prints the plan:
 
 ## 4. Draw the chart
 
-ECharts draws from an option object, so we need a function that turns a chart spec into one. Create `to-echarts.mjs`:
+ECharts draws from an option object, so we need a function that turns a chart spec into one. This function is the only part of the tutorial that's tied to ECharts. Create `to-echarts.mjs`:
 
 ```js title="to-echarts.mjs"
 /**
@@ -323,6 +325,8 @@ That's our chart. ECharts drew it from the four rows our own code read from `sho
 ## What we built
 
 We asked a question from a script and ran the SQL ourselves. `classifyResult()` described the columns in our own process. `planChart()` had the model pick a chart from that description, and ECharts drew the chart from our rows. AskDB returned the SQL and the chart spec. Our code did the running and the drawing.
+
+ECharts was our choice, not AskDB's. To draw with another library, replace `to-echarts.mjs` with a function that maps the same chart spec to that library's config. [Chart a query result](/guides/plan-a-chart/#4-draw-the-chart-from-your-rows) names the matching settings in Chart.js, Recharts and Vega-Lite.
 
 Try another question. Change `question` to "How many units of each product were sold?", run the script, and open `chart.svg` again. The script draws any answer that has rows to group and a number to plot. Any other answer stops with an error at the drawing step, such as one number or one with no chart. [Chart a query result](/guides/plan-a-chart/) handles those.
 

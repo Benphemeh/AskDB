@@ -96,6 +96,12 @@ export default defineConfig({
       // sheet like any other card and follow the theme toggle.
       expressiveCode: {
         themes: ["github-dark-default", "github-light-default"],
+        // Expressive Code recolors the text of a marked line for contrast against the line's
+        // background, which it works out from `codeBackground`. Ours is a CSS variable it can't
+        // read, so it took the dark theme's background for a light one and dimmed inserted lines
+        // until they were unreadable. Zero keeps each token its theme color, which both themes'
+        // tints are chosen for.
+        minSyntaxHighlightingColorContrast: 0,
         styleOverrides: {
           borderRadius: "0.625rem",
           borderColor: "var(--ask-border)",
