@@ -207,6 +207,32 @@ const { sql } = await askdb.ask(question, { retriever });
 
 With only a retriever, `ask()` retrieves on every call. To let a small schema skip retrieval, also pass `totalSchemaChunkCount`, which is the `stats.chunksTotal` that `buildSchemaIndex` returns. At or below `retrievalThresholdChunks` (30 by default), `ask()` then sends the whole schema instead.
 
+## Make join-only tables findable
+
+Retrieval puts a table in the prompt only when a retrieved chunk points to it. A table that a question reaches only through a join can be missed, because the question shares no words with it. The model then never sees that table's columns and can't write the join.
+
+Take "What's our monthly recurring revenue from active subscriptions?" The answer joins `subscriptions` to `plans`, where the prices live. If only `subscriptions` is described, retrieval returns `subscriptions` and misses `plans`.
+
+Two fixes work, and they work best together:
+
+- **Describe the table itself.** Give `tables/plans.md` a description, aliases such as `subscription plans`, and a business-context line naming the measure it feeds. A note about `plans` in `subscriptions.md` doesn't help, because that chunk points to `subscriptions`.
+- **Add a concept that spans the tables.** A retrieved concept puts every table it links into the prompt. A monthly recurring revenue concept that links `subscriptions` and `plans` brings both, even for a question that doesn't name either table.
+
+```markdown title="concepts.md"
+---
+concepts:
+  - id: concept:mrr
+    label: Monthly recurring revenue
+    synonyms: [MRR, recurring revenue, monthly revenue]
+    links: [table:public.subscriptions, table:public.plans]
+    description: The sum of plans.monthly_price over active subscriptions.
+---
+
+# Concepts
+```
+
+To check, run `askdb rag query --question "<your question>"` after `askdb rag index`. Each table the SQL needs should appear in the results. [`concepts.md`](/reference/schema-artifact-format/#conceptsmd) lists every concept field.
+
 ## Sensitive fields and embeddings
 
 Sensitive content stays out of the index by default. The chunker leaves out two kinds of text:
