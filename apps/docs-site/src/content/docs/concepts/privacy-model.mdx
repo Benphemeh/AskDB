@@ -3,7 +3,7 @@ title: "Privacy model"
 description: "What AskDB sends to your model provider, what stays in your stack, and what you control."
 ---
 
-AskDB sends your model provider the user's question and text from your schema artifact (the files that describe your tables to the model). It never reads your rows, your credentials or your query results, so it can't send them. When you use a tenant policy, the prompt also holds that policy and the caller's scope context.
+AskDB sends your model provider the user's question and text from your schema artifact (the files that describe your tables to the model). It never reads your rows (the data in your tables), your credentials or your query results, so it can't send them. When you use a tenant policy, the prompt also holds that policy and the caller's scope context.
 
 | Sent to your model provider | Never sent |
 | --- | --- |
