@@ -26,16 +26,17 @@ export function manualTenantPolicyFrontmatter(
 ): TenantPolicyFrontmatter | null {
   const label = form.rootLabel.trim();
   if (!form.rootTableId || !form.rootTenantIdColumn || !label) return null;
-  // The root and a global table can't also be scoped: the form hides them, and drops a choice
-  // made before the table became the root or global.
+  // The root can't also be global, and neither can be scoped: the form hides them, and drops a
+  // choice made before the table became the root or global.
+  const globalTableIds = form.globalTableIds.filter((tableId) => tableId !== form.rootTableId);
   const scopedTables = Object.entries(form.scopedTableColumns)
-    .filter(([tableId, column]) => column && tableId !== form.rootTableId && !form.globalTableIds.includes(tableId))
+    .filter(([tableId, column]) => column && tableId !== form.rootTableId && !globalTableIds.includes(tableId))
     .map(([tableId, column]) => ({ id: tableId, scopeThrough: [{ root: form.rootTableId, column }] }));
   return {
     schemaId,
     enforcement: form.enforcement,
     roots: [{ id: form.rootTableId, tenantIdColumn: form.rootTenantIdColumn, label }],
     ...(scopedTables.length > 0 ? { scopedTables } : {}),
-    ...(form.globalTableIds.length > 0 ? { globalTables: form.globalTableIds } : {}),
+    ...(globalTableIds.length > 0 ? { globalTables: globalTableIds } : {}),
   };
 }

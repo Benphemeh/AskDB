@@ -93,4 +93,20 @@ describe("manualTenantPolicyFrontmatter", () => {
     expect(frontmatter?.scopedTables).toBeUndefined();
     expect(frontmatter?.globalTables).toEqual(["table:public.orders"]);
   });
+
+  // Making a global table the root hides its checkbox but kept it in globalTables, so the policy
+  // listed the root as global ("no tenant filter needed") and its coverage showed it global.
+  it("drops a global choice for the table the user then made the root", () => {
+    const frontmatter = manualTenantPolicyFrontmatter("shop", {
+      enforcement: "strict",
+      rootTableId: customers.id,
+      rootTenantIdColumn: pick(customers, "id"),
+      rootLabel: "Customer",
+      globalTableIds: [customers.id, products.id],
+      scopedTableColumns: {},
+    });
+
+    expect(frontmatter?.globalTables).toEqual(["table:public.products"]);
+    expect(check(frontmatter!).coverage.find((c) => c.tableId === customers.id)?.classification).toBe("root");
+  });
 });
