@@ -12,7 +12,7 @@ import chartDark from "../../assets/charts/total-spent-dark.svg";
 
 In this tutorial, we'll add a chart to the project the Quickstart left us. We'll ask the same question from a script, run the SQL ourselves, let the model pick a chart without showing it a row, and draw that chart with ECharts. At the end, a chart of what each customer spent is open in our browser.
 
-We draw with ECharts here, but AskDB isn't tied to it. AskDB returns a chart spec, and any charting library can draw it. The one piece you write for your library is a small function that maps the spec to that library's config.
+We draw with ECharts here, but AskDB isn't tied to it. AskDB returns a chart spec, and any charting library can draw it. The one piece you write for your library is a small function that maps the spec to that library's config. Step 4 of [Chart a query result](/guides/plan-a-chart/#4-draw-the-chart-from-your-rows) has it for two libraries, in the tabs "ECharts" and "shadcn/ui (Recharts)".
 
 <Aside type="caution" title="Experimental">
 The chart functions come from `@askdb/client/charts`, which is outside AskDB's stability promise: a minor release of `@askdb/client` may change it.
@@ -224,7 +224,7 @@ Run the script again. It makes a second model call, and then prints the plan:
 
 ## 4. Draw the chart
 
-ECharts draws from an option object, so we need a function that turns a chart spec into one. This function is the only part of the tutorial that's tied to ECharts. Create `to-echarts.mjs`:
+ECharts draws from an option object, so we need a function that turns a chart spec into one. This function is the only part of the tutorial that's tied to ECharts. For shadcn/ui, the "shadcn/ui (Recharts)" tab in [step 4 of the guide](/guides/plan-a-chart/#4-draw-the-chart-from-your-rows) has the same mapping as a React component. Create `to-echarts.mjs`:
 
 ```js title="to-echarts.mjs"
 /**
@@ -326,7 +326,7 @@ That's our chart. ECharts drew it from the four rows our own code read from `sho
 
 We asked a question from a script and ran the SQL ourselves. `classifyResult()` described the columns in our own process. `planChart()` had the model pick a chart from that description, and ECharts drew the chart from our rows. AskDB returned the SQL and the chart spec. Our code did the running and the drawing.
 
-ECharts was our choice, not AskDB's. To draw with another library, replace `to-echarts.mjs` with a function that maps the same chart spec to that library's config. [Chart a query result](/guides/plan-a-chart/#4-draw-the-chart-from-your-rows) names the matching settings in Chart.js, Recharts and Vega-Lite.
+ECharts was our choice, not AskDB's. To draw with another library, replace `to-echarts.mjs` with a function that maps the same chart spec to that library's config. Step 4 of [Chart a query result](/guides/plan-a-chart/#4-draw-the-chart-from-your-rows) has that mapping for shadcn/ui charts, which are Recharts, in its "shadcn/ui (Recharts)" tab. Its "ECharts" tab is this tutorial's function. It also names the matching settings in Chart.js and Vega-Lite.
 
 Try another question. Change `question` to "How many units of each product were sold?", run the script, and open `chart.svg` again. The script draws any answer that has rows to group and a number to plot. Any other answer stops with an error at the drawing step, such as one number or one with no chart. [Chart a query result](/guides/plan-a-chart/) handles those.
 
@@ -339,6 +339,8 @@ Add a chart of a query result to this project by following the tutorial at https
 The goal: a script that asks the question with `ask()`, runs the SQL through the project's own read-only connection, classifies the result with `classifyResult()`, plans a chart with `planChart()`, and draws it from the project's own rows.
 
 Draw with the charting library this project already uses. Look for one in its dependencies first, such as Recharts (shadcn/ui charts are Recharts), Chart.js, ECharts, Vega-Lite or D3. If the project has none, ask which one to add; the tutorial uses ECharts. Then write one function that maps the chart spec to that library's config, as the tutorial's `to-echarts.mjs` does for ECharts: `type` picks the chart, `category` and `series` name columns of the rows, and `title` and `description` are its text.
+
+Start from a ready-made mapping when one fits. Step 4 of https://askdb.tools/guides/plan-a-chart.md has two, one in each tab: `to-echarts.mjs` for ECharts, and `components/spec-chart.tsx`, a React component for shadcn/ui charts and Recharts. In the AskDB repo they are `examples/chart-a-result/to-echarts.mjs` and `examples/chart-a-result/shadcn/components/spec-chart.tsx`.
 
 - AskDB returns SQL and a chart spec. It runs no SQL and draws nothing: this project's code does both.
 - Never put a row in a prompt. `planChart()` gets the question, the SQL and the classified result.

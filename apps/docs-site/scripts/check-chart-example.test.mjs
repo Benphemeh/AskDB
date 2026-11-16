@@ -1,6 +1,7 @@
 /**
  * The chart tutorial, guide and concept page show one real run of `examples/chart-a-result`
- * (`recorded/run.json`) and the example's code. This keeps the pages and the example in step:
+ * (`recorded/run.json`) and the example's code: the ECharts mapping, and the shadcn/ui one in
+ * `shadcn/components/`. This keeps the pages and the example in step:
  * each code block and output the pages take from the example must be the example's.
  * installable-smoke runs the example's own tests against the packed packages.
  */
@@ -32,6 +33,20 @@ const has = (blocks, value) => blocks.some((block) => JSON.stringify(block) === 
 test("the guide's to-echarts.mjs block is the example's file", () => {
   const [block] = fences(guide, '```js title="to-echarts.mjs"');
   assert.equal(`${block}\n`, read("examples/chart-a-result/to-echarts.mjs"));
+});
+
+test("the guide's shadcn/ui blocks are the example's files", () => {
+  assert.deepEqual(fences(guide, '```tsx title="components/spec-chart.tsx"').map((block) => `${block}\n`), [read("examples/chart-a-result/shadcn/components/spec-chart.tsx")]);
+  assert.deepEqual(fences(guide, '```tsx title="components/answer.tsx"').map((block) => `${block}\n`), [read("examples/chart-a-result/shadcn/components/answer.tsx")]);
+});
+
+test("step 4 of the guide has one tab for each library, each with its mapping", () => {
+  const step = guide.slice(guide.indexOf("## 4. Draw the chart from your rows"), guide.indexOf("## 5. "));
+  const tabs = step.split('<TabItem label="').slice(1);
+  assert.ok(step.includes('<Tabs syncKey="chart-lib">'), "the chart-lib tabs");
+  assert.deepEqual(tabs.map((tab) => tab.slice(0, tab.indexOf('"'))), ["ECharts", "shadcn/ui (Recharts)"]);
+  assert.ok(tabs[0].includes('```js title="to-echarts.mjs"'), "the ECharts tab holds to-echarts.mjs");
+  assert.ok(tabs[1].includes('```tsx title="components/spec-chart.tsx"'), "the shadcn/ui tab holds spec-chart.tsx");
 });
 
 test("the guide shows the recorded SQL, rows, shape and plan", () => {
