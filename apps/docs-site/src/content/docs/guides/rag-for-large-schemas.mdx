@@ -15,7 +15,7 @@ Some schemas are too large for one prompt. For those, you index the schema artif
 - An embedding model and its provider key.
 - A service that calls `ask()`. [Embed in a Node app](/guides/embed-in-node/) sets one up.
 
-To see retrieval work on a sample schema first, follow the tutorial [Find the right tables with RAG](/find-the-right-tables/).
+To see retrieval work on a sample schema first, follow the tutorial [Find the right tables in a large schema](/find-the-right-tables/).
 
 ## When you need it
 
@@ -239,7 +239,7 @@ concepts:
 # Concepts
 ```
 
-In the same schema, those two files put `concept:mrr` and the `plans` business context first in the results. With `plans` in the prompt, the model joined it and returned $38 in three runs out of three. [Find the right tables with RAG](/find-the-right-tables/) is the tutorial that walks through this case step by step. [`concepts.md`](/reference/schema-artifact-format/#conceptsmd) lists every concept field.
+In the same schema, those two files put `concept:mrr` and the `plans` business context first in the results. With `plans` in the prompt, the model joined it and returned $38 in three runs out of three. [Find the right tables in a large schema](/find-the-right-tables/) is the tutorial that walks through this case step by step. [`concepts.md`](/reference/schema-artifact-format/#conceptsmd) lists every concept field.
 
 ## Sensitive fields and embeddings
 
@@ -283,7 +283,7 @@ Goal: index the schema artifact in a pgvector store and pass a retriever to `ask
 
 ## Read next
 
-- [Find the right tables with RAG](/find-the-right-tables/): A tutorial: see retrieval miss a table, then fix it with a description and a concept.
+- [Find the right tables in a large schema](/find-the-right-tables/): A tutorial: see retrieval miss a table, then fix it with a description and a concept.
 - [Enrich your schema](/guides/author-your-schema/): Enrichment dramatically improves retrieval quality.
 - [Bring your own model](/guides/bring-your-own-model/): Embedder options and key management.
 - [@askdb/rag API](/reference/rag-api/): Every export: indexing, retrieval, the lock file, chunking, embedders and stores.

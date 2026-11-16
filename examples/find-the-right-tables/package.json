@@ -2,7 +2,7 @@
   "name": "askdb-find-the-right-tables",
   "version": "1.0.0",
   "private": true,
-  "description": "Find the right tables with RAG: a 63-table schema where retrieval misses a join table until you describe it: https://askdb.tools/find-the-right-tables/",
+  "description": "Find the right tables in a large schema: a 63-table schema where retrieval misses a join table until you describe it: https://askdb.tools/find-the-right-tables/",
   "type": "module",
   "engines": {
     "node": ">=22.23.4"

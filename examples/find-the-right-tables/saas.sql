@@ -1,4 +1,4 @@
--- A made-up SaaS business: 63 tables, for the AskDB tutorial "Find the right tables with RAG".
+-- A made-up SaaS business: 63 tables, for the AskDB tutorial "Find the right tables in a large schema".
 -- Only customers, plans and subscriptions have rows.
 
 CREATE TABLE customers (id INTEGER PRIMARY KEY, name TEXT, country TEXT, created_at TEXT);

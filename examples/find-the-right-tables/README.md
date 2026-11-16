@@ -1,6 +1,6 @@
-# Find the right tables with RAG
+# Find the right tables in a large schema
 
-The files for the AskDB tutorial [Find the right tables with RAG](https://askdb.tools/find-the-right-tables/): a 63-table SQLite schema of a made-up SaaS business, where retrieval leaves out the `plans` table until you describe it.
+The files for the AskDB tutorial [Find the right tables in a large schema](https://askdb.tools/find-the-right-tables/): a 63-table SQLite schema of a made-up SaaS business, where retrieval leaves out the `plans` table until you describe it.
 
 ## Get it
 
