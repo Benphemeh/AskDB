@@ -1,5 +1,15 @@
 # @askdb/http-api
 
+## 1.0.0-rc.3
+
+### Patch Changes
+
+- Updated dependencies [5b55937]
+  - @askdb/core@1.0.0-rc.3
+  - @askdb/client@1.0.0-rc.3
+  - @askdb/ai@1.0.0-rc.3
+  - @askdb/config@1.0.0-rc.3
+
 ## 1.0.0-rc.2
 
 ### Minor Changes

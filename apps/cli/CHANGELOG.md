@@ -1,5 +1,26 @@
 # askdb
 
+## 1.0.0-rc.3
+
+### Patch Changes
+
+- 7561776: `askdb ask` and Studio's Playground now end the sensitive-column warning with "Review carefully before sharing or running this SQL.", without "outside AskDB", which implied AskDB can run SQL. The Playground subtitle mentions running SQL only when Studio execute is on and has a connection, and Studio's code and SQL blocks no longer draw `<=` and `!=` as one joined glyph (#1015).
+- Updated dependencies [7561776]
+- Updated dependencies [058807b]
+- Updated dependencies [5b55937]
+  - @askdb/studio@0.2.0-rc.3
+  - @askdb/core@1.0.0-rc.3
+  - @askdb/client@1.0.0-rc.3
+  - @askdb/enrich@0.2.0-rc.3
+  - @askdb/introspect@1.0.0-rc.3
+  - @askdb/mysql@1.0.0-rc.3
+  - @askdb/postgres@1.0.0-rc.3
+  - @askdb/rag@0.2.0-rc.3
+  - @askdb/sqlite@1.0.0-rc.3
+  - @askdb/sqlserver@1.0.0-rc.3
+  - @askdb/ai@1.0.0-rc.3
+  - @askdb/config@1.0.0-rc.3
+
 ## 1.0.0-rc.2
 
 ### Patch Changes

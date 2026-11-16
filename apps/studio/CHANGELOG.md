@@ -1,5 +1,26 @@
 # @askdb/studio
 
+## 0.2.0-rc.3
+
+### Patch Changes
+
+- 7561776: `askdb ask` and Studio's Playground now end the sensitive-column warning with "Review carefully before sharing or running this SQL.", without "outside AskDB", which implied AskDB can run SQL. The Playground subtitle mentions running SQL only when Studio execute is on and has a connection, and Studio's code and SQL blocks no longer draw `<=` and `!=` as one joined glyph (#1015).
+- 058807b: Studio's Tenancy **Configure manually** form now writes the root's tenant ID column as its stable ID from `schema.json` (`table:public.customers#id`), not its bare name (`id`). Before, a `strict` policy made there failed to save ("column id is not in schema.json"), and a `warn` one saved with an `orphaned_column_id` warning (#1014).
+  
+  The form also declares scoped tables now: for each table, pick the column that holds the root's tenant ID, or leave it unscoped. It says that a table reaching the root through a join is added in `tenant-policy.md` or with **Draft with AI**, and that a table left neither scoped nor global stays unknown. A table marked global and then picked as the root is no longer written as global too. The Studio docs page describes the form as it is.
+- Updated dependencies [5b55937]
+  - @askdb/core@1.0.0-rc.3
+  - @askdb/client@1.0.0-rc.3
+  - @askdb/enrich@0.2.0-rc.3
+  - @askdb/introspect@1.0.0-rc.3
+  - @askdb/mysql@1.0.0-rc.3
+  - @askdb/postgres@1.0.0-rc.3
+  - @askdb/rag@0.2.0-rc.3
+  - @askdb/sqlite@1.0.0-rc.3
+  - @askdb/sqlserver@1.0.0-rc.3
+  - @askdb/ai@1.0.0-rc.3
+  - @askdb/config@1.0.0-rc.3
+
 ## 0.2.0-rc.2
 
 ### Patch Changes
