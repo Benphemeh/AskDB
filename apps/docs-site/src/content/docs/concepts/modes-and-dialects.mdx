@@ -3,7 +3,7 @@ title: "Modes and dialects"
 description: "How AskDB adapts to your SQL engine and the trust model you choose at deploy time."
 ---
 
-Two knobs you tune per deployment: the **dialect** (which SQL flavor AskDB generates and checks) and the **mode** (what may enter the model's context beyond the schema artifact and the question).
+You tune two knobs per deployment. The **dialect** is the SQL flavor AskDB generates and checks. The **mode** is what may enter the model's context beyond the question and the [schema artifact](/concepts/the-schema-artifact/) (the files that describe your tables to the model).
 
 | Knob | What it decides | Values | Who sets it |
 | --- | --- | --- | --- |
@@ -12,11 +12,13 @@ Two knobs you tune per deployment: the **dialect** (which SQL flavor AskDB gener
 
 ## Dialects
 
-A dialect is a `DialectSpec` built into `@askdb/core`. Six ship with the core package: `postgres`, `cockroachdb`, `mysql`, `mariadb`, `sqlite` and `sqlserver`. Core owns them so that generating SQL needs no engine package and no database driver. A dialect tells the pipeline how to:
+The dialect is why the SQL you get back runs on your engine. Take a question with a value in it, such as a customer's name. In the unbound SQL that `ask()` also returns, that value becomes the engine's driver marker, such as `$1` on Postgres or `@p0` on SQL Server.
+
+A dialect is a `DialectSpec` built into `@askdb/core`. Six ship with the core package, one for each id in the table above. Core owns them so that generating SQL needs no engine package and no database driver. A dialect tells the pipeline how to:
 
 - Brief the model on the engine's SQL: a short paragraph in the prompt on functions, casts and matching (for example `ILIKE` and `::type` on Postgres, `TOP` on SQL Server).
 - Quote table and column names in the prompt the way the engine does, including names that are reserved words.
-- Bind parameters with the engine's driver markers (`$1` on Postgres, `?` on MySQL and SQLite, `@p1` on SQL Server).
+- Bind parameters with the engine's driver markers (`$1` on Postgres, `?` on MySQL and SQLite, `@p0` on SQL Server).
 - Check that the SQL is a read-only `SELECT` under the engine's rules: its extra forbidden keywords, blocked functions and string escaping.
 
 Introspection is a separate job, and it's the one that needs an engine package and a driver. Each engine package also re-exports its engine's dialect constant, but `ask()` needs only the dialect id.
@@ -30,11 +32,21 @@ Introspection is a separate job, and it's the one that needs an engine package a
 | `sqlite` | `@askdb/sqlite` |
 | `sqlserver` | `@askdb/sqlserver` |
 
-The CLI, Studio and the HTTP API pick the dialect for the schema you configure: the `dialect` in `askdb.config.ts`, else the engine the schema artifact records, else `postgres`. For an engine AskDB ships no dialect for, they refuse rather than guess: see [`dialect`](/reference/config/#dialect). A server that reads strings differently from the engine's default needs a dialect built to match: see [Match your server's string settings](/guides/match-server-string-settings/). Switching engines is mostly a package swap, and [Switch engines](/guides/switch-engines/) has the checklist.
+The CLI, Studio and the HTTP API pick the dialect for the schema you configure. They take the first of these that is set:
+
+1. The `dialect` in `askdb.config.ts`.
+2. The engine the schema artifact records.
+3. `postgres`.
+
+Three edge cases:
+
+- **An engine AskDB ships no dialect for.** The CLI, Studio and the HTTP API refuse rather than guess. See [`dialect`](/reference/config/#dialect).
+- **A server that reads strings differently from the engine's default.** It needs a dialect built to match. See [Match your server's string settings](/guides/match-server-string-settings/).
+- **Switching engines.** It's mostly a package swap, and [Switch engines](/guides/switch-engines/) has the checklist.
 
 ## Modes
 
-A **mode** declares the trust boundary AskDB enforces for a run: what's allowed to enter model context beyond the schema artifact and the natural-language question. Today there are two values.
+A **mode** declares the trust boundary AskDB enforces for a run. It says what may enter the model's context beyond the schema artifact and the natural-language question. Today there are two values.
 
 | Mode | What it does today | When to use it |
 | --- | --- | --- |
@@ -43,11 +55,20 @@ A **mode** declares the trust boundary AskDB enforces for a run: what's allowed 
 
 The contracts that later step must honor are in [`docs/contracts/modes-v1.md` on GitHub](https://github.com/Ygilany/AskDB/blob/main/docs/contracts/modes-v1.md).
 
-The operator owns the mode, not the caller. The config's `modes.askdbMode` is the loosest mode any run gets, on the CLI, `@askdb/client` and the HTTP API. A run can ask for a stricter mode, but not a looser one: asking for `bounded_results` under a `schema_only` config runs `schema_only`, with no error. `modes.omitSensitiveFromPrompt` works the same way: a run can turn omission on, never off. [`modes`](/reference/config/#modes-and-host) in the configuration reference has the keys, and [`askdb ask`](/reference/cli/#askdb-ask) the `--mode` flag.
+The operator owns the mode, not the caller. Say your config sets `schema_only`, and a run asks for `bounded_results`. That run gets `schema_only`, with no error.
+
+The rule behind it: on the CLI, `@askdb/client` and the HTTP API, the config's `modes.askdbMode` is the loosest mode any run gets. Of the two modes, `schema_only` is the stricter. A run can ask for a stricter mode, but not a looser one.
+
+`modes.omitSensitiveFromPrompt` works the same way: a run can turn omission on, never off. [`modes`](/reference/config/#modes-and-host) in the configuration reference has the keys, and [`askdb ask`](/reference/cli/#askdb-ask) has the `--mode` flag.
 
 ## Sensitive fields
 
-Marking a table or column `sensitive` in the schema artifact works alongside the mode. By default the prompt lists a sensitive column with a tag, so the model handles it with care. With `modes.omitSensitiveFromPrompt`, the prompt leaves it out. The [privacy model](/concepts/privacy-model/#sensitive-columns) explains what each setting withholds, and [Keep sensitive columns out of prompts](/guides/keep-sensitive-columns-out-of-prompts/) sets it up.
+Marking a table or column `sensitive` in the schema artifact works alongside the mode. Take a `users.email` column marked sensitive:
+
+- **By default,** the prompt lists it with a tag, so the model handles it with care.
+- **With `modes.omitSensitiveFromPrompt`,** the prompt leaves it out.
+
+The [privacy model](/concepts/privacy-model/#sensitive-columns) explains what each setting withholds, and [Keep sensitive columns out of prompts](/guides/keep-sensitive-columns-out-of-prompts/) sets it up.
 
 ## Picking a mode
 
@@ -55,7 +76,7 @@ For most teams:
 
 - Start with `schema_only`. It's the safest default.
 - Mark sensitive columns in your schema artifact early. Decide per deployment whether to include them tagged or omit them.
-- Don't reach for `bounded_results` until you have a concrete need — most analytics use cases don't.
+- Don't reach for `bounded_results` until you have a concrete need. Most analytics use cases don't.
 
 ## Read next
 

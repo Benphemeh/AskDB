@@ -49,7 +49,7 @@ npx askdb introspect
 
 It writes `askdb/schema.json`, and prints one line that names it, with the number of tables and the engine (`sqlserver`). To try a connection string without editing `.env`, pass it for one run: `npx askdb introspect --url "<connection string>"`.
 
-Each table is listed under its SQL Server schema, such as `dbo.orders`. By default AskDB reads every schema except the system ones (`sys`, `INFORMATION_SCHEMA`, `guest` and the `db_*` role schemas). To read only some, set `introspection.schemas`, such as `schemas: ["dbo", "sales"]`.
+Each table is listed under its SQL Server schema, such as `dbo.orders`. By default AskDB reads every schema except the system ones. Those are `sys` and `INFORMATION_SCHEMA`. The `guest` schema and the `db_*` role schemas are skipped too. To read only some, set `introspection.schemas`, such as `schemas: ["dbo", "sales"]`.
 
 If introspection fails with `self-signed certificate`, go to step 3.
 
@@ -76,9 +76,12 @@ sqlserver://localhost:1433;database=MyDb;user=user;password=pass;trustServerCert
 Server=localhost,1433;Database=MyDb;User Id=user;Password=pass;TrustServerCertificate=True;
 ```
 
-In both URL forms, `yes` and `1` work as well as `true`; the [`@askdb/sqlserver` README](https://github.com/Ygilany/AskDB/tree/main/packages/sqlserver#connection-string-formats) lists every value AskDB reads.
+In both URL forms, `yes` and `1` work as well as `true`. The [`@askdb/sqlserver` README](https://github.com/Ygilany/AskDB/tree/main/packages/sqlserver#connection-string-formats) lists every value AskDB reads.
 
-AskDB also reads the key with spaces, `Trust Server Certificate=True`, which VS Code's mssql extension writes, but your own `mssql` pool reads it only without spaces. The SQL Server hint in the `.env.example` from `askdb init` leaves the key out, so the certificate is checked by default, and its comment says to add `TrustServerCertificate=True;` for a development server.
+Two details:
+
+- **Spaces in the key.** AskDB also reads `Trust Server Certificate=True`, the form that VS Code's mssql extension writes. Your own `mssql` pool reads the key only without spaces.
+- **The `.env.example`.** The SQL Server hint in the file from `askdb init` leaves the key out, so the certificate is checked by default. Its comment says to add `TrustServerCertificate=True;` for a development server.
 
 <Aside type="caution">Trusting the certificate turns off the check that you're talking to the server you expect. Use it only in development.</Aside>
 

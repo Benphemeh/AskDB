@@ -76,27 +76,54 @@ The cost is renames. A renamed table or column gets a new ID, and AskDB can't te
 
 A table or column can be marked sensitive in `schema.json` or in its markdown. The two places aren't equal. Markdown can mark something sensitive, but it can't un-mark it. Only `schema.json` can.
 
-This is deliberate. Markdown is the layer many people edit, often in Studio, so a mistake there is likely. A `sensitive: false` in markdown can't expose a column that `schema.json` marks sensitive. Un-marking takes a change to `schema.json`, which is a small, visible diff for a reviewer, and re-introspection keeps it.
+This is deliberate. Markdown is the layer many people edit, often in [Studio](/studio/) (AskDB's browser UI for enriching a schema), so a mistake there is likely. A `sensitive: false` in markdown can't expose a column that `schema.json` marks sensitive. Un-marking takes a change to `schema.json`, which is a small, visible diff for a reviewer, and re-introspection keeps it.
 
-The two layers check spelling differently. Markdown front-matter refuses a key it doesn't know, so a typo there fails the load. `schema.json` stays open to keys a newer AskDB adds, so it ignores a key it doesn't know, and `loadSchema()` reports it as an `unknown_key` warning with the closest known key. A misspelled `"sensitve": true` marks nothing, and the warning is how you find out: [Loader warnings](/reference/schema-artifact-format/#loader-warnings) lists it.
+The two layers check spelling differently. Take a typo in the key `sensitive`:
+
+- **In markdown front matter** (the YAML block at the top of a markdown file), the loader refuses a key it doesn't know, so the typo fails the load.
+- **In `schema.json`,** the loader ignores a key it doesn't know, because the file stays open to keys a newer AskDB adds. A misspelled `"sensitve": true` marks nothing. `loadSchema()` reports it as an `unknown_key` warning with the closest known key, and that warning is how you find out. [Loader warnings](/reference/schema-artifact-format/#loader-warnings) lists it.
 
 ## What the model actually receives
 
-The model never sees the directory you author. At generation time AskDB merges the physical layer and the enrichment into a single compact, model-facing text — a DDL-style description where each table is rendered as a block and your enrichment is folded in as inline comments (descriptions, aliases, column notes, "common query language" and business context attached to the table and columns they describe). Each table lists its foreign keys, and your concepts follow the tables. Sensitive fields are tagged or withheld here according to your mode.
+The model never sees the folder you author. It reads one schema text that AskDB builds from both layers at generation time. Take the `orders` table from the [Quickstart](/quickstart/)'s shop database, with an alias and a column description added in its markdown. The model reads it as a block like this:
 
-So the two layers you maintain separately on disk — `schema.json` for structure, markdown for meaning — are assembled into one annotated schema description the model reads. The prompt carries that repackaged text and the question, never your rows, your credentials, or your query results.
+```text title="One table in the schema text"
+TABLE orders -- aliases: purchases
+  - id INTEGER (PK NOT NULL)
+  - customer_id INTEGER (NOT NULL)
+  - product_id INTEGER (NOT NULL)
+  - quantity INTEGER (NOT NULL)
+  - ordered_at TEXT (NOT NULL) -- the date the customer placed the order
+  FK (customer_id) -> customers (id)
+  FK (product_id) -> products (id)
+```
 
-When your schema has a tenant policy, the prompt also carries a tenant policy block and the `context` from your `tenantScope`, as advisory text. The block names tenant IDs only by placeholder, such as `:tenant_agency_ids`, never by value. See [Privacy model](/concepts/privacy-model/) for the full list of what reaches the model.
+The structure comes from `schema.json`, and the comments come from your markdown. Each table is a block in a DDL-like form, with your enrichment folded in as inline comments. The comments carry the descriptions, aliases, column notes, "common query language" and business context, each next to the table or column it describes. Each table lists its foreign keys, and your concepts follow the tables.
 
-When a schema is too large to send whole, the same rendering is applied to only the relevant slice retrieved for the question (see [RAG for large schemas](/guides/rag-for-large-schemas/)).
+Sensitive fields are tagged or withheld in this text, according to your [mode](/concepts/modes-and-dialects/#sensitive-fields) settings.
+
+The prompt carries this text and the question. It never carries your rows, your credentials or your query results.
+
+Two additions:
+
+- **A schema with a tenant policy.** The prompt also carries a tenant policy block and the `context` from your `tenantScope`, as advisory text. The `tenantScope` is the caller's tenants, which your application passes on each call. The block names tenant IDs only by placeholder, such as `:tenant_agency_ids`, never by value. [Privacy model](/concepts/privacy-model/) has the full list of what reaches the model.
+- **A schema too large to send whole.** AskDB renders only the slice retrieved for the question, in the same form. See [RAG for large schemas](/guides/rag-for-large-schemas/).
 
 ## Directory or bundle
 
 You author the artifact as a folder, because a folder of small files diffs and reviews well. To ship it to a service, an agent or a build, `askdb bundle` packs the folder into one JSON file. It refuses a folder the loader refuses, and loading the bundle gives the same result as loading the folder.
 
-The loader reads the artifact's file names exactly, and refuses one in the wrong case, such as `Tenant-Policy.md`, on every OS. On Linux, where file names are case-sensitive, it would otherwise skip that file without a word, and a skipped `tenant-policy.md` turns tenant enforcement off. On macOS and Windows the same folder would load. Refusing everywhere makes the mistake fail on a laptop before it can fail open in production.
+The loader refuses a file name in the wrong case, such as `Tenant-Policy.md`, on every OS. Here is why. On Linux, where file names are case-sensitive, the loader would otherwise skip that file without a word, and a skipped `tenant-policy.md` turns tenant enforcement off. On macOS and Windows the same folder would load. Refusing everywhere makes the mistake fail on a laptop before it can fail open in production.
 
-A schema directory or bundle (`schema.json`, `tables/*.md`, `concepts.md`, `tenant-policy.md`, or an inline `schemaJson`) is input AskDB parses and puts into the model prompt, so whoever can write it can change what AskDB loads and what the model sees. Schema front-matter must be YAML, and AskDB refuses any other format. Load schema files only from sources you trust.
+Whoever can write the artifact can change what AskDB loads and what the model sees. AskDB parses each part of it and puts it into the model prompt, so load schema files only from sources you trust. The parts are:
+
+- `schema.json`
+- `tables/*.md`
+- `concepts.md`
+- `tenant-policy.md`
+- an inline `schemaJson`, in place of a folder or bundle
+
+Schema front matter must be YAML, and AskDB refuses any other format.
 
 ## Why a file, not a prompt template
 

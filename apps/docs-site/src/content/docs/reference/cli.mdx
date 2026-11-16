@@ -74,9 +74,19 @@ To introspect a Prisma schema file, also install `@askdb/prisma`, in the same pl
 | `-h, --help` | Print usage and the list of commands. Every command also takes `--help` for its own flags (for example `askdb ask --help`), and `askdb help <command>` prints the same text. |
 | `-V, --version` | Print the installed `askdb` version. |
 
-Every command except `studio` and its alias `enrich` takes a flag's value as `--flag value` or `--flag=value`, and prints its help on stdout and exits `0` for `--help` (or `-h`), wherever it appears on the line.
+Every command except `studio` and its alias `enrich` takes a flag's value as `--flag value` or `--flag=value`. Each of them also prints its help on stdout and exits `0` for `--help` (or `-h`), wherever it appears on the line.
 
-Commands that don't read the config work in any directory, including one with no `askdb.config.*`: `--help`, `--version`, `help`, `init`, `bundle`, any command's `--help` and `--version`, `introspect templates`, `rag` with no arguments (it prints help), and [`studio`](#askdb-studio).
+Commands that don't read the config work in any directory, including one with no `askdb.config.*`:
+
+- `--help`
+- `--version`
+- `help`
+- `init`
+- `bundle`
+- any command's `--help` and `--version`
+- `introspect templates`
+- `rag` with no arguments (it prints help)
+- [`studio`](#askdb-studio)
 
 `ask`, `introspect`, and the `rag` commands need `askdb.config.*` (or `.config/askdb.*`) in the current directory. Without one they print ``No askdb.config.* or .config/askdb.* found in <cwd>. Run `npx askdb init` to create one.`` and exit `1`.
 
@@ -94,7 +104,7 @@ Commands that don't read the config work in any directory, including one with no
 
 ### `askdb init`
 
-Scaffolds a tailored `askdb.config.ts` and installs only the packages your setup needs. In a TTY it opens a short wizard; in CI or with `--yes` it runs silently. With `--database prisma` it installs `@askdb/prisma` at the version of the `askdb` running it, plus `ai` and `zod`, which Yarn Plug'n'Play needs in the project: `ai` at the newest major `@askdb/core` accepts, and `zod` at core's range. It installs those, and a database driver, only when your `package.json` doesn't list them yet, so a range you chose, such as `ai@^6`, stays. With pnpm 10.4 or later it approves the `@prisma/engines` build (`pnpm add --allow-build=@prisma/engines`). Older pnpm has no `--allow-build`, so it installs without it.
+Scaffolds a tailored `askdb.config.ts` and installs only the packages your setup needs. In a TTY it opens a short wizard; in CI or with `--yes` it runs silently. With `--database prisma` it installs `@askdb/prisma` at the version of the `askdb` running it, plus `ai` and `zod`, which Yarn Plug'n'Play needs in the project. It installs `ai` at the newest major `@askdb/core` accepts, and `zod` at core's range. It installs those, and a database driver, only when your `package.json` doesn't list them yet, so a range you chose, such as `ai@^6`, stays. With pnpm 10.4 or later it approves the `@prisma/engines` build (`pnpm add --allow-build=@prisma/engines`). Older pnpm has no `--allow-build`, so it installs without it.
 
 `init` installs into the current directory if it has a `package.json`, or else into the nearest directory above it that has one. It picks the package manager from the first of these that names one:
 
@@ -103,7 +113,7 @@ Scaffolds a tailored `askdb.config.ts` and installs only the packages your setup
 3. The tool that ran `init`: `pnpm dlx`, `yarn dlx`, `npx` or `bunx` (from `npm_config_user_agent`).
 4. npm.
 
-`init` doesn't install at a workspace root, or when it finds no `package.json`. A workspace root is a directory whose `pnpm-workspace.yaml` lists at least one package under `packages`, or whose `package.json` has `workspaces`. A `pnpm-workspace.yaml` that holds only settings, such as pnpm's `minimumReleaseAgeExclude`, doesn't make one. `init` reads the file as plain block YAML, and one written in another form, such as JSON, counts as a workspace root. Where `init` doesn't install, or when the install fails, it prints the command to run yourself, for the package manager it picked and with the `@prisma/engines` approval when it applies, for example `pnpm add --allow-build=@prisma/engines @askdb/config@<version> @askdb/prisma@<version> ai@<range> zod@<range>`.
+`init` doesn't install at a workspace root, or when it finds no `package.json`. A workspace root is a directory whose `pnpm-workspace.yaml` lists at least one package under `packages`, or whose `package.json` has `workspaces`. A `pnpm-workspace.yaml` that holds only settings, such as pnpm's `minimumReleaseAgeExclude`, doesn't make one. `init` reads the file as plain block YAML, and one written in another form, such as JSON, counts as a workspace root. Where `init` doesn't install, or when the install fails, it prints the command to run yourself. The command is for the package manager it picked, and includes the `@prisma/engines` approval when it applies. For example: `pnpm add --allow-build=@prisma/engines @askdb/config@<version> @askdb/prisma@<version> ai@<range> zod@<range>`.
 
 ```bash
 npx askdb@latest init          # wizard in a terminal
@@ -170,7 +180,13 @@ Experimental, like the `studio` block they write: a minor release of `askdb` may
 | `--studio-execute` | Enable Studio execute (query playground): writes a `studio.execute` block with `enabled: true`. Off by default. Execute reads the same connection env var as introspection: `--connection-env`, default `DATABASE_URL`. With `sqlite`, it reads the same file as `--sqlite-file`. With `prisma`, execute targets Postgres and reads `DATABASE_URL`. |
 | `--no-studio-execute` | Disable Studio execute (default). |
 
-`init` generates only the config branches you selected — SQL Server users won't see a `pg` import, SQLite users get a `file:` field instead of `DATABASE_URL`, and Prisma users don't get a live DB driver unless they explicitly enable Studio execute. It does not create a `.env`; it writes an `.env.example` (unless one exists) listing every variable the config reads, database variables first. Each variable is an empty `NAME=` line under a `#` comment that says what it's for, and for a connection URL, its format. The SQL Server format leaves out `TrustServerCertificate`, so the server's certificate is checked by default. A second comment line says to add `TrustServerCertificate=True;` for a development server with a self-signed certificate, such as the SQL Server Docker image (see [Fix the self-signed certificate error](/guides/connect-to-sql-server/#3-fix-the-self-signed-certificate-error)). For `azure` and `foundry` the list includes `AZURE_RESOURCE_NAME`, the subdomain of your `https://<name>.openai.azure.com` endpoint. Studio's [guided setup](/studio/#guided-setup) writes the same files for the same answers.
+`init` generates only the config branches you selected:
+
+- SQL Server users don't see a `pg` import.
+- SQLite users get a `file:` field instead of `DATABASE_URL`.
+- Prisma users don't get a live DB driver unless they explicitly enable Studio execute.
+
+It does not create a `.env`; it writes an `.env.example` (unless one exists) listing every variable the config reads, database variables first. Each variable is an empty `NAME=` line under a `#` comment that says what it's for, and for a connection URL, its format. The SQL Server format leaves out `TrustServerCertificate`, so the server's certificate is checked by default. A second comment line says to add `TrustServerCertificate=True;` for a development server with a self-signed certificate, such as the SQL Server Docker image (see [Fix the self-signed certificate error](/guides/connect-to-sql-server/#3-fix-the-self-signed-certificate-error)). For `azure` and `foundry` the list includes `AZURE_RESOURCE_NAME`, the subdomain of your `https://<name>.openai.azure.com` endpoint. Studio's [guided setup](/studio/#guided-setup) writes the same files for the same answers.
 
 `--database` names the engine only. Where the database is comes from `--connection-env` for `postgres`, `mysql` and `sqlserver`, `--sqlite-file` for `sqlite`, and `--prisma-schema` for `prisma`. `askdb introspect` calls the same choice `--engine`, and the config calls it `introspection.provider`.
 
@@ -205,7 +221,7 @@ askdb introspect \
 
 Pass exactly one of `--out`, `--print` and `--diff`. With none of them, `--out` falls back to `introspection.outputDir`.
 
-After `--out` writes the artifact, `askdb introspect` prints one line on stderr: the path of `schema.json`, relative to the current directory when it's inside it, the number of tables (and views, if any), and the engine. The line never includes the connection string. `--print` and `--diff` don't print it.
+After `--out` writes the artifact, `askdb introspect` prints one line on stderr. The line holds the path of `schema.json` (relative to the current directory when it's inside it), the number of tables (and views, if any), and the engine. The line never includes the connection string. `--print` and `--diff` don't print it.
 
 ```text
 Wrote askdb/schema.json: 3 tables (sqlite).
@@ -279,7 +295,16 @@ Both are required. Without either, `bundle` prints that usage line on stderr and
 
 Writes the entire schema artifact (physical layer + enrichment + tenant policy) as a single JSON file for distribution.
 
-Before it writes anything, it checks the bundle with the loader `ask()` uses (through `@askdb/enrich`'s `bundleSchemaDirectory()`), so it refuses whatever `loadSchema()` refuses. That includes a file name in the wrong case, such as `Tenant-Policy.md`, an optional file that exists but can't be read, an invalid `schema.json`, front-matter that isn't YAML or doesn't parse, a tenant policy that doesn't fit `schema.json`, and two table files with the same `id`. It then exits with status 1 and the loader's error, and writes nothing: a file already at `--out` stays as it was. So a bundle it writes always loads. The [Schema artifact format](/reference/schema-artifact-format/#bundle-format) describes the bundle. After writing, it prints a `Warning:` line on stderr for each [loader warning](/reference/schema-artifact-format/#loader-warnings), a tenant policy's included, and still exits `0`.
+Before it writes anything, it checks the bundle with the loader `ask()` uses (through `@askdb/enrich`'s `bundleSchemaDirectory()`), so it refuses whatever `loadSchema()` refuses. That includes:
+
+- a file name in the wrong case, such as `Tenant-Policy.md`
+- an optional file that exists but can't be read
+- an invalid `schema.json`
+- front-matter that isn't YAML or doesn't parse
+- a tenant policy that doesn't fit `schema.json`
+- two table files with the same `id`
+
+It then exits with status 1 and the loader's error, and writes nothing: a file already at `--out` stays as it was. So a bundle it writes always loads. The [Schema artifact format](/reference/schema-artifact-format/#bundle-format) describes the bundle. After writing, it prints a `Warning:` line on stderr for each [loader warning](/reference/schema-artifact-format/#loader-warnings), a tenant policy's included, and still exits `0`.
 
 ```bash
 askdb bundle ./my-app.schema --out ./my-app.schema.bundle.json
@@ -317,7 +342,14 @@ SELECT customer_id, SUM(total) AS lifetime_value FROM orders GROUP BY customer_i
 { … }
 ```
 
-Everything else goes to stderr, so stdout stays parseable: errors, `Note:` lines (a dialect note, or a sensitive-scope note), a `Warning:` line for each [loader warning](/reference/schema-artifact-format/#loader-warnings) the schema has (a tenant policy's included), and the sensitive warning. Execution is not part of the CLI.
+Everything else goes to stderr, so stdout stays parseable:
+
+- errors
+- `Note:` lines (a dialect note, or a sensitive-scope note)
+- a `Warning:` line for each [loader warning](/reference/schema-artifact-format/#loader-warnings) the schema has (a tenant policy's included)
+- the sensitive warning
+
+Execution is not part of the CLI.
 
 While it waits for the model, `askdb ask` shows `Generating SQL…` on stderr, and clears that line before it prints anything else. It shows the line only when stderr is a terminal. It doesn't show it with `--mock-sql` or `dev.mockSql`, or when [structured logs](#shared-logging-flags) are on: with `-v`, `--log-file` or `--log-stdout`, or a `--log-level` or `logging.level` other than `silent`. So a pipe or a log file never sees it.
 
@@ -330,7 +362,7 @@ AskDB can't answer this as a read-only query: The question asks to delete data, 
 
 A model reply with no SQL in it, such as prose with no SQL fence, is reported as `SqlValidationError [SQL_EMPTY]: The model didn't return SQL: …`.
 
-If the generated SQL references identifiers your schema marks `sensitive`, `askdb ask` prints a `Warning:` line to stderr listing them and still prints the SQL. The check is [`validateSensitiveReferences`](/reference/core-api/checks/#validatesensitivereferencessql-schema-options) from `@askdb/core`, run by `ask()` in warn mode; embedding hosts can switch it to `strict`, rely on `bindPreparedQuery()` re-running it on a rebind, or call it directly on cached SQL.
+If the generated SQL references identifiers your schema marks `sensitive`, `askdb ask` prints a `Warning:` line to stderr listing them and still prints the SQL. The check is [`validateSensitiveReferences`](/reference/core-api/checks/#validatesensitivereferencessql-schema-options) from `@askdb/core`, run by `ask()` in warn mode. Embedding hosts can switch it to `strict`, rely on `bindPreparedQuery()` re-running it on a rebind, or call it directly on cached SQL.
 
 #### Dialect
 
@@ -377,7 +409,7 @@ askdb rag setup-store          --dimensions <n> [--pg-url <conn>] [--pg-table as
 | `--embedder-model <id>` | `ai.embedding.model` |
 | `--dimensions <n>` | See [Vector width](#vector-width) |
 
-`rag.storeConfig.pgvector.indexStrategy` sets the index `setup-store` and `index` create on pgvector (default `hnsw`), whatever `rag.store` is. A store flag for a store the run doesn't use, such as `--file-path` when the store is pgvector or `--pg-url` when it's the file store, is an error rather than ignored. `setup-store` provisions only pgvector, whatever `rag.store` is, so it refuses `--store memory`, `--store file`, `--file-path` and a `[schema-dir]`.
+`rag.storeConfig.pgvector.indexStrategy` sets the index `setup-store` and `index` create on pgvector (default `hnsw`), whatever `rag.store` is. A store flag for a store the run doesn't use is an error rather than ignored. Examples are `--file-path` when the store is pgvector, and `--pg-url` when it's the file store. `setup-store` provisions only pgvector, whatever `rag.store` is, so it refuses `--store memory`, `--store file`, `--file-path` and a `[schema-dir]`.
 
 ### Embedders
 
@@ -397,7 +429,11 @@ AskDB assumes no embedding width it doesn't know. The only width the CLI knows i
 - **`setup-store`** requires `--dimensions`: it has no embedding model to ask.
 - **`index` and `query`** use `--dimensions`, else `ai.embedding.dimensions` (a size to request), else the model's own width (`mock`: 64). For a pgvector store with neither set, `index` first embeds one short text to learn the model's width.
 
-When a pgvector table already holds vectors of another width, `setup-store` and `index` exit `1` before embedding any chunk, and say how to fix it: drop the table and run again, pass `--pg-table <name>` for a new table, or pass `--dimensions <table width>` if your embedding model supports that width.
+When a pgvector table already holds vectors of another width, `setup-store` and `index` exit `1` before embedding any chunk. They say how to fix it:
+
+- Drop the table and run again.
+- Pass `--pg-table <name>` for a new table.
+- Pass `--dimensions <table width>` if your embedding model supports that width.
 
 ### `askdb rag setup-store`
 

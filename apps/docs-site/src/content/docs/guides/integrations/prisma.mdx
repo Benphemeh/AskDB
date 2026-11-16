@@ -1,13 +1,13 @@
 ---
 title: "Prisma"
-description: "Use @askdb/prisma to read your schema directly from a .prisma file — no live database required."
+description: "Use @askdb/prisma to read your schema directly from a .prisma file with no live database required."
 ---
 
 import { Aside } from "@astrojs/starlight/components";
 import InstallTabs from "../../../../components/InstallTabs.astro";
 import AgentPrompt from "../../../../components/AgentPrompt.astro";
 
-If you already maintain a Prisma schema file, `@askdb/prisma` reads it directly and produces an AskDB schema artifact. It needs no live database connection during introspection.
+If you already maintain a Prisma schema file, `@askdb/prisma` reads it directly and produces an AskDB schema artifact (the files that describe your tables to the model). It needs no live database connection during introspection.
 
 <figure>
 
@@ -29,27 +29,27 @@ read -> written
 written -> ask
 ```
 
-<figcaption>The `.prisma` file goes through `@askdb/prisma` into a schema artifact, which `ask()` reads with the matching `dialect` id.</figcaption>
+<figcaption>`@askdb/prisma` turns the `.prisma` file into a schema artifact. `ask()` then reads it with the matching `dialect` id.</figcaption>
 </figure>
 
 ## When to use it
 
 - You have a `schema.prisma` and want to skip the live-database introspection step.
 - You're working in CI, on a laptop without DB access, or in an air-gapped environment.
-- You pass `ask()` the matching `dialect` id at generation time (see [Supported providers](#supported-providers)); no engine package is needed for that.
+- You pass `ask()` the matching `dialect` id at generation time (see [Supported providers](#supported-providers)); no engine package is needed for that. An engine package, such as `@askdb/postgres`, introspects a live database.
 
 ## Install
 
-For the CLI and Studio, install `@askdb/prisma` in your project next to `askdb`. `askdb` and `@askdb/studio` list it as an optional peer: they load it only to read a Prisma schema, and don't install it, because it brings in Prisma.
+For the CLI and Studio (AskDB's browser UI for schema enrichment), install `@askdb/prisma` in your project next to `askdb`. `askdb` and `@askdb/studio` list it as an optional peer: they load it only to read a Prisma schema, and don't install it, because it brings in Prisma.
 
 <InstallTabs pkgs="askdb @askdb/prisma ai zod" />
 
-`ai` and `zod` are there for Yarn Plug'n'Play: `@askdb/prisma` loads `@askdb/core`, which can only load them from your project. `npx askdb@latest init --database prisma` installs all of them for you. `askdb` also finds the copy in your project when it runs from elsewhere, as `npx askdb` does. To run the CLI without installing anything, name both packages in the one-off command: `npx -p askdb -p @askdb/prisma askdb introspect --engine prisma`.
+`ai` and `zod` are there for Yarn Plug'n'Play. `@askdb/prisma` loads `@askdb/core`, which can only load them from your project. `npx askdb@latest init --database prisma` installs all of them for you. `askdb` also finds the copy in your project when it runs from elsewhere, as `npx askdb` does. To run the CLI without installing anything, name both packages in the one-off command: `npx -p askdb -p @askdb/prisma askdb introspect --engine prisma`.
 
 Without it, `askdb introspect --engine prisma` exits 1 and names the package to install, and Studio shows the same message instead of resyncing.
 
 <Aside type="caution" title="pnpm 11: approve the Prisma build">
-`@askdb/prisma` depends on Prisma, whose `@prisma/engines` package has an install script. pnpm 11 doesn't run it until you approve it, and `pnpm add` exits 1 with `ERR_PNPM_IGNORED_BUILDS`. Approve it in the same command:
+`@askdb/prisma` depends on Prisma. Prisma's `@prisma/engines` package has an install script. pnpm 11 doesn't run it until you approve it, and `pnpm add` exits 1 with `ERR_PNPM_IGNORED_BUILDS`. Approve it in the same command:
 
 ```bash
 pnpm add --allow-build=@prisma/engines @askdb/prisma ai
@@ -62,7 +62,7 @@ To call the connector from your own code instead of the CLI:
 
 <InstallTabs pkgs="@askdb/prisma @askdb/introspect ai" />
 
-Plus `@askdb/core` and a model provider to generate SQL — for example, OpenAI:
+To generate SQL, also install `@askdb/core` and a model provider, such as OpenAI:
 
 <InstallTabs pkgs="@askdb/core ai @ai-sdk/openai" />
 
@@ -85,7 +85,11 @@ npx askdb introspect --engine prisma --prisma-schema ./prisma --print
 npx askdb introspect --engine prisma --prisma-schema ./prisma --diff my-app.schema
 ```
 
-To make `--prisma-schema` optional on repeat runs, set `introspection.providerConfig.prisma.schemaPath` in `askdb.config.ts` — or rely on auto-discovery: with `provider: "prisma"` and no path configured, AskDB looks in your project root for `prisma/schema.prisma`, then `schema.prisma`, then a `prisma/` directory (a multi-file schema), and uses the first it finds.
+To make `--prisma-schema` optional on repeat runs, set `introspection.providerConfig.prisma.schemaPath` in `askdb.config.ts`. Or rely on auto-discovery. With `provider: "prisma"` and no path configured, AskDB looks in your project root for these, in order, and uses the first it finds:
+
+1. `prisma/schema.prisma`
+2. `schema.prisma`
+3. A `prisma/` directory (a multi-file schema)
 
 ## Programmatic API
 
@@ -112,7 +116,7 @@ await introspect(
 | `sqlite` | `"sqlite"` | `@askdb/sqlite` |
 | `sqlserver` | `"sqlserver"` | `@askdb/sqlserver` |
 
-MongoDB is not supported — AskDB targets relational engines. The [`@askdb/prisma` reference](/reference/introspect-api/#askdbprisma) lists the mapping with the rest of the package's API.
+MongoDB is not supported, because AskDB targets relational engines. The [`@askdb/prisma` reference](/reference/introspect-api/#askdbprisma) lists the mapping with the rest of the package's API.
 
 ## What it doesn't do
 

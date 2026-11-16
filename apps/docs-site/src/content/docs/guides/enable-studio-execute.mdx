@@ -7,7 +7,9 @@ import { Tabs, TabItem } from "@astrojs/starlight/components";
 import InstallTabs from "../../../components/InstallTabs.astro";
 import AgentPrompt from "../../../components/AgentPrompt.astro";
 
-Let Studio's Playground run the SQL it generates against your database and show the rows. Execute is off by default. Turn it on with its own read-only connection, so a query Studio runs can't change your data.
+Let Studio (AskDB's browser UI for schema enrichment) run the SQL its Playground generates against your database, and show the rows. Execute is off by default. Turn it on with its own read-only connection, so a query Studio runs can't change your data.
+
+AskDB's SQL checks run first, but they are heuristics. The read-only role is the boundary.
 
 ## Before you start
 
@@ -65,9 +67,9 @@ export default defineConfig({
 });
 ```
 
-Studio runs queries on the same engine as `introspection.provider`. If you introspect a Prisma schema, or want to run on another engine, set `provider` too: `"postgres"`, `"mysql"`, `"sqlite"` or `"sqlserver"`. Studio doesn't reuse your introspection connection unless you set `useIntrospectionConnection: true`. Give execute the connection of a role that only reads. [Configuration — Studio execute](/reference/config/#studio-execute-configuration) lists every field.
+Studio runs queries on the same engine as `introspection.provider`. Two cases need a `provider` of their own: you introspect a Prisma schema, or you want to run on another engine. Set it to `"postgres"`, `"mysql"` or `"sqlite"`. For SQL Server, set it to `"sqlserver"`. Studio doesn't reuse your introspection connection unless you set `useIntrospectionConnection: true`. Give execute the connection of a role that only reads. SQLite needs no role, because Studio opens the file read-only. [Configuration — Studio execute](/reference/config/#studio-execute-configuration) lists every field.
 
-If you chose **Studio execute** in `askdb init` or the setup wizard, `enabled: true` is already there, but `databaseUrl` reads the same variable as introspection (`DATABASE_URL` unless you named another). Point it at the read-only role's variable instead.
+If you chose **Studio execute** in `askdb init` or the setup wizard, `enabled: true` is already there. But `databaseUrl` reads the same variable as introspection (`DATABASE_URL` unless you named another). Point it at the read-only role's variable instead.
 
 ## 3. Install the driver
 
@@ -97,7 +99,7 @@ For SQL Server, `databaseUrl` takes any of the three formats introspection reads
 Restart Studio, so it reads the new config. In the Playground:
 
 1. Ask a question and click **Generate SQL**.
-2. Check the line next to **Execute Query**: it names the engine, says the connection is configured, and says the driver is ready, for example **Postgres** · **URL configured** · **pg ready**.
+2. Check the line next to **Execute Query**. It names the engine, says the connection is configured, and says the driver is ready. For example: **Postgres** · **URL configured** · **pg ready**.
 3. Click **Execute Query**.
 
 The rows appear under **Results**, with a line such as `25 rows · 6ms`. If the query returned more than `maxRows` rows, Studio shows the first `maxRows` and says the result was cut.

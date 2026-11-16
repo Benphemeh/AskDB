@@ -71,7 +71,7 @@ A config without `ai` or `introspection` fails to load, with an error that names
 
 The sections below list every field of each block, with its type and default. **Required** in the Default column means the field must be set whenever its block is present, or under the condition the column names; every other field is optional. A config that sets a field AskDB no longer has fails to load (see [Removed keys](#removed-keys)).
 
-AskDB checks each field's type when the config loads. A value of another type fails to load, with an error that names the file and the field, such as `AskDB config at /app/askdb.config.ts: modes.omitSensitiveFromPrompt must be a boolean (got "false").` A `boolean` field takes only `true` or `false`, because the string `"false"` is truthy. A `number` field also takes a string that holds the number, such as `"8080"`, since `env()` returns a string. A field set to `undefined`, as an unset `env()` read gives, takes its default, and so does a `string` field set to `null`.
+AskDB checks each field's type when the config loads. A value of another type fails to load. The error names the file and the field, such as `AskDB config at /app/askdb.config.ts: modes.omitSensitiveFromPrompt must be a boolean (got "false").` A `boolean` field takes only `true` or `false`, because the string `"false"` is truthy. A `number` field also takes a string that holds the number, such as `"8080"`, since `env()` returns a string. A field set to `undefined`, as an unset `env()` read gives, takes its default, and so does a `string` field set to `null`.
 
 ## The `ai` block
 
@@ -139,7 +139,7 @@ Keyed by provider id. Each value is one connection, or a list of connections whe
 
 Every connection also takes `name`, which defaults to `"default"` and must be unique within its provider. A list needs a `"default"` entry unless every section that uses the provider sets `connection`.
 
-A `baseUrl` can't hold a username or password: a config that sets one on any connection, used or not, fails to load, with an error that names the key and doesn't repeat the URL. `fetch` refuses such a URL anyway. The same goes for `OPENAI_BASE_URL` and `ANTHROPIC_BASE_URL` in the environment, which the OpenAI and Anthropic SDKs read when the connection sets no `baseUrl`. Put the key in `apiKey`. To send other credentials, such as a proxy's, build the model in your own code with the AI SDK provider's `headers` option and pass it to `ask()` as `model` (see [Bring your own model](/guides/bring-your-own-model/)). The `askdb` CLI, Studio and the HTTP server can't send extra headers.
+A `baseUrl` can't hold a username or password. A config that sets one on any connection, used or not, fails to load. The error names the key and doesn't repeat the URL. `fetch` refuses such a URL anyway. The same goes for `OPENAI_BASE_URL` and `ANTHROPIC_BASE_URL` in the environment, which the OpenAI and Anthropic SDKs read when the connection sets no `baseUrl`. Put the key in `apiKey`. To send other credentials, such as a proxy's, build the model in your own code with the AI SDK provider's `headers` option. Pass it to `ask()` as `model` (see [Bring your own model](/guides/bring-your-own-model/)). The `askdb` CLI, Studio and the HTTP server can't send extra headers.
 
 ### `ai.language`
 
@@ -372,7 +372,7 @@ Every other setting, such as the output directory, a mode or the log level, is a
 
 ## Custom providers
 
-`ai.provider`, and a section's `provider`, take any id, not only the built-in ones. Give a custom provider's connection its id as the key in `ai.providerConfig` (`apiKey` and `baseUrl`) and its model in `ai.language.model`. It works only where an adapter is registered under that id, which takes your own code: [Bring your own model](/guides/bring-your-own-model/#a-provider-that-isnt-built-in) shows how, and when the `openai` provider with a `baseUrl` is enough.
+`ai.provider`, and a section's `provider`, take any id, not only the built-in ones. Give a custom provider's connection its id as the key in `ai.providerConfig` (`apiKey` and `baseUrl`) and its model in `ai.language.model`. It works only where an adapter is registered under that id, which takes your own code. [Bring your own model](/guides/bring-your-own-model/#a-provider-that-isnt-built-in) shows how, and when the `openai` provider with a `baseUrl` is enough.
 
 ## Loading the config
 
@@ -388,7 +388,7 @@ For any given setting, the precedence (highest wins) is:
 
 The two `modes` settings are the exception. They are floors, not defaults: a per-call `--mode`, `mode` or omit setting can tighten the config value, never loosen it. See [`modes` and `host`](#modes-and-host).
 
-Environment variables don't override the config file from the outside — they flow *through* it: every `env("VAR")` call in the config reads the environment when the file loads. `.env` is loaded first (without overwriting variables already set in the real environment), so the per-environment override story is: system env beats `.env`, and whatever `env()` reads lands in the snapshot. This still lets you ship one config file and vary it per environment — just route each tunable through `env()`.
+Environment variables don't override the config file from the outside — they flow *through* it: every `env("VAR")` call in the config reads the environment when the file loads. `.env` is loaded first, without overwriting variables already set in the real environment. So system env beats `.env`, and whatever `env()` reads lands in the snapshot. This still lets you ship one config file and vary it per environment — just route each tunable through `env()`.
 
 ## Read next
 

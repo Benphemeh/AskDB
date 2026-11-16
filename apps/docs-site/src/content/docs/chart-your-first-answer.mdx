@@ -12,6 +12,8 @@ import chartDark from "../../assets/charts/total-spent-dark.svg";
 
 In this tutorial, we'll add a chart to the project the Quickstart left us. We'll ask the same question from a script, run the SQL ourselves, let the model pick a chart without showing it a row, and draw that chart with ECharts. At the end, a chart of what each customer spent is open in our browser.
 
+We draw with ECharts here, but AskDB isn't tied to it. AskDB returns a chart spec, and any charting library can draw it. The one piece you write for your library is a small function that maps the spec to that library's config.
+
 <Aside type="caution" title="Experimental">
 The chart functions come from `@askdb/client/charts`, which is outside AskDB's stability promise: a minor release of `@askdb/client` may change it.
 </Aside>
@@ -20,7 +22,7 @@ The chart functions come from `@askdb/client/charts`, which is outside AskDB's s
 
 You need:
 
-- The project from the [Quickstart](/quickstart/): the `askdb-shop` folder with `shop.db`, the `askdb/` folder and `.env`. Run every command on this page in that folder.
+- The project from the [Quickstart](/quickstart/), in its `askdb-shop` folder. It holds `shop.db`, the `askdb/` folder and `.env`. Run every command on this page in that folder.
 - An OpenAI API key in `.env`, which is what the Quickstart's steps set up. If you chose Anthropic or Google there, [Bring your own model](/guides/bring-your-own-model/) shows how to build that provider's model for step 1.
 
 The two files we'll write, `first-chart.mjs` and `to-echarts.mjs`, are in <ExampleLink path="examples/chart-a-result" />. Compare yours with them if a step doesn't work.
@@ -130,7 +132,10 @@ That's the Quickstart's answer again, this time from our own script. Notice that
 
 ## 2. Classify the columns
 
-To pick a chart, we need to know what each column holds: names to group by, or numbers to plot. `classifyResult()` works that out in our own process, with no model call. Add the highlighted lines: the import from `@askdb/client/charts`, which also brings in `planChart` for step 3, and the lines under the `// 2.` comment.
+To pick a chart, we need to know what each column holds: names to group by, or numbers to plot. `classifyResult()` works that out in our own process, with no model call. Add the highlighted lines:
+
+- The import from `@askdb/client/charts`, which also brings in `planChart` for step 3.
+- The lines under the `// 2.` comment.
 
 ```js title="first-chart.mjs" ins={3,16-19}
 import { DatabaseSync } from "node:sqlite";
@@ -171,7 +176,7 @@ Run the script again, with the same command as in step 1. After the SQL and the 
 
 ## 3. Ask the model for a chart
 
-Now we pass `planChart()` the question, the SQL and that classified result, with the same model that wrote the SQL. Add the highlighted lines, the ones under the `// 3.` comment:
+Now we pass `planChart()` the question, the SQL and that classified result, with the same model that wrote the SQL. Of the result, only its `shape` reaches the model. Add the highlighted lines, the ones under the `// 3.` comment:
 
 ```js title="first-chart.mjs" ins={21-23}
 import { DatabaseSync } from "node:sqlite";
@@ -215,11 +220,11 @@ Run the script again. It makes a second model call, and then prints the plan:
 }
 ```
 
-`primary` is a **chart spec**. It names a chart type, the column for the labels (`category`), the columns to plot (`series`), a title and a description. It holds no rows, and it draws nothing: drawing is our job, as running the SQL was. `source` says the model picked this chart, and `latencyMs` says how long that took.
+`primary` is a **chart spec**. It names a chart type, the column for the labels (`category`), the columns to plot (`series`), a title and a description. It holds no rows, and it draws nothing. Drawing is our job, as running the SQL was. `source` says the model picked this chart, and `latencyMs` says how long that took.
 
 ## 4. Draw the chart
 
-ECharts draws from an option object, so we need a function that turns a chart spec into one. Create `to-echarts.mjs`:
+ECharts draws from an option object, so we need a function that turns a chart spec into one. This function is the only part of the tutorial that's tied to ECharts. Create `to-echarts.mjs`:
 
 ```js title="to-echarts.mjs"
 /**
@@ -319,9 +324,11 @@ That's our chart. ECharts drew it from the four rows our own code read from `sho
 
 ## What we built
 
-We asked a question from a script and ran the SQL ourselves. `classifyResult()` described the columns in our own process, `planChart()` had the model pick a chart from that description, and ECharts drew the chart from our rows. AskDB returned the SQL and the chart spec. Our code did the running and the drawing.
+We asked a question from a script and ran the SQL ourselves. `classifyResult()` described the columns in our own process. `planChart()` had the model pick a chart from that description, and ECharts drew the chart from our rows. AskDB returned the SQL and the chart spec. Our code did the running and the drawing.
 
-Try another question: change `question` to "How many units of each product were sold?", run the script, and open `chart.svg` again. The script draws any answer that has rows to group and a number to plot. For any other answer, such as one number or one with no chart, it stops with an error at the drawing step. [Chart a query result](/guides/plan-a-chart/) handles those.
+ECharts was our choice, not AskDB's. To draw with another library, replace `to-echarts.mjs` with a function that maps the same chart spec to that library's config. [Chart a query result](/guides/plan-a-chart/#4-draw-the-chart-from-your-rows) names the matching settings in Chart.js, Recharts and Vega-Lite.
+
+Try another question. Change `question` to "How many units of each product were sold?", run the script, and open `chart.svg` again. The script draws any answer that has rows to group and a number to plot. Any other answer stops with an error at the drawing step, such as one number or one with no chart. [Chart a query result](/guides/plan-a-chart/) handles those.
 
 ## Use with your agent
 
@@ -329,7 +336,9 @@ Try another question: change `question` to "How many units of each product were 
 
 Add a chart of a query result to this project by following the tutorial at https://askdb.tools/chart-your-first-answer.md, against this project's own database and one of its own questions instead of the sample shop database.
 
-The goal: a script that asks the question with `ask()`, runs the SQL through the project's own read-only connection, classifies the result with `classifyResult()`, plans a chart with `planChart()`, and draws it with ECharts from the project's own rows.
+The goal: a script that asks the question with `ask()`, runs the SQL through the project's own read-only connection, classifies the result with `classifyResult()`, plans a chart with `planChart()`, and draws it from the project's own rows.
+
+Draw with the charting library this project already uses. Look for one in its dependencies first, such as Recharts (shadcn/ui charts are Recharts), Chart.js, ECharts, Vega-Lite or D3. If the project has none, ask which one to add; the tutorial uses ECharts. Then write one function that maps the chart spec to that library's config, as the tutorial's `to-echarts.mjs` does for ECharts: `type` picks the chart, `category` and `series` name columns of the rows, and `title` and `description` are its text.
 
 - AskDB returns SQL and a chart spec. It runs no SQL and draws nothing: this project's code does both.
 - Never put a row in a prompt. `planChart()` gets the question, the SQL and the classified result.

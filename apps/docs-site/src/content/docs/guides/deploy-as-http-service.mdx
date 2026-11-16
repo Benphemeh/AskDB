@@ -1,12 +1,12 @@
 ---
 title: "Deploy AskDB as an HTTP service"
-description: "Stand up @askdb/http-api so Python, browsers, agents — anything that speaks HTTP — can ask questions."
+description: "Stand up @askdb/http-api so any client that speaks HTTP, such as Python, a browser or an agent, can ask questions."
 ---
 
 import InstallTabs from "../../../components/InstallTabs.astro";
 import AgentPrompt from "../../../components/AgentPrompt.astro";
 
-`@askdb/http-api` wraps the same `ask()` pipeline behind a minimal HTTP server. Use it when non-Node clients need to ask questions, or when you want one AskDB service shared across multiple consumers. At the end, a server answers `POST /ask` with checked SQL, behind a gateway that runs it.
+`@askdb/http-api` wraps the same `ask()` pipeline behind a minimal HTTP server. Use it when non-Node clients need to ask questions, or when you want one AskDB service shared across multiple consumers. At the end, a server answers `POST /ask` with checked SQL, behind a gateway that runs it. The server has no auth of its own, and it never runs the SQL.
 
 ## Before you start
 
@@ -20,13 +20,17 @@ import AgentPrompt from "../../../components/AgentPrompt.astro";
 
 ## 2. Start the server
 
-The package ships an `askdb-http` binary — for most deployments you don't write any server code:
+The package ships an `askdb-http` binary, so most deployments need no server code:
 
 ```bash
 npx askdb-http --schema-path ./my-app.schema --port 3000
 ```
 
-All flags are optional. Each falls back to `askdb.config.ts`: the schema to `host.schemaJson`, then `host.schemaPath`, and the port and host to `httpApi.listen.port` and `httpApi.listen.host`. After that, the port defaults to `3000` and the host to `127.0.0.1`. The schema has no default: with none configured, `POST /ask` answers `500 generation_not_configured` with a generic message, and the server log names the cause (`errName` `SchemaNotConfiguredError`).
+All flags are optional. Each falls back to `askdb.config.ts`:
+
+- **The schema** falls back to `host.schemaJson`, then `host.schemaPath`.
+- **The port and host** fall back to `httpApi.listen.port` and `httpApi.listen.host`. After that, the port defaults to `3000` and the host to `127.0.0.1`.
+- **The schema has no default.** With none configured, `POST /ask` answers `500 generation_not_configured` with a generic message. The server log names the cause (`errName` `SchemaNotConfiguredError`).
 
 To embed the server in your own process instead, use the programmatic API:
 
@@ -43,9 +47,17 @@ const server = createAskDbHttpServer({
 await server.listen();
 ```
 
-Either way, the server reads its schema and model settings from your `askdb.config.ts`, the same config file the CLI and Studio use. It loads the config from the current working directory. `createAskDbHttpServer()` reads that directory's `.env`, and `askdb-http` the first of several `.env` files ([HTTP API reference](/reference/http-api/#standalone-binary) lists them). If your process already called `bootstrapAskDbEnv()`, the server uses that config instead. Set `host.schemaPath` to point at your schema artifact and configure the AI provider as usual — supply the provider key (`OPENAI_API_KEY`, etc.) in your environment the same way you do for the CLI.
+Whether you use the binary or the programmatic API, the server reads its schema and model settings from your `askdb.config.ts`. The CLI and Studio (AskDB's browser UI) use the same config file. The server loads the config from the current working directory. Set `host.schemaPath` to point at your schema artifact, and configure the AI provider as usual. Supply the provider key (`OPENAI_API_KEY`, etc.) in your environment, the same way you do for the CLI.
 
-Two kinds of schema don't work with this server. A schema with a tenant policy can't be served yet: see [Schemas with a tenant policy](#schemas-with-a-tenant-policy). A schema whose `provider` has no AskDB dialect answers `500 generation_not_configured` until you set `dialect` in `askdb.config.ts`; the server doesn't fall back to PostgreSQL. The `dialect` you set applies to the server's own schema only: a request `schemaJson` gets SQL for its own `provider`, and `400 bad_request` when it records none or one AskDB has no dialect for.
+Two details on how the server loads the environment:
+
+- **`.env` files.** `createAskDbHttpServer()` reads that directory's `.env`. `askdb-http` reads the first of several `.env` files ([HTTP API reference](/reference/http-api/#standalone-binary) lists them).
+- **`bootstrapAskDbEnv()`.** If your process already called it, the server uses that config instead.
+
+Two kinds of schema don't work with this server:
+
+- **A schema with a tenant policy** can't be served yet. See [Schemas with a tenant policy](#schemas-with-a-tenant-policy).
+- **A schema whose provider has no AskDB dialect** answers `500 generation_not_configured` until you set `dialect` in `askdb.config.ts`. The server doesn't fall back to PostgreSQL. The `dialect` you set applies to the server's own schema only. A request `schemaJson` gets SQL for its own `provider`, or `400 bad_request` when it records none or one AskDB has no dialect for.
 
 ### On a platform that sets `PORT`
 
@@ -63,11 +75,16 @@ export default defineConfig({
 });
 ```
 
-With `PORT` unset, `Number(env("PORT"))` is `NaN`, which counts as unset, so the server uses `3000` either way. The `?? 3000` shows the fallback in the config.
+With `PORT` unset, `Number(env("PORT"))` is `NaN`. The server counts `NaN` as unset, so it uses `3000` either way. The `?? 3000` shows the fallback in the config.
 
 ## 3. Ask a question
 
-The server has two endpoints. `GET /health` answers `{"ok":true}`, for a liveness probe. `POST /ask` takes a JSON body with a `question`, and returns the checked SQL in `sql`, with a `correlationId` and the model's token `usage`. It returns SQL only: the server doesn't run it, and your client decides what to do with it. The [HTTP API reference](/reference/http-api/) lists every request field, response field and error code.
+The server has two endpoints:
+
+- **`GET /health`** answers `{"ok":true}`, for a liveness probe.
+- **`POST /ask`** takes a JSON body with a `question`. It returns the checked SQL in `sql`, with a `correlationId` and the model's token `usage`.
+
+`POST /ask` returns SQL only. The server doesn't run it, and your client decides what to do with it. The [HTTP API reference](/reference/http-api/) lists every request field, response field and error code.
 
 ### From curl
 
@@ -102,7 +119,7 @@ else:
 
 ## 4. Run it behind a gateway
 
-`@askdb/http-api` is intentionally minimal — there is no built-in auth, rate limiting, or TLS termination. **Don't expose it directly to the public internet.** Put it behind your existing API gateway, ingress, or reverse proxy and apply the same auth you use for the rest of your services.
+`@askdb/http-api` is intentionally minimal: it has no built-in auth, rate limiting or TLS termination. **Don't expose it directly to the public internet.** Put it behind your existing API gateway, ingress, or reverse proxy and apply the same auth you use for the rest of your services.
 
 A typical production shape:
 
@@ -133,11 +150,19 @@ Execution is your gateway service's job, because that's where your auth context 
 
 ## Schemas with a tenant policy
 
-`@askdb/http-api` can't serve a schema that has a tenant policy (`tenant-policy.md`) yet. A request has no way to carry a tenant scope, and AskDB never makes one up, so it refuses every such request before calling the model. [#343](https://github.com/Ygilany/AskDB/issues/343) plans a server-side scope hook, and [#277](https://github.com/Ygilany/AskDB/issues/277) a scope for the `askdb-http` binary. Until then, such a schema answers every request with `500 tenant_scope_not_configured`. Serve it from your own Node service with `ask({ tenantScope })` instead: see [Multi-tenancy](/guides/multi-tenancy/).
+To serve a schema that has a tenant policy (`tenant-policy.md`), use your own Node service with `ask({ tenantScope })`: see [Multi-tenancy](/guides/multi-tenancy/). `@askdb/http-api` can't serve such a schema yet.
+
+A request has no way to carry a tenant scope, and AskDB never makes one up. So the server refuses every such request before calling the model. Such a schema answers every request with `500 tenant_scope_not_configured`. [#343](https://github.com/Ygilany/AskDB/issues/343) plans a server-side scope hook, and [#277](https://github.com/Ygilany/AskDB/issues/277) a scope for the `askdb-http` binary.
 
 ## Custom schema per request
 
-The default is to load the schema from `host.schemaPath` once at boot. Per-request schemas are **off by default**: a request that sends `schemaJson` gets `403 schema_override_disabled`. An override is a schema artifact the server parses and puts into the prompt through your model key, so a caller who can send `schemaJson` controls what AskDB loads. Only enable it for tests or callers you trust. If you run a beta release, upgrade `@askdb/http-api` itself before you enable it, because it pins its `@askdb/core`. The [upgrade notes](/reference/upgrade-notes/#other-changes-you-may-notice-in-beta48) say which schema files the upgraded server refuses. For a multi-product deployment where different consumers send different schemas, turn it on in `askdb.config.ts`:
+The server loads the schema from `host.schemaPath` once at boot. Per-request schemas are **off by default**: a request that sends `schemaJson` gets `403 schema_override_disabled`.
+
+An override is a schema artifact the server parses and puts into the prompt through your model key. A caller who can send `schemaJson` therefore controls what AskDB loads. Only enable it for tests or callers you trust.
+
+If you run a beta release, upgrade `@askdb/http-api` itself before you enable it, because it pins its `@askdb/core`. The [upgrade notes](/reference/upgrade-notes/#other-changes-you-may-notice-in-beta48) say which schema files the upgraded server refuses.
+
+For a multi-product deployment where different consumers send different schemas, turn it on in `askdb.config.ts`:
 
 ```ts
 httpApi: { allowSchemaOverride: true },

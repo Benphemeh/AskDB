@@ -78,7 +78,7 @@ function requiredEnv(name: string): string;
 Both read `process.env[name]` and trim it. Call them in the config file, where they run once, when the file loads.
 
 - **`env(name)`** returns `undefined` when the variable is missing or blank, so the field takes its default.
-- **`requiredEnv(name)`** throws when the variable is missing or blank: `Missing required environment variable "<name>". Set it in your .env file (or your shell environment) before using this code path.` Every command loads the whole config, so the variable must be set even for a command that doesn't use the field.
+- **`requiredEnv(name)`** throws when the variable is missing or blank: `Missing required environment variable "<name>". Set it in your .env file (or your shell environment) before using this code path.` Every command loads the whole config. The variable must be set even for a command that doesn't use the field.
 
 ## Load it
 

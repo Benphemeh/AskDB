@@ -5,7 +5,9 @@ description: "Declare your schema's tenancy in a tenant policy, pass each caller
 
 import AgentPrompt from "../../../components/AgentPrompt.astro";
 
-In a multi-tenant schema, each user should see only their own tenants' rows. Declare how your schema represents tenancy in a tenant policy, and pass the caller's tenant scope on each call. AskDB then has the model filter every scoped table by tenant, checks that the filter is there, and binds your tenant IDs. Keep the database as the tenant boundary: see [Tenant isolation](/concepts/tenant-isolation/).
+In a multi-tenant schema, each user should see only their own tenants' rows. To get SQL that keeps to them, declare your schema's tenancy in a tenant policy, and pass the caller's tenant scope on each call. AskDB then has the model filter every scoped table by the tenant IDs your application chose, checks that the filter is there, and binds your IDs into it.
+
+That check is a heuristic over the SQL's tokens, not a security boundary. Keep the database as the tenant boundary, as [Tenant isolation](/concepts/tenant-isolation/) explains.
 
 <figure>
 
@@ -34,14 +36,12 @@ bind -> run
 
 ## Before you start
 
-- **A schema artifact and a service that calls `ask()`.** [Embed in a Node app](/guides/embed-in-node/) sets one up.
+- **A schema artifact and a service that calls `ask()`.** The schema artifact is the set of files that describe your tables to the model. [Embed in a Node app](/guides/embed-in-node/) sets one up.
 - **Your application knows which tenants each user may see.** AskDB binds the scope you pass, but never decides it, so authorizing it stays your job.
 
 ## 1. Write the tenant policy
 
-The recommended path is Studio's **Tenancy** view, which guides you through declaring tenant roots, scoped tables, and global tables in a form. Studio can also draft a policy with AI from your schema's tables, keys and foreign keys, for your review.
-
-You can also write `tenant-policy.md` in the schema artifact by hand. Every table or column reference uses the stable IDs from `schema.json`. Example for a simple SaaS schema:
+A tenant policy is a file in the schema artifact. It says which tables belong to a tenant and which column holds the tenant ID. Take a simple SaaS schema. Organizations are the tenants, projects and documents each carry an `organization_id`, and plan tiers and countries are shared by everyone. Its policy is the file `tenant-policy.md` in the schema artifact:
 
 ```yaml
 ---
@@ -74,13 +74,28 @@ Organizations are the only tenant level. Projects and documents carry a
 direct `organization_id`; plan tiers and countries are shared lookups.
 ```
 
-Classify every table: a table in none of `scopedTables`, `polymorphicTables` or `globalTables` is **unknown**, and a query that names it triggers a warning, and in `strict` mode an error. Start with `enforcement: strict`. [Field reference](/reference/tenant-policy/#field-reference) lists every field.
+Write yours one of two ways:
 
-`loadSchema()` checks the policy against `schema.json` when it loads the artifact. Under `strict`, a policy that names IDs `schema.json` doesn't have, or a column on another table than its entry's, doesn't load: see [When the policy and the schema disagree](/reference/tenant-policy/#when-the-policy-and-the-schema-disagree).
+- **In Studio, which is the recommended path.** [Studio](/studio/) is AskDB's browser UI for editing a schema artifact. Its **Tenancy** view guides you through declaring tenant roots, scoped tables and global tables in a form. Studio can also draft a policy with AI from your schema's tables, keys and foreign keys, for your review.
+- **By hand.** Write `tenant-policy.md` as above. Every table or column reference uses the stable IDs from `schema.json`.
+
+Two rules keep the policy useful:
+
+- **Classify every table.** The lists are `scopedTables`, `polymorphicTables` and `globalTables`. A polymorphic table, the third kind, references different tenant types through a pair of discriminator columns. A table that is in no list is **unknown**. A query that names an unknown table gets a warning in `result.tenantGuardrail`. Under `strict`, `ask()` throws `TenantGuardrailError` instead.
+- **Start with `enforcement: strict`.**
+
+[Field reference](/reference/tenant-policy/#field-reference) lists every field.
+
+AskDB checks the policy against `schema.json` when `loadSchema()` loads the artifact. Under `strict`, a policy that doesn't match stops the artifact loading. Two common cases:
+
+- **A missing column.** The policy names a column or foreign-key ID that `schema.json` doesn't have. A table that `schema.json` doesn't have stays a warning in every mode.
+- **A column on the wrong table.** An entry names a column that `schema.json` has on another table. An example is a `documents` column in the `scopeThrough` of `projects`.
+
+See [When the policy and the schema disagree](/reference/tenant-policy/#when-the-policy-and-the-schema-disagree).
 
 ## 2. Pass the caller's tenant scope
 
-With a policy in place, every `ask()` call needs a `tenantScope`. Build it from the IDs your application authorized for this user:
+With a policy in place, every `ask()` call needs a `tenantScope`: the tenants this caller may see. Build it from the IDs your application authorized for this user. Here the user belongs to one organization, `org_abc123`. By default, `ask()` returns the tenant IDs as driver parameters. The option that controls this is `tenantSqlMode`, which [step 3](#3-run-the-sql) covers:
 
 ```ts
 // askdb initialized at startup with createAskDb() — see Embed in a Node app.
@@ -98,18 +113,26 @@ const result = await askdb.ask("How many documents did we create this month?", {
 });
 ```
 
-`access.kind` picks the scope's shape:
+That is the common case: exact tenant IDs on one root, with `access.kind` set to `ids`. The other kinds cover other shapes of access:
 
-- **`ids`:** exact tenant IDs on one root, the common case.
+- **`ids`:** exact tenant IDs on one root.
 - **`multi_root`:** IDs across several roots, each with its own list.
 - **`subtree`:** a root's IDs and everything beneath them. See [Scope to a tenant hierarchy](/guides/tenant-hierarchy/).
-- **`global`:** deliberately unscoped, with a `reason` for the audit trail. The tenant check is skipped, and SQL that still uses a tenant placeholder throws `TenantScopeError`.
+- **`global`:** deliberately unscoped, with a `reason` for the audit trail. The tenant check is skipped. If the SQL still uses a tenant placeholder, `ask()` throws `TenantScopeError`, the error for a scope that doesn't fit the call.
 
-The optional `context`, such as a role or a department, goes into the prompt as advisory text, and nothing enforces it. Polymorphic tables are declared in the policy and surfaced to the model through the prompt; there's no scope field for pre-resolving them at runtime. [`TenantScope`](/reference/core-api/tenancy/#tenantscope) lists every field.
+Two more things about the scope:
+
+- **`context` is advisory.** The optional `context`, such as a role or a department, goes into the prompt as text. Nothing enforces it.
+- **Polymorphic tables have no scope field.** You declare them in the policy, and the prompt shows them to the model. The scope can't pre-resolve them at runtime.
+
+[`TenantScope`](/reference/core-api/tenancy/#tenantscope) lists every field.
 
 ## 3. Run the SQL
 
-In the default `tenantSqlMode`, `"sql-params"`, the tenant IDs come back as driver parameters. Run one of the two pairs:
+The SQL comes back with a parameter marker, such as `$1`, in the tenant filter. Your tenant IDs come back beside it as driver parameters. Run the SQL with those parameters. The result can hold two SQL forms, each with its own array, and you run one pair:
+
+- **`sql` with `tenantParams`.** The result always has `sql`. The model's other values, such as a date, are inlined in it.
+- **`unboundSql` with `params`.** It binds every value, tenant IDs included. It is there when the model parameterized at least one value, and AskDB checked that binding the values back reproduces `sql`. Set the `ask()` option `parameterize: false` to turn it off.
 
 ```ts
 // Two executable pairs — pick one, never concatenate the arrays.
@@ -122,30 +145,43 @@ if (result.unboundSql && result.params) {
 }
 ```
 
-For a question like "how many documents this month?", the model writes the tenant predicate with a placeholder, and AskDB binds your IDs into it. Without the policy, the SQL might be:
+To see what the policy changes, take the question "how many documents this month?" Without the policy, the SQL might be:
 
 ```sql
 SELECT COUNT(*) FROM documents WHERE created_at >= NOW() - INTERVAL '1 month';
 ```
 
-With the policy and an `ids` scope for `org_abc123`, in the default mode:
+With the policy and an `ids` scope for `org_abc123`, the model writes the tenant predicate with a placeholder, and AskDB binds your IDs into it:
 
 ```sql
 SELECT COUNT(*) FROM documents
 WHERE organization_id = $1 AND created_at >= NOW() - INTERVAL '1 month';
 ```
 
-To get one SQL string with the IDs inlined instead, set `tenantSqlMode: "sql-only"`: see [SQL output modes](/reference/tenant-policy/#sql-output-modes). To rerun a query for the same caller with a new value, see [Rerun a query with new values](/guides/rerun-a-query-with-new-values/).
+Two related options:
+
+- **One SQL string, with the IDs inlined.** The parameters above are the default `tenantSqlMode`, `"sql-params"`. Set `tenantSqlMode: "sql-only"` to get the IDs inlined instead: see [SQL output modes](/reference/tenant-policy/#sql-output-modes).
+- **The same query, with a new value.** See [Rerun a query with new values](/guides/rerun-a-query-with-new-values/).
 
 ## 4. Try it in Studio's Playground
 
 ![Studio's Playground with the Tenant scope box ticked, an IDs scope for two agencies, the tenantScope JSON preview, and the generated SQL with its tenant parameters](../../../assets/studio/playground-tenant.png)
 
-With a tenant policy, the Playground's **Tenant scope** box is ticked. Choose the access kind (**IDs**, **Multi-root** or **Super / global**), then the tenant root and its IDs, or the reason for a global scope. **Advisory context** adds the scope's `context`, and the **tenantScope JSON preview** shows the scope Studio passes. **SQL output mode** switches between **$N parameters**, the default, and **Inline literals**. **Generate SQL** shows the SQL with its tenant parameters.
+Studio's Playground lets you try a scope before you write code. With a tenant policy, its **Tenant scope** box is ticked. Fill it in, top to bottom:
+
+1. Choose the access kind: **IDs**, **Multi-root** or **Super / global**.
+2. Choose the tenant root and its IDs, or give the reason for a global scope.
+3. Select **Generate SQL**. Studio shows the SQL with its tenant parameters.
+
+Three more controls are there when you need them:
+
+- **Advisory context** adds the scope's `context`.
+- **tenantScope JSON preview** shows the scope Studio passes.
+- **SQL output mode** switches between **$N parameters**, the default, and **Inline literals**.
 
 ## 5. Enforce it in the database
 
-AskDB's tenant check is a heuristic over the SQL's tokens, so a query can get past it. Make the database the tenant boundary: [Enforce tenancy in the database](/guides/enforce-tenancy-in-the-database/) sets up Postgres row-level security, and [Tenant isolation](/concepts/tenant-isolation/) explains why.
+A query can get past AskDB's tenant check, because the check is a heuristic over the SQL's tokens. So make the database the tenant boundary. [Enforce tenancy in the database](/guides/enforce-tenancy-in-the-database/) sets up Postgres row-level security, and [Tenant isolation](/concepts/tenant-isolation/) explains why.
 
 ## If it fails
 
@@ -155,7 +191,7 @@ AskDB's tenant check is a heuristic over the SQL's tokens, so a query can get pa
 | `TenantScopeError` `GLOBAL_WITHOUT_REASON` | Give the `global` scope a non-blank `reason`. |
 | `TenantScopeError` `UNRESOLVED_TENANT_PLACEHOLDER` | The SQL uses a tenant placeholder the scope has no IDs for, such as any placeholder under a `global` scope. Pass a scope that covers that root. |
 | `TenantGuardrailError` | The SQL fails the tenant check. [What the tenant check requires](/reference/tenant-policy/#what-the-tenant-check-requires) lists each rule. |
-| `SchemaParseError` naming `tenant-policy.md` | The policy has a key AskDB doesn't know, or, under `strict`, names IDs `schema.json` doesn't have or a column on another table than its entry's. See [When the policy and the schema disagree](/reference/tenant-policy/#when-the-policy-and-the-schema-disagree). |
+| `SchemaParseError` naming `tenant-policy.md` | The policy has a key AskDB doesn't know, or, under `strict`, doesn't match `schema.json`, such as a column ID it doesn't have or a column on another table than its entry's. See [When the policy and the schema disagree](/reference/tenant-policy/#when-the-policy-and-the-schema-disagree). |
 
 [`TenantScopeError` reasons](/reference/core-api/errors/#tenantscopeerror-reasons) lists the rest.
 

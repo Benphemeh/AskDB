@@ -33,7 +33,7 @@ import HomePrivacyBoundary from "../../components/HomePrivacyBoundary.astro";
 
 ## Why this toolkit exists
 
-NL-to-SQL isn't a new problem. Systems that answer English questions from a database go back to BASEBALL (1961) and LUNAR (1971), and studies of large language models such as OpenAI's Codex writing SQL began in early 2022. The hard part in production isn't the LLM call — it's capturing the business context behind your schema, getting the right enrichment into the prompt, wiring up RAG when the schema is too big to fit, and repeating that work for every new project. AskDB is the toolkit for *that* part.
+NL-to-SQL isn't a new problem. Systems that answer English questions from a database go back to BASEBALL (1961) and LUNAR (1971). Studies of large language models such as OpenAI's Codex writing SQL began in early 2022. In production, the LLM call isn't the hard part. The hard part is capturing the business context behind your schema, getting the right enrichment into the prompt, and wiring up RAG when the schema is too big to fit. Then you repeat that work for every new project. AskDB is the toolkit for *that* part.
 
 </section>
 
@@ -49,9 +49,9 @@ NL-to-SQL isn't a new problem. Systems that answer English questions from a data
 
 ## Embed it in your app
 
-There are two ways to call AskDB from TypeScript. `createAskDb()` from `@askdb/client` takes the model, the schema and the dialect from your `askdb.config.ts`, the same config the CLI and Studio use. `ask()` from `@askdb/core` takes a schema you loaded and any Vercel AI SDK model. Both return checked SQL, and your code runs it through your own connection. [Embed in a Node app](/guides/embed-in-node/) walks through both.
+There are two ways to call AskDB from TypeScript, and both return checked SQL. `createAskDb()` from `@askdb/client` takes the model, the schema and the dialect from your `askdb.config.ts`, the same config the CLI and Studio use. `ask()` from `@askdb/core` takes a schema you loaded and any Vercel AI SDK model. Either way, your code runs the SQL through your own connection. [Embed in a Node app](/guides/embed-in-node/) walks through both.
 
-Once your code has the rows, the experimental `@askdb/client/charts` can ask your model which chart fits them, from the question, the SQL and the column kinds, never the rows. It returns a chart spec, and your app draws it with its own charting library. [Chart your first answer](/chart-your-first-answer/) is the tutorial, and [Chart a query result](/guides/plan-a-chart/) is the guide for your own app.
+Once your code has the rows, AskDB can also suggest a chart. The experimental `@askdb/client/charts` asks your model which chart fits, from the question, the SQL and the column kinds, never the rows. It returns a chart spec, and your app draws it with its own charting library. [Chart your first answer](/chart-your-first-answer/) is the tutorial, and [Chart a query result](/guides/plan-a-chart/) is the guide for your own app.
 
 </section>
 

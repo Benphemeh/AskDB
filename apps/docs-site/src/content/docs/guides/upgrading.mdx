@@ -16,7 +16,7 @@ Move your app to a newer AskDB release. Upgrade the packages in one step, apply 
 
 ## Upgrade the packages
 
-Upgrade the AskDB packages your app already lists, in one step, so they all come from the same release. Betas and release candidates publish under npm's `latest` tag. Name each `askdb` and `@askdb/*` package in your `package.json`, and no others. For example, for an app that lists `@askdb/client` and `@askdb/core`:
+Upgrade the AskDB packages your app already lists, in one step, so they all come from the same release. Betas and release candidates publish under npm's `latest` tag. Name each `askdb` and `@askdb/*` package that your `package.json` lists, and no others. For example, for an app that lists `@askdb/client` and `@askdb/core`:
 
 <InstallTabs pkgs="@askdb/client@latest @askdb/core@latest" />
 
@@ -27,8 +27,8 @@ Apply the notes of each release you cross, oldest first. Then finish with [Check
 ## Check the upgrade
 
 1. **Load your config.** Run your app or an `askdb` command once. A config that sets a removed key fails to load and names each key's replacement.
-2. **Ask one question on each path** that calls `ask()` or `bind()`, with the tenant scopes you use in production.
-3. **If you use RAG**, run `askdb rag query` against the new index, or check that Studio no longer marks the index as stale.
+2. **Ask one question on each path** that calls `ask()` or `bind()`, with the [tenant scopes](/guides/multi-tenancy/) you use in production.
+3. **If you use RAG**, run `askdb rag query` against the new index, or check that Studio (AskDB's browser UI) no longer marks the index as stale.
 
 If something fails, [Fix common errors](/guides/troubleshooting/) lists the common errors and their fixes.
 

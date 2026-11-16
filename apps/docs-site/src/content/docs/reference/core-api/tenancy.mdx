@@ -3,7 +3,7 @@ title: "@askdb/core API reference: tenant scope"
 description: "TenantScope, scope expansion, tenant placeholders and binding, the tenant prompt block, and the normalized tenant policy types in @askdb/core."
 ---
 
-The functions and types for a schema with a `tenant-policy.md`: the scope you pass to `ask()`, its expansion, the tenant placeholders and how they're bound, and the policy as `loadSchema()` returns it. [Tenant policy format](/reference/tenant-policy/) describes the file, and [Tenant isolation](/concepts/tenant-isolation/) explains the model.
+The functions and types for a schema with a `tenant-policy.md`. They cover the scope you pass to `ask()`, its expansion, the tenant placeholders and how they're bound, and the policy as `loadSchema()` returns it. [Tenant policy format](/reference/tenant-policy/) describes the file, and [Tenant isolation](/concepts/tenant-isolation/) explains the model.
 
 ## `TenantScope`
 
@@ -48,7 +48,7 @@ const expanded = await expandTenantScope(schema.tenantPolicy!, subtreeScope, res
 const rebound = bindPreparedQuery(prepared, values, { schema, tenantScope: expanded });
 ```
 
-The `subtree` expansion `ask()` runs, as a function: it calls your [`resolveTenantDescendants`](/reference/core-api/ask/#options) and returns a `multi_root` scope with one entry per root the subtree covers (an `ids` scope when the subtree is one root table), keeping a level with no IDs as `ids: []` so reading it fails closed. Other access kinds pass through. It validates the scope first and throws `TenantScopeError` (`SUBTREE_NOT_RESOLVABLE`) for a missing resolver or a malformed result, as `ask()` does.
+The `subtree` expansion `ask()` runs, as a function. It calls your [`resolveTenantDescendants`](/reference/core-api/ask/#options) and returns a `multi_root` scope with one entry per root the subtree covers. It returns an `ids` scope when the subtree is one root table. A level with no IDs stays as `ids: []`, so reading it fails closed. Other access kinds pass through. It validates the scope first. It throws `TenantScopeError` (`SUBTREE_NOT_RESOLVABLE`) for a missing resolver or a malformed result, as `ask()` does.
 
 ## `expandClosure(seedIds, childrenOf)`
 
@@ -141,7 +141,14 @@ buildTenantPromptBlock(schema.tenantPolicy!, scope, { schema });
 buildTenantPromptBlock(schema.tenantPolicy!, scope, { schema, tableIds: ["table:public.orders"] });
 ```
 
-Returns the tenant-policy block `ask()` adds to the NL→SQL prompt: the roots, the tenant-scoped, polymorphic and global tables, the scope's placeholders and the columns each one may be compared with, and the rules. `prompt` is required. It's the prompt's schema and, under retrieval, the ids of the tables the retrieved DDL shows (`synthesizeRetrievedDdl()`'s `tableIds`). The block names only the tables the prompt shows: never a table marked `tracked: false`, and no table retrieval left out, except one on a join path a shown table needs. A root whose table isn't shown appears by its label and placeholder. An unexpanded `subtree` scope throws `TenantScopeError` (`SUBTREE_NOT_RESOLVABLE`); expand it first with `expandTenantScope()`.
+Returns the tenant-policy block `ask()` adds to the NL→SQL prompt. The block holds:
+
+- the roots
+- the tenant-scoped, polymorphic and global tables
+- the scope's placeholders and the columns each one may be compared with
+- the rules
+
+`prompt` is required. It's the prompt's schema and, under retrieval, the ids of the tables the retrieved DDL shows (`synthesizeRetrievedDdl()`'s `tableIds`). The block names only the tables the prompt shows. It never names a table marked `tracked: false`, and none that retrieval left out, except one on a join path a shown table needs. A root whose table isn't shown appears by its label and placeholder. An unexpanded `subtree` scope throws `TenantScopeError` (`SUBTREE_NOT_RESOLVABLE`); expand it first with `expandTenantScope()`.
 
 ### `formatTenantPolicyWarning(warning)`
 

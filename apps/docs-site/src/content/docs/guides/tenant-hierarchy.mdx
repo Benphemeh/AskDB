@@ -5,7 +5,9 @@ description: "Let a user see a tenant and everything beneath it, such as an agen
 
 import AgentPrompt from "../../../components/AgentPrompt.astro";
 
-A `subtree` scope says "these IDs and everything beneath them". An agency administrator, for example, sees their agency, its sub-agencies, and those sub-agencies' clients. AskDB never opens a database connection, so it can't walk your hierarchy itself. You pass a `resolveTenantDescendants` callback that returns the subtree's IDs grouped by tenant root, and `ask()` binds each root's IDs to that root's own placeholder.
+An agency administrator, for example, should see their agency, its sub-agencies, and those sub-agencies' clients. A `subtree` scope says "these IDs and everything beneath them".
+
+AskDB never opens a database connection, so it can't walk your hierarchy itself. You pass a `resolveTenantDescendants` callback that returns the subtree's IDs grouped by tenant root. Then `ask()` binds each root's IDs to that root's own placeholder. As with any tenant scope, the database stays the boundary: see [Tenant isolation](/concepts/tenant-isolation/).
 
 <figure>
 
@@ -59,9 +61,9 @@ The labels give the placeholders `:tenant_agency_ids`, `:tenant_sub_agency_ids` 
 
 ## 2. Pass a subtree scope and its resolver
 
-Grouping matters because each root table has its own ID space. If agency `1` owns sub-agency `5` and client `5`, those are not agency `5`, which may be another tenant. A single list would put `5` into `:tenant_agency_ids` and return the other tenant's rows, so `ask()` rejects a flat array.
+Grouping matters because each root table has its own ID space. Say agency `1` owns sub-agency `5` and client `5`. Those are not agency `5`, which may be another tenant. A single list would put `5` into `:tenant_agency_ids` and return the other tenant's rows, so `ask()` rejects a flat array.
 
-With the policy's `agencies` → `sub_agencies` → `clients` hierarchy (declared through `roots[].parent` or `hierarchy`), return one entry per level, keyed by the root's table ID:
+For the `agencies` → `sub_agencies` → `clients` hierarchy from step 1, return one entry per level, keyed by the root's table ID:
 
 ```ts
 import { ask } from "@askdb/core";
@@ -131,15 +133,28 @@ resolveTenantDescendants: async (tenantRoot, seedIds) => {
 ## What the callback must return
 
 - **Return IDs per tenant root.** Allowed keys are the scope's `tenantRoot` and every root the policy's hierarchy reaches from it. Each value holds IDs of that root's own `tenantIdColumn`: seeds and same-table descendants under `tenantRoot`, each child root's IDs under that root.
-- **`ask()` scopes the query per root.** The result becomes a `multi_root` scope (an `ids` scope when the subtree is `tenantRoot` alone), with one entry per covered root, including a root you return no IDs for. When your policy has more than one root, the prompt lists, under each placeholder (in both cases), the columns that hold that root's IDs on the tables the prompt shows, and tells the model never to compare one root's placeholder with another root's column.
+- **`ask()` scopes the query per root.** The result becomes a `multi_root` scope (an `ids` scope when the subtree is `tenantRoot` alone), with one entry per covered root, including a root you return no IDs for. When your policy has more than one root, the prompt lists the columns that hold each root's IDs, under that root's placeholder. It does so for a `multi_root` scope and an `ids` scope alike. It lists them for the tables the prompt shows. It also tells the model never to compare one root's placeholder with another root's column.
 - **Seeds are always kept.** `ask()` unions `rootIds` into the `tenantRoot` entry, so returning only descendants doesn't drop the ancestor's own rows.
-- **An empty level fails closed under `strict`.** A covered root you return no IDs for (missing key or `[]`) stays in the scope with no IDs. Under `enforcement: strict`, a query that reads that table must filter it with its own placeholder, so it can't be reached through a parent's key or a joined ancestor, and binding that placeholder throws `TenantScopeError` with reason `UNRESOLVED_TENANT_PLACEHOLDER`. So leaving a level out hides its rows. Under `warn`, a read through a parent's key or an ancestor is returned with a warning in `result.tenantGuardrail`; only a read that uses the empty level's own placeholder still fails at binding.
-- **It fails closed.** If `resolveTenantDescendants` is missing, returns an array (the flat shape), returns something other than an object, uses a key that isn't a root in the subtree, returns a value that isn't an array of non-empty strings, or returns no IDs at all, `ask()` throws `TenantScopeError` with reason `SUBTREE_NOT_RESOLVABLE` before calling the model. It never falls back to the seed IDs alone.
+- **An empty level fails closed under `strict`.** A covered root you return no IDs for (missing key or `[]`) stays in the scope with no IDs. Under `enforcement: strict`, a query that reads that table must filter it with its own placeholder. A parent's key or a joined ancestor can't reach it. Binding that placeholder throws `TenantScopeError` with reason `UNRESOLVED_TENANT_PLACEHOLDER`. So leaving a level out hides its rows.
+- **An empty level under `warn`.** A read through a parent's key or an ancestor is returned with a warning in `result.tenantGuardrail`. Only a read that uses the empty level's own placeholder still fails at binding.
+- **It fails closed.** `ask()` throws `TenantScopeError` with reason `SUBTREE_NOT_RESOLVABLE` before calling the model. It never falls back to the seed IDs alone. The cases:
+  - `resolveTenantDescendants` is missing.
+  - It returns an array (the flat shape), or something other than an object.
+  - It uses a key that isn't a root in the subtree.
+  - It returns a value that isn't an array of non-empty strings.
+  - It returns no IDs at all.
 - **Authorization and caching are yours.** AskDB checks which root each ID is filed under, not that it really is a descendant, so cache the closure or apply extra rules inside the callback.
 
 ## How `strict` mode pairs placeholders
 
-In `strict` mode the tenant check enforces the pairing. Each tenant column must be compared with its own root's placeholder, so a model that filters a client column with `:tenant_agency_ids`, or the agency column with `:tenant_client_ids`, is rejected with `TenantGuardrailError`. Every root the expanded scope covers is also checked as a root table: a query that reads `clients` must filter it with `:tenant_client_ids`, not only through `clients.sub_agency_id` or a joined, filtered agency. Each read needs its own predicate in its own `SELECT`, so a mispaired second reference is refused too: for example, a scalar subquery on `clients` compared with `:tenant_agency_ids` beside a read of `clients` filtered with `:tenant_client_ids` ([#399](https://github.com/Ygilany/AskDB/issues/399)). [Known limits](/concepts/tenant-isolation/#known-limits) lists the others. Treat the check as defense in depth.
+In `strict` mode the tenant check enforces the pairing. Each tenant column must be compared with its own root's placeholder. A model that filters a client column with `:tenant_agency_ids` is rejected with `TenantGuardrailError`. So is one that filters the agency column with `:tenant_client_ids`.
+
+Two more rules apply:
+
+- **Every root the expanded scope covers is also checked as a root table.** A query that reads `clients` must filter it with `:tenant_client_ids`, not only through `clients.sub_agency_id` or a joined, filtered agency.
+- **Each read needs its own predicate in its own `SELECT`.** So a mispaired second reference is refused too. For example, take a scalar subquery on `clients` compared with `:tenant_agency_ids`. It is refused beside a read of `clients` filtered with `:tenant_client_ids` ([#399](https://github.com/Ygilany/AskDB/issues/399)).
+
+[Known limits](/concepts/tenant-isolation/#known-limits) lists the others. Treat the check as defense in depth.
 
 ## Walk a hierarchy you hold in memory
 

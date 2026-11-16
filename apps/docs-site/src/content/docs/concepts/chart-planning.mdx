@@ -44,9 +44,11 @@ Columns:
 
 The result had 4 rows: Grace, Margaret, Ada and Linus, with what each spent. None of those names or amounts is in the message. The model learns that the result has 4 rows, a column of names to group by and a column of money, and that the question asks for "highest first". That's enough to answer "a horizontal bar chart of `total_spent` by `name`".
 
-The SQL helps the model tell a ranking from a breakdown, because it shows the grouping and the ordering. But SQL carries values of its own: a filter such as `WHERE customers.country = 'US'` holds a value from the question, and a tenant filter can hold a tenant ID. So `planChart()` replaces every literal with `?` before the model sees the SQL. That filter reaches the model as `WHERE customers.country = ?`. If `planChart()` can't read the SQL safely, for example when a string never closes, the model gets no SQL at all.
+The SQL helps the model tell a ranking from a breakdown, because it shows the grouping and the ordering. But SQL carries values of its own. A filter such as `WHERE customers.country = 'US'` holds a value from the question, and a tenant filter can hold a tenant ID.
 
-Column names do reach the model, as they do in the prompt `ask()` sends. If you keep sensitive columns out of prompts, `planChart()` follows that setting when you pass it the schema artifact. [What the model receives](/reference/client-charts-api/#what-the-model-receives) has the exact rules.
+So `planChart()` replaces every literal with `?` before the model sees the SQL. That filter reaches the model as `WHERE customers.country = ?`. If `planChart()` can't read the SQL safely, the model gets no SQL at all. A string that never closes is one example.
+
+Column names do reach the model, as they do in the prompt `ask()` sends. If you keep sensitive columns out of prompts, `planChart()` follows that setting when you pass it the schema artifact (the files that describe your tables to the model). [What the model receives](/reference/client-charts-api/#what-the-model-receives) has the exact rules.
 
 ## Why AskDB returns a spec, and your application draws it
 
@@ -76,7 +78,9 @@ No pie: a ranking isn't part of a whole.
 
 A pie chart gets the strictest check, because a pie makes a claim: the slices add up to a whole. That's true for one total or count, across a few categories, from a complete result. It's false for an average or a rate, for a result that a row cap cut, and for the top of a ranking. The [part-to-whole policy](/reference/client-charts-api/#the-part-to-whole-policy) lists every case.
 
-When the model's spec fails the checks, or the model call fails or times out, `planChart()` doesn't throw. It picks a chart itself, from the classified columns, by the same rules the model is given. The plan says so: `source` is `"fallback"`, and `fallbackReason` says why. For the example, the fallback picks the same horizontal bar chart, with a plainer title, "Total spent by name". The model's contribution there is the wording. On other results it's the reading of the question: the fallback knows a ranking or a share of a whole only from words such as "top" and "share".
+When the model's pick doesn't work out, `planChart()` doesn't throw. That covers a spec that fails the checks, and a model call that fails or times out. `planChart()` picks a chart itself instead, from the classified columns, by the same rules the model is given. The plan says so: `source` is `"fallback"`, and `fallbackReason` says why.
+
+For the example, the fallback picks the same horizontal bar chart, with a plainer title, "Total spent by name". The model's contribution there is the wording. On other results it's the reading of the question. The fallback knows a ranking or a share of a whole only from words such as "top" and "share".
 
 The kinds that the checks rely on are themselves heuristics. `classifyResult()` reads a column's kind from its name first, then its database type, then its values. A numeric column named `rate` is read as a percent even if it holds a count, and then it's never a pie. The [column kinds](/reference/client-charts-api/#column-kinds) table says what each kind is read from.
 
@@ -91,7 +95,7 @@ The kinds that the checks rely on are themselves heuristics. `classifyResult()` 
 - **You already know the chart.** A fixed dashboard or a saved report has a chart someone chose. Draw it. If you stored a chart spec, `validateChartSpec()` checks it against a new result with no model call.
 - **The result needs a chart the spec can't describe.** A spec has one category column and one of six types: metric, line, area, bar, horizontal bar and pie. It can't describe a scatter plot, a map, or a result with two columns to group by, such as one row per month and region.
 - **You want the model to read the values.** A summary of the result, a note on an outlier, or a title that names the top customer all need the rows. The planner never sends them, so it can't write those.
-- **The second model call costs too much.** Pick the chart with your own rules. A result of one row is a number, and a result with a date column is a line chart, with no model at all.
+- **The second model call, after the one `ask()` makes, costs too much.** Pick the chart with your own rules. A result of one row is a number, and a result with a date column is a line chart, with no model at all.
 
 ## Read next
 

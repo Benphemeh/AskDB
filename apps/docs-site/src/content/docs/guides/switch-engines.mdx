@@ -7,22 +7,31 @@ import { Tabs, TabItem } from "@astrojs/starlight/components";
 import InstallTabs from "../../../components/InstallTabs.astro";
 import AgentPrompt from "../../../components/AgentPrompt.astro";
 
-Most of AskDB is engine-agnostic. The dialect is the part that knows your SQL flavor — change the `dialect` id, and the same schema-author workflow and the same `ask()` call work against a different engine.
+To move your app to another database engine, you install that engine's package, introspect the new database and check which dialect `ask()` uses. The rest of AskDB doesn't change. The dialect is the one part that knows your engine's SQL flavor. With a new `dialect` id, the same enrichment workflow and the same `ask()` call work against the new engine.
 
 ## What stays the same
 
 - The schema artifact format. Same `schema.json`, same `tables/*.md`, same enrichment workflow.
 - The `ask()` API. Same options, same return shape.
-- The SQL checks: must start with `SELECT` or `WITH`, single statement (with a SQL Server caveat), no comments, no write or DDL keywords, no locking reads, no calls to known side-effecting functions, and the heuristic tenant and sensitive-column checks. Per engine, only the detail changes: SQL is split into tokens the way that engine reads strings, quoted identifiers, and comments, and each engine adds its own entries to the keyword denylist, the function denylist, or both. The locking reads rejected follow each engine's syntax too, such as `LOCK IN SHARE MODE` on MySQL and `WITH (UPDLOCK)` on SQL Server. See [Safety boundaries](/concepts/safety-boundaries/).
+- The SQL checks. Every engine's SQL goes through the same checks, and they are heuristics, not a security boundary. See [Safety boundaries](/concepts/safety-boundaries/). The rules:
+  - The SQL starts with `SELECT` or `WITH`.
+  - It is a single statement (with a SQL Server caveat).
+  - It has no comments, no write or DDL keywords, no locking reads and no calls to known side-effecting functions.
+  - The heuristic tenant and sensitive-column checks run.
+
+  Only the detail changes for each engine. Each engine splits SQL into tokens the way it reads strings, quoted identifiers and comments. Each engine adds its own entries to the keyword denylist, the function denylist, or both. The locking reads that the check rejects follow each engine's syntax too, such as `LOCK IN SHARE MODE` on MySQL and `WITH (UPDLOCK)` on SQL Server.
 - The privacy model. The model sees schema, not rows, regardless of engine.
 
 ## What changes
 
 - The engine package you install.
 - The dialect. A direct `ask()` call passes it; the CLI and `@askdb/client` infer it from the schema artifact (see [step 3](#3-update-the-dialect-value-in-ask-calls)).
-- The dialect's prompt brief, which tells the model the engine's SQL (`ILIKE` and `::type` on Postgres, `TOP` on SQL Server), and the read-only check's rules for the engine (extra forbidden keywords and blocked functions).
-- How the prompt `ask()` sends quotes names. A schema, table or column whose name is one of the engine's reserved words is listed quoted the engine's way, so the model copies it quoted, as the table below shows. On Postgres, which folds unquoted names to lowercase, a name with capitals is quoted too, so a Prisma table `Post` is listed as `public."Post"`. Where tables are listed with their schema, the prompt also tells the model that when it quotes a qualified name, it quotes each part separately (`"billing"."order"`, not `"billing.order"`).
-- The driver your app uses to execute (`pg`, `mysql2`, `better-sqlite3`, `mssql`).
+- The dialect's prompt brief. It tells the model the engine's SQL, such as `ILIKE` and `::type` on Postgres, or `TOP` on SQL Server.
+- The read-only check's rules for the engine: extra forbidden keywords and blocked functions.
+- How the prompt `ask()` sends quotes names. The prompt lists a schema, table or column quoted the engine's way when its name is one of the engine's reserved words. The model then copies it quoted, as the table below shows. Two more rules:
+  - **Capitals on Postgres.** Postgres folds unquoted names to lowercase, so a name with capitals is quoted too. A Prisma table `Post` is listed as `public."Post"`.
+  - **Qualified names.** Where the prompt lists tables with their schema, it also tells the model to quote each part of a qualified name separately (`"billing"."order"`, not `"billing.order"`).
+- The driver your app uses to execute. The matrix below lists the suggested driver for each engine.
 - How the CLI introspects the database (connection-string format and catalog queries differ per engine).
 
 ## The matrix
@@ -92,7 +101,9 @@ You can keep the old engine package installed during a transition. Each engine p
 
 ## 2. Introspect the new database (if the schema differs)
 
-If you are pointing at a different database instance — one that may have a different set of tables or columns — run introspection against it to regenerate the physical layer of the schema artifact:
+Skip this step when the logical schema is identical and you only swap the engine package. The existing artifact is already valid, so go straight to step 3.
+
+A different database instance may have different tables or columns. For that, run introspection against it. It regenerates the physical layer of the schema artifact:
 
 <Tabs syncKey="engine">
   <TabItem label="PostgreSQL">
@@ -134,7 +145,12 @@ export default {
 };
 ```
 
-A foreign key into a database that wasn't introspected has no target in the artifact, so it is dropped with a `cross_database_fk` warning that names the constraint and the referenced database. Without a database list that is every foreign key into another database; with one, it is every foreign key into a database missing from the list.
+A foreign key into a database that wasn't introspected has no target in the artifact. Introspection drops it with a `cross_database_fk` warning that names the constraint and the referenced database.
+
+- **No database list.** The warning covers every foreign key into another database.
+- **A database list.** It covers every foreign key into a database missing from the list.
+
+The database list is the `schemas` setting in the config above.
 
   </TabItem>
   <TabItem label="SQLite">
@@ -160,7 +176,7 @@ Then run:
 npx askdb introspect --out my-app.schema --schema-id my-app
 ```
 
-SQLite has no schemas, so its tables appear under the `public` namespace (table ids like `table:public.orders`), and the prompt `ask()` sends lists them unqualified (`orders`).
+SQLite has no schemas, so its tables appear under the `public` namespace, in table ids like `table:public.orders`. The prompt `ask()` sends lists them unqualified (`orders`).
 
   </TabItem>
   <TabItem label="SQL Server">
@@ -189,13 +205,15 @@ pnpm dlx -p askdb -p mysql2 askdb introspect --engine mysql --url "$MYSQL_URL"
 npx -p askdb -p mssql askdb introspect --engine sqlserver --url "$SQLSERVER_URL"
 ```
 
-If the logical schema is identical and you are only swapping the engine package, the existing artifact is already valid — skip this step and go straight to step 3.
-
 ## 3. Update the `dialect` value in `ask()` calls
 
 The schema artifact records which engine it was introspected from. The CLI (`askdb ask`) and `@askdb/client` use it to infer the dialect, so those entry points need no update. A `dialect` set in `askdb.config.ts` takes precedence over the artifact's engine: remove it, or change it, when you switch.
 
-This holds for Prisma-introspected artifacts too: the connector reads the `datasource.provider` from your `.prisma` file (`postgresql` → `postgres`, `mysql`, `sqlite`, `sqlserver`, `cockroachdb`) and records it, so `askdb ask` still knows the dialect without a live database.
+This holds for Prisma-introspected artifacts too. The connector reads the `datasource.provider` from your `.prisma` file and records it, so `askdb ask` knows the dialect without a live database. The mapping:
+
+- `postgresql` becomes `postgres`.
+- `mysql`, `sqlite` and `sqlserver` keep their names.
+- So does `cockroachdb`.
 
 When using `@askdb/client` with no `dialect` in the config, the dialect resolves from the schema artifact's recorded provider, the same inference the CLI uses. No code change is needed after a dialect switch if the new artifact declares the correct provider.
 
@@ -208,7 +226,13 @@ const { sql } = await askdb.ask(question, {
 });
 ```
 
-All six dialect specs (`postgres`, `cockroachdb`, `mysql`, `mariadb`, `sqlite`, `sqlserver`) ship inside `@askdb/core`. The engine packages (`@askdb/mysql`, `@askdb/postgres`, ...) supply the *introspection* connector for that engine (and re-export its dialect constant for convenience); you need them to introspect, not to generate.
+All six dialect specs ship inside `@askdb/core`. The dialect ids are:
+
+- `postgres` and `cockroachdb`.
+- `mysql` and `mariadb`.
+- `sqlite` and `sqlserver`.
+
+The engine packages (`@askdb/mysql`, `@askdb/postgres` and the rest) supply the *introspection* connector for that engine, and re-export its dialect constant for convenience. You need them to introspect, not to generate.
 
 ## 4. Update your driver
 

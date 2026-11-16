@@ -15,9 +15,9 @@ The NL-to-SQL pipeline. Schema loading, prompt construction, validation, tenant-
 
 <InstallTabs pkgs="@askdb/core ai" />
 
-`ai` (the Vercel AI SDK) is a required **peer dependency** of `@askdb/core`, with the range `^6.0.0 || ^7.0.51` (AI SDK 6, or 7.0.51 and later). Your app owns its version: `ask()` receives a model your app constructs, so core uses your app's `ai` instead of bundling its own — upgrading AskDB never forces an AI SDK upgrade on the rest of your app. Build the model with an AI SDK provider package (for example `@ai-sdk/openai`), or through the config-driven path (`@askdb/ai` and `@askdb/client`), which currently requires AI SDK 7.
+`ai` (the Vercel AI SDK) is a required **peer dependency** of `@askdb/core`, with the range `^6.0.0 || ^7.0.51` (AI SDK 6, or 7.0.51 and later). Your app owns its version. `ask()` receives a model your app constructs, so core uses your app's `ai` instead of bundling its own. Upgrading AskDB never forces an AI SDK upgrade on the rest of your app. Build the model with an AI SDK provider package (for example `@ai-sdk/openai`), or through the config-driven path (`@askdb/ai` and `@askdb/client`), which currently requires AI SDK 7.
 
-Every package on this page that depends on `@askdb/core` also needs `ai` installed, even if you only introspect and never generate SQL, because core loads `ai` when it is imported. The four engine packages, `@askdb/introspect`, `@askdb/prisma` and `@askdb/enrich` declare `ai` as a peer with core's range, `@askdb/client` declares it as a peer (AI SDK 7), and `@askdb/rag` as an optional peer. Under Yarn Plug'n'Play, each one passes your app's `ai` through to core. npm 7+ and pnpm install the missing peer for you. Yarn doesn't, so the install commands on this page list `ai` explicitly.
+Every package on this page that depends on `@askdb/core` also needs `ai` installed, even if you only introspect and never generate SQL, because core loads `ai` when it is imported. These packages declare `ai` as a peer with core's range: the four engine packages, `@askdb/introspect`, `@askdb/prisma` and `@askdb/enrich`. `@askdb/client` declares it as a peer (AI SDK 7), and `@askdb/rag` as an optional peer. Under Yarn Plug'n'Play, each one passes your app's `ai` through to core. npm 7+ and pnpm install the missing peer for you. Yarn doesn't, so the install commands on this page list `ai` explicitly.
 
 **Key exports**
 
@@ -105,7 +105,12 @@ The engine-agnostic introspection contract and the schema-directory writer. Use 
 
 <InstallTabs pkgs="@askdb/introspect ai" />
 
-Its API is in the [Introspection API reference](/reference/introspect-api/): `introspect()`, the schema writer (`renderToSchemaV2()`, `renderSchemaV2Body()`), the connector registry that config-driven hosts use to pick an engine by id, and the `@askdb/introspect/kit` helpers for writing a connector for a new engine.
+Its API is in the [Introspection API reference](/reference/introspect-api/):
+
+- `introspect()`
+- the schema writer (`renderToSchemaV2()`, `renderSchemaV2Body()`)
+- the connector registry that config-driven hosts use to pick an engine by id
+- the `@askdb/introspect/kit` helpers for writing a connector for a new engine
 
 ### `@askdb/prisma`
 
@@ -113,7 +118,7 @@ File-only connector that reads `.prisma` schema files and produces AskDB physica
 
 <InstallTabs pkgs="@askdb/prisma @askdb/introspect ai" />
 
-`askdb` and `@askdb/studio` list it as an optional peer and load it only for Prisma introspection, so install it next to them to introspect a Prisma schema from the CLI or Studio. It depends on Prisma, whose `@prisma/engines` build pnpm 11 must approve. See [the Prisma integration guide](/guides/integrations/prisma/#install).
+`askdb` and `@askdb/studio` list it as an optional peer and load it only for Prisma introspection. To introspect a Prisma schema from the CLI or Studio, install it next to them. It depends on Prisma, whose `@prisma/engines` build pnpm 11 must approve. See [the Prisma integration guide](/guides/integrations/prisma/#install).
 
 ## Authoring
 
@@ -152,13 +157,13 @@ Headless schema-authoring helpers used by Studio. Use directly when building a c
 | `saveTenantPolicy(workspace, frontmatter, body)` | Save `tenant-policy.md`. Throws `SchemaParseError`, and writes nothing, if `loadSchema()` would reject the policy. |
 | `bundleSchemaDirectory(schemaDir)` | Bundle a schema directory into one JSON object, as `askdb bundle` does. Reads it with `@askdb/core`'s `readSchemaDirectory(schemaDir)`, then checks the bundle with core's loader: a directory `loadSchema()` refuses throws its `SchemaParseError`, naming the file, so a bundle it returns always loads. |
 
-The save functions write only inside the schema directory, through `@askdb/core`'s `saveSchemaFile()`. Each one refuses to write when the target file, or `tables/` for a table file, is a symbolic link, and saves through a temporary file renamed over the target, so a save is atomic and a hard link is replaced rather than written through.
+The save functions write only inside the schema directory, through `@askdb/core`'s `saveSchemaFile()`. Each one refuses to write when the target file, or `tables/` for a table file, is a symbolic link. Each one saves through a temporary file renamed over the target, so a save is atomic and a hard link is replaced rather than written through.
 
 ## Retrieval
 
 ### `@askdb/rag`
 
-Chunks the schema artifact, indexes it in a vector store, and retrieves relevant chunks per question. Use with `ask()`'s `retriever` option for large schemas. Always install `ai`: `@askdb/rag` depends on `@askdb/core`, which loads `ai` when it is imported, even with a custom embedder or the in-memory or file store. Install `@ai-sdk/openai` and `pg` only if your embedder and vector store use them; they are optional peers. Their AI SDK 7 floors (`ai` `^7.0.51`, `@ai-sdk/openai` `^4.0.29`) move the same way as the adapters' `ai` floor; the AI SDK 6 floors (`^6.0.0`, `^3.0.0`) move only on purpose, with the AI SDK 6 install smoke's pins.
+Chunks the schema artifact, indexes it in a vector store, and retrieves relevant chunks per question. Use with `ask()`'s `retriever` option for large schemas. Always install `ai`: `@askdb/rag` depends on `@askdb/core`, which loads `ai` when it is imported, even with a custom embedder or the in-memory or file store. Install `@ai-sdk/openai` and `pg` only if your embedder and vector store use them; they are optional peers. Their AI SDK 7 floors (`ai` `^7.0.51`, `@ai-sdk/openai` `^4.0.29`) move the same way as the adapters' `ai` floor. The AI SDK 6 floors (`^6.0.0`, `^3.0.0`) move only on purpose, with the AI SDK 6 install smoke's pins.
 
 <InstallTabs pkgs="@askdb/rag ai" />
 

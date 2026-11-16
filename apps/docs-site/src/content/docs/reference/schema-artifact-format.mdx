@@ -138,7 +138,7 @@ The physical layer: the tables and columns AskDB read from the database. Here it
 - No `sensitive` key. Introspection can't know whether a table or column is sensitive, so it writes `"sensitive": true` only where the `schema.json` it re-introspects over already has it. Versions before 1.0.0-rc.2 wrote `"sensitive": false` everywhere, which still loads and means the same as no key.
 - `"primaryKey": true` on primary-key columns only, and `relationships` only on tables with foreign keys.
 - For Postgres, the short type names: `timestamptz` for `timestamp with time zone`, `varchar(…)` for `character varying(…)`. Other engines' types are written as the engine reports them.
-- For SQLite, `"nullable": false` on a primary key that aliases `rowid`: a table's only primary-key column, declared `INTEGER`, in a table that isn't `WITHOUT ROWID`, however the key is written (`integer primary key`, `AUTOINCREMENT`, or `PRIMARY KEY (id)`). SQLite reports it as nullable, but it can never hold `NULL`. Other SQLite primary keys keep the nullability SQLite reports, since a table that isn't `WITHOUT ROWID` accepts `NULL` in them.
+- For SQLite, `"nullable": false` on a primary key that aliases `rowid`. Such a key is a table's only primary-key column, declared `INTEGER`, in a table that isn't `WITHOUT ROWID`, however the key is written (`integer primary key`, `AUTOINCREMENT`, or `PRIMARY KEY (id)`). SQLite reports it as nullable, but it can never hold `NULL`. Other SQLite primary keys keep the nullability SQLite reports, since a table that isn't `WITHOUT ROWID` accepts `NULL` in them.
 
 `schema.json` holds no column comments, defaults, indexes, or unique or check constraints.
 
@@ -343,7 +343,7 @@ A bundle is one JSON file that holds a whole artifact. Loading it gives the same
 
 ## Versioning
 
-This is the only format AskDB reads. Until 1.0.0 stable, release candidates included, it can still change in place without a new `version` number, and a change that asks something of your schema comes with an upgrade note. From 1.0.0, a breaking change to the format gets a new `version`. The [schema artifact contract](https://github.com/Ygilany/AskDB/blob/main/docs/contracts/schema-v2.md) records the policy.
+This is the only format AskDB reads. Until 1.0.0 stable, release candidates included, it can still change in place without a new `version` number. A change that asks something of your schema comes with an upgrade note. From 1.0.0, a breaking change to the format gets a new `version`. The [schema artifact contract](https://github.com/Ygilany/AskDB/blob/main/docs/contracts/schema-v2.md) records the policy.
 
 ## Read next
 
