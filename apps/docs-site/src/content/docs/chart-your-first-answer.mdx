@@ -336,7 +336,9 @@ Try another question. Change `question` to "How many units of each product were 
 
 Add a chart of a query result to this project by following the tutorial at https://askdb.tools/chart-your-first-answer.md, against this project's own database and one of its own questions instead of the sample shop database.
 
-The goal: a script that asks the question with `ask()`, runs the SQL through the project's own read-only connection, classifies the result with `classifyResult()`, plans a chart with `planChart()`, and draws it with ECharts from the project's own rows.
+The goal: a script that asks the question with `ask()`, runs the SQL through the project's own read-only connection, classifies the result with `classifyResult()`, plans a chart with `planChart()`, and draws it from the project's own rows.
+
+Draw with the charting library this project already uses. Look for one in its dependencies first, such as Recharts (shadcn/ui charts are Recharts), Chart.js, ECharts, Vega-Lite or D3. If the project has none, ask which one to add; the tutorial uses ECharts. Then write one function that maps the chart spec to that library's config, as the tutorial's `to-echarts.mjs` does for ECharts: `type` picks the chart, `category` and `series` name columns of the rows, and `title` and `description` are its text.
 
 - AskDB returns SQL and a chart spec. It runs no SQL and draws nothing: this project's code does both.
 - Never put a row in a prompt. `planChart()` gets the question, the SQL and the classified result.

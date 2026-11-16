@@ -314,6 +314,8 @@ Add a chart to the place where this project shows a query result from AskDB. Fol
 Constraints:
 
 - AskDB returns SQL and a chart spec. This application runs the SQL and draws the chart from its own rows, with its own charting library.
+- Use the charting library this project already has. Look for one in its dependencies first, such as Recharts (shadcn/ui charts are Recharts), Chart.js, ECharts, Vega-Lite or D3. If it has none, ask which one to add. Don't add a second library beside one that is there.
+- Write one function or component that maps the chart spec to that library's config. `type` picks the chart, `category` and `series` name columns of the rows, and `title` and `description` are its text. The guide's `to-echarts.mjs` is the ECharts version: port it, covering all six types, with `metric` as a number and not a chart.
 - Pass `classifyResult()` the result's columns, row count and `truncated` flag. Never put a row in a prompt.
 - `@askdb/client/charts` is experimental. Draw `plan.primary` when it is set, show the table when it is `null`, and log `plan.fallbackReason` and `plan.issues`.
 
