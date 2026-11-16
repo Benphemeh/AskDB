@@ -18,6 +18,7 @@ const buildDir = fileURLToPath(new URL("../node_modules/.cache/askdb-spec-chart-
 let window;
 let React;
 let createRoot;
+let renderToString;
 let SpecChart;
 let Answer;
 
@@ -64,6 +65,7 @@ before(async () => {
   const require = createRequire(buildDir);
   React = require("react");
   ({ createRoot } = require("react-dom/client"));
+  ({ renderToString } = require("react-dom/server"));
   ({ SpecChart, Answer } = require(`${buildDir}components.cjs`));
 });
 
@@ -81,6 +83,12 @@ async function render(component, props) {
   return { container, unmount: () => React.act(() => root.unmount()) };
 }
 
+/** Moves the mouse over the middle of the chart, so Recharts shows its tooltip. */
+async function hover(container) {
+  const event = new window.MouseEvent("mousemove", { bubbles: true, clientX: 320, clientY: 180 });
+  await React.act(async () => container.querySelector(".recharts-wrapper").dispatchEvent(event));
+}
+
 const texts = (element, selector) => [...element.querySelectorAll(selector)].map((node) => node.textContent);
 /** The tick labels Recharts drew along one axis: "xAxis" (horizontal) or "yAxis" (vertical). */
 const ticks = (container, axis) => texts(container, `.recharts-${axis}-tick-labels .recharts-cartesian-axis-tick-value`);
@@ -94,7 +102,6 @@ test("SpecChart draws the recorded run's horizontal bar chart, with the names on
   assert.deepEqual(ticks(container, "yAxis"), run.rows.map((row) => row.name), "the names, top to bottom, on the vertical axis");
   assert.ok(ticks(container, "xAxis").every((tick) => /^[\d,.]+$/.test(tick)), "numbers on the horizontal axis");
   assert.equal(container.querySelectorAll(".recharts-bar-rectangle path").length, run.rows.length);
-  assert.ok(container.querySelector("style").textContent.includes("--color-total_spent: var(--chart-1);"), "the ChartConfig color");
   await unmount();
 });
 
@@ -107,6 +114,63 @@ test("a column name with a space keeps its color", async () => {
   const bars = [...container.querySelectorAll(".recharts-bar-rectangle path")];
   assert.equal(bars.length, 2);
   assert.ok(bars.every((bar) => bar.getAttribute("fill") === "var(--chart-1)"), "each bar is filled with the first chart color");
+  await unmount();
+});
+
+test("series keep their colors in the legend and the tooltip", async () => {
+  // The ChartConfig holds no colors, so the swatches take theirs from the lines, areas and bars.
+  const spec = { type: "line", category: "month", series: ["revenue", "orders"], title: "Revenue", description: "d" };
+  const rows = [{ month: "2026-01", revenue: 398, orders: 2 }, { month: "2026-02", revenue: 377, orders: 1 }];
+  const { container, unmount } = await render(SpecChart, { spec, rows });
+  const swatches = [...container.querySelectorAll(".recharts-legend-wrapper > div > div > div")].map((swatch) => swatch.style.backgroundColor);
+  assert.deepEqual(swatches, ["var(--chart-2)", "var(--chart-1)"], "orders, then revenue: Recharts sorts the legend by name");
+  await hover(container);
+  const dots = [...container.querySelectorAll(".recharts-tooltip-wrapper .shrink-0")].map((dot) => dot.style.getPropertyValue("--color-bg"));
+  assert.deepEqual(dots, ["var(--chart-1)", "var(--chart-2)"]);
+  await unmount();
+});
+
+test("a column name or value from the SQL never reaches a <style> element", async () => {
+  // The model writes the SQL, so it picks the column aliases. shadcn's ChartStyle writes each
+  // ChartConfig key that has a color into a <style> element, so the config has no colors.
+  for (const name of ["</style><img src=x onerror=alert(1)>", "x}body{display:none}"]) {
+    const specs = [
+      { type: "bar", category: "month", series: [name, "orders"] }, // as a series
+      { type: "bar", category: name, series: ["revenue"] }, // as the category
+      { type: "pie", category: name, series: ["revenue"] }, // as the category of a pie, and a slice
+    ];
+    for (const shape of specs) {
+      const spec = { ...shape, title: "t", description: "d" };
+      const rows = [{ month: "2026-01", [name]: name, revenue: 398, orders: 2 }, { month: "2026-02", [name]: "b", revenue: 377, orders: 1 }];
+      if (spec.series[0] === name) for (const row of rows) row[name] = row.revenue;
+      const html = renderToString(React.createElement(SpecChart, { spec, rows }));
+      assert.ok(!html.includes("<img"), `server: ${html}`);
+      assert.ok(!html.includes("<style") && !html.includes("</style>"), `server: ${html}`);
+      const { container, unmount } = await render(SpecChart, { spec, rows });
+      assert.equal(container.querySelector("img"), null);
+      assert.ok(container.textContent.includes(name), "the name is drawn as text");
+      assert.ok([...window.document.querySelectorAll("style")].every((style) => !style.textContent.includes(name)));
+      await unmount();
+    }
+  }
+});
+
+test("a pie draws numbers that the driver returns as strings", async () => {
+  // node-postgres returns bigint and numeric columns as strings.
+  const spec = { type: "pie", category: "status", series: ["orders"], title: "Orders", description: "By status." };
+  const { container, unmount } = await render(SpecChart, { spec, rows: [{ status: "paid", orders: "12" }, { status: "refunded", orders: "3" }] });
+  assert.equal(container.querySelectorAll(".recharts-pie-sector path").length, 2);
+  await unmount();
+});
+
+test("a pie of 8 slices gives each slice its own color and a legend entry", async () => {
+  const names = ["a", "b", "c", "d", "e", "f", "g", "h"];
+  const spec = { type: "pie", category: "name", series: ["total"], title: "Total", description: "By name." };
+  const { container, unmount } = await render(SpecChart, { spec, rows: names.map((name, index) => ({ name, total: index + 1 })) });
+  const fills = [...container.querySelectorAll(".recharts-pie-sector path")].map((path) => path.getAttribute("fill"));
+  assert.equal(fills.length, 8);
+  assert.equal(new Set(fills).size, 8, `distinct fills: ${fills}`);
+  assert.deepEqual(texts(container, ".recharts-legend-wrapper > div > div"), names);
   await unmount();
 });
 

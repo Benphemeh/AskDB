@@ -66,7 +66,7 @@ The model's answer is a chart spec with five fields: a chart type, a category co
 
 AskDB could have asked the model for chart code instead, such as a Vega-Lite document or a React component. It doesn't, for two reasons. Chart code is code your application would have to run. And a check can't tell what such code plots. A spec that only names columns is data, and every field in it can be checked against the result.
 
-AskDB also doesn't draw the chart. Your application already holds the rows, and it already has a design system and, often, a charting library. A chart that AskDB drew would need the rows passed back in, and would look like AskDB's idea of your product. So the split follows the one for SQL: AskDB returns SQL and your application runs it; AskDB returns a chart spec and your application draws it. [Chart a query result](/guides/plan-a-chart/) maps the spec onto ECharts in about 30 lines.
+AskDB also doesn't draw the chart. Your application already holds the rows, and it already has a design system and, often, a charting library. A chart that AskDB drew would need the rows passed back in, and would look like AskDB's idea of your product. So the split follows the one for SQL: AskDB returns SQL and your application runs it; AskDB returns a chart spec and your application draws it. [Chart a query result](/guides/plan-a-chart/) maps the spec onto ECharts in about 30 lines, and onto shadcn/ui charts in one React component.
 
 ## When the model's pick doesn't fit
 
@@ -100,6 +100,6 @@ The kinds that the checks rely on are themselves heuristics. `classifyResult()` 
 ## Read next
 
 - [Chart your first answer](/chart-your-first-answer/): The tutorial: draw a first chart in the Quickstart's project.
-- [Chart a query result](/guides/plan-a-chart/): Classify a result, plan a chart and draw it with ECharts.
+- [Chart a query result](/guides/plan-a-chart/): Classify a result, plan a chart and draw it with ECharts or shadcn/ui charts.
 - [@askdb/client/charts API](/reference/client-charts-api/): Every option, type and check.
 - [Privacy model](/concepts/privacy-model/): Everything AskDB sends to your model provider.
