@@ -120,6 +120,7 @@ Some roles and objects skip row-level security. Each of these returns every tena
 
 - **The table owner.** Postgres doesn't apply a table's policies to its owner. Run AskDB's SQL as a role that doesn't own the tables. If some code must read them as the owner, `ALTER TABLE documents FORCE ROW LEVEL SECURITY;` applies the policies to the owner too. Under `FORCE`, an owner with no policy of its own sees no rows, so check what else connects as the owner before you turn it on.
 - **Superusers and `BYPASSRLS` roles.** They skip row-level security even under `FORCE`. Never run AskDB's SQL as one.
+- **Planner statistics.** `pg_stats` and the extended-statistics views hold values sampled from a table's rows. Postgres hides a table's planner statistics from a role that table's row-level security applies to, so the three roles above read every tenant's sampled values there and `askdb_reader` reads none. AskDB's tenant check also refuses SQL that names one of these relations (`UNCHECKABLE_RELATION`).
 - **Views.** A view reads its tables with its owner's rights, so a view the table owner created skips the policies. Make each view the role can read run as the caller: `ALTER VIEW document_counts SET (security_invoker = true);`.
 - **Materialized views.** They hold a copy their owner read, with every tenant's rows, and take no `security_invoker`. Don't grant them to `askdb_reader`.
 - **Foreign tables.** Postgres doesn't support row-level security on a foreign table, so the remote server decides what it returns. Don't grant them to `askdb_reader`.
