@@ -21,6 +21,7 @@ import { Textarea } from "../../components/ui/textarea";
 import { StatusBanner } from "../../components/common/StatusBanner";
 import type { StatusMessage } from "../../contexts/workspace-context";
 import type { StudioTableDto, SuggestTenantPolicyResponse } from "@/shared/api";
+import { columnOptions, manualTenantPolicyFrontmatter, type ManualTenantPolicyForm } from "../../lib/manual-tenant-policy";
 
 export function TenancyPage() {
   const {
@@ -305,18 +306,13 @@ function TenancyEditSavedPolicy({
   );
 }
 
-type CreateFormState = {
+type CreateFormState = ManualTenantPolicyForm & {
   mode: "choose" | "manual" | "review";
   draftStatus: StatusMessage | null;
   draftFrontmatter: TenantPolicyFrontmatter | null;
   draftBody: string;
   /** Studio's warnings for an AI draft: the keys withheld from the model as sensitive. */
   draftWarnings: string[];
-  enforcement: "strict" | "warn";
-  rootTableId: string;
-  rootTenantIdColumn: string;
-  rootLabel: string;
-  globalTableIds: string[];
 };
 
 type CreateFormAction =
@@ -329,6 +325,7 @@ type CreateFormAction =
   | { type: "set_rootLabel"; payload: string }
   | { type: "select_root_table"; tableId: string; label: string }
   | { type: "toggle_global_table"; tableId: string; checked: boolean }
+  | { type: "set_scoped_table_column"; tableId: string; column: string }
   | { type: "ai_draft_complete"; frontmatter: TenantPolicyFrontmatter; body: string; warnings: string[] }
   | { type: "manual_to_review"; frontmatter: TenantPolicyFrontmatter; body: string };
 
@@ -352,6 +349,10 @@ function createFormReducer(state: CreateFormState, action: CreateFormAction): Cr
       globalTableIds: action.checked
         ? [...state.globalTableIds, action.tableId]
         : state.globalTableIds.filter((id) => id !== action.tableId),
+    };
+    case "set_scoped_table_column": return {
+      ...state,
+      scopedTableColumns: { ...state.scopedTableColumns, [action.tableId]: action.column },
     };
     case "ai_draft_complete": return {
       ...state,
@@ -382,6 +383,7 @@ const initialCreateFormState: CreateFormState = {
   rootTenantIdColumn: "",
   rootLabel: "",
   globalTableIds: [],
+  scopedTableColumns: {},
 };
 
 function TenancyCreateForm({
@@ -402,10 +404,11 @@ function TenancyCreateForm({
   saveStatus: StatusMessage | null;
 }) {
   const [state, dispatch] = useReducer(createFormReducer, initialCreateFormState);
-  const { mode, draftStatus, draftFrontmatter, draftBody, draftWarnings, enforcement, rootTableId, rootTenantIdColumn, rootLabel, globalTableIds } = state;
+  const { mode, draftStatus, draftFrontmatter, draftBody, draftWarnings, enforcement, rootTableId, rootTenantIdColumn, rootLabel, globalTableIds, scopedTableColumns } = state;
 
   const selectedRootTable = tables.find((t) => t.physical.id === rootTableId);
-  const rootColumns = selectedRootTable?.physical.columns ?? [];
+  const manualFrontmatter = manualTenantPolicyFrontmatter(schemaId, state);
+  const scopableTables = tables.filter((t) => t.physical.id !== rootTableId && !globalTableIds.includes(t.physical.id));
 
   async function handleDraftWithAi() {
     dispatch({ type: "set_draftStatus", payload: { kind: "loading", text: "Analyzing schema and drafting tenant policy..." } });
@@ -418,22 +421,14 @@ function TenancyCreateForm({
   }
 
   function handleManualToReview() {
-    if (!rootTableId || !rootTenantIdColumn || !rootLabel.trim()) return;
-    const frontmatter: TenantPolicyFrontmatter = {
-      schemaId,
-      enforcement,
-      roots: [{ id: rootTableId, tenantIdColumn: rootTenantIdColumn, label: rootLabel.trim() }],
-      ...(globalTableIds.length > 0 ? { globalTables: globalTableIds } : {}),
-    };
-    dispatch({ type: "manual_to_review", frontmatter, body: "# Tenant Policy\n\n\n\n## Hierarchy\n\n\n\n## Scope Rules\n\n\n\n## Sensitive Interactions\n\n" });
+    if (!manualFrontmatter) return;
+    dispatch({ type: "manual_to_review", frontmatter: manualFrontmatter, body: "# Tenant Policy\n\n\n\n## Hierarchy\n\n\n\n## Scope Rules\n\n\n\n## Sensitive Interactions\n\n" });
   }
 
   function handleConfirm() {
     if (!draftFrontmatter) return;
     void onSave(draftFrontmatter, draftBody || undefined);
   }
-
-  const manualCanProceed = rootTableId && rootTenantIdColumn && rootLabel.trim();
 
   if (mode === "choose") {
     return (
@@ -486,7 +481,7 @@ function TenancyCreateForm({
                     <h3 style={{ fontWeight: 600 }}>Configure manually</h3>
                   </div>
                   <p className="muted" style={{ fontSize: 13 }}>
-                    Pick the tenant root table and column yourself, then review before saving.
+                    Pick the tenant root, its column, and the scoped and global tables yourself, then review before saving.
                   </p>
                 </div>
               </button>
@@ -539,8 +534,8 @@ function TenancyCreateForm({
                         onChange={(e) => dispatch({ type: "set_rootTenantIdColumn", payload: e.target.value })}
                       >
                         <option value="">Select a column...</option>
-                        {rootColumns.map((col) => (
-                          <option key={col.id} value={col.name}>{col.name} ({col.type}{col.primaryKey ? ", PK" : ""})</option>
+                        {selectedRootTable && columnOptions(selectedRootTable.physical).map((opt) => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
                         ))}
                       </select>
                     </Field>
@@ -592,8 +587,39 @@ function TenancyCreateForm({
               </div>
             </section>
 
+            <section className="card">
+              <div className="card-hd"><h3>Scoped Tables (optional)</h3></div>
+              <div className="card-bd">
+                <p className="muted" style={{ fontSize: 13, marginBottom: 8 }}>
+                  A scoped table's rows belong to one tenant. For each one, pick the column that holds the root's tenant ID.
+                  A table that is neither scoped nor global stays unknown, and strict enforcement rejects queries that read it.
+                  Add a table that reaches the root only through a join in the file, or with Draft with AI.
+                </p>
+                {rootTableId ? (
+                  <div style={{ display: "grid", gap: 8 }}>
+                    {scopableTables.map((t) => (
+                      <Field key={t.physical.id} label={`${t.physical.schema}.${t.physical.name}`}>
+                        <select
+                          className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          value={scopedTableColumns[t.physical.id] ?? ""}
+                          onChange={(e) => dispatch({ type: "set_scoped_table_column", tableId: t.physical.id, column: e.target.value })}
+                        >
+                          <option value="">Not scoped</option>
+                          {columnOptions(t.physical).map((opt) => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </select>
+                      </Field>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="muted tiny">Pick the root table first.</p>
+                )}
+              </div>
+            </section>
+
             <div style={{ display: "flex", justifyContent: "flex-end" }}>
-              <button type="button" className="btn primary" onClick={handleManualToReview} disabled={!manualCanProceed}>
+              <button type="button" className="btn primary" onClick={handleManualToReview} disabled={!manualFrontmatter}>
                 <ChevronRight size={14} /> Review & Confirm
               </button>
             </div>

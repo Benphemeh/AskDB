@@ -109,7 +109,9 @@ Concepts reach the model in both Playground modes: **Full schema** lists every c
 The Tenancy view declares tenant isolation for a multi-tenant schema. Start the policy one of two ways:
 
 - **Draft with AI** has your model propose a tenant policy.
-- **Configure manually** has you pick the tenant root table, its tenant ID column and an enforcement mode (**Strict** or **Warn**).
+- **Configure manually** has you pick the tenant root table, its tenant ID column and an enforcement mode (**Strict** or **Warn**). You also mark the global tables, and for each scoped table you pick the column that holds the root's tenant ID.
+
+The manual form declares one root, and it scopes a table only by a column on that table. Add a table that reaches the root through a join in `tenant-policy.md`, or with **Draft with AI**. A table that is neither scoped nor global stays unknown, and **Strict** rejects queries that read it.
 
 Either way, you review the policy before **Save** writes `tenant-policy.md`. A saved policy shows its table coverage and an **Edit** button.
 
