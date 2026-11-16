@@ -81,7 +81,7 @@ Some schemas are too large for one prompt. For those, you pass a [retriever](/gu
 Three details:
 
 - The retriever comes from `@askdb/rag`.
-- Retrieval matches the words in your enrichment. A table with no description, reached only through a join, can be left out, and the model then guesses its columns. A concept brings every table it links. [Find the right tables in a large schema](/find-the-right-tables/) shows a case.
+- Retrieval matches the words in your enrichment. A table with no description, reached only through a join, can be left out, and the model then guesses its columns. A concept brings every table it links. [Find the right tables with RAG](/find-the-right-tables/) shows a case.
 - A small schema can skip retrieval even with a retriever. To allow that, also pass the artifact's chunk count. At or below `retrievalThresholdChunks` chunks, 30 by default, AskDB uses the whole artifact.
 
 ### 3. Build the prompt

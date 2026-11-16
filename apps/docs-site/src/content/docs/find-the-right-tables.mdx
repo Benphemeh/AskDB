@@ -1,12 +1,12 @@
 ---
-title: "Find the right tables in a large schema"
-description: "Ask a 63-table schema a revenue question with retrieval on, see a wrong answer when retrieval leaves out a table, and fix it by describing that table and the business term."
+title: "Find the right tables with RAG"
+description: "Set up RAG on a 63-table schema, see it leave out a table and return a wrong answer, then fix it by describing that table and the business term."
 ---
 
 import AgentPrompt from "../../components/AgentPrompt.astro";
 import ExampleLink from "../../components/ExampleLink.astro";
 
-In this tutorial, you'll ask a 63-table schema for its monthly recurring revenue, with retrieval choosing the tables the model sees. The first answer is wrong, because retrieval leaves out the table that holds the prices. You'll find out why, describe that table and the revenue term, and get the right figure.
+In this tutorial, you'll ask a 63-table schema for its monthly recurring revenue, with retrieval choosing the tables the model sees. That's RAG (retrieval-augmented generation): AskDB retrieves part of the schema for each question. The first answer is wrong, because retrieval leaves out the table that holds the prices. You'll find out why, describe that table and the revenue term, and get the right figure.
 
 ## Before you start
 

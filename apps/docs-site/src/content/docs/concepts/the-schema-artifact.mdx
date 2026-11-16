@@ -107,7 +107,7 @@ The prompt carries this text and the question. It never carries your rows, your 
 Two additions:
 
 - **A schema with a tenant policy.** The prompt also carries a tenant policy block and the `context` from your `tenantScope`, as advisory text. The `tenantScope` is the caller's tenants, which your application passes on each call. The block names tenant IDs only by placeholder, such as `:tenant_agency_ids`, never by value. [Privacy model](/concepts/privacy-model/) has the full list of what reaches the model.
-- **A schema too large to send whole.** AskDB renders only the tables the retrieved chunks point to, in the same form. Retrieval matches the enrichment layer's words, so a table with no description is easy to miss, and a concept brings every table it links. See [RAG for large schemas](/guides/rag-for-large-schemas/) and the tutorial [Find the right tables in a large schema](/find-the-right-tables/).
+- **A schema too large to send whole.** AskDB renders only the tables the retrieved chunks point to, in the same form. Retrieval matches the enrichment layer's words, so a table with no description is easy to miss, and a concept brings every table it links. See [RAG for large schemas](/guides/rag-for-large-schemas/) and the tutorial [Find the right tables with RAG](/find-the-right-tables/).
 
 ## Directory or bundle
 

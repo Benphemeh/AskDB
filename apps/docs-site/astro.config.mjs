@@ -175,7 +175,7 @@ export default defineConfig({
             { label: "Overview", slug: "index" },
             { label: "Quickstart", slug: "quickstart" },
             { label: "Chart your first answer", slug: "chart-your-first-answer", badge: { text: "Experimental", variant: "caution" } },
-            { label: "Find the right tables", slug: "find-the-right-tables" },
+            { label: "Find tables with RAG", slug: "find-the-right-tables" },
             { label: "Install", slug: "install" },
             { label: "Studio tour", slug: "studio" },
           ],
