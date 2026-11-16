@@ -166,7 +166,7 @@ async function runAsk(opts: AskOptions): Promise<number> {
       const cols = sensitive.references.map(formatSensitiveReference);
       process.stderr.write(
         `Warning: generated SQL references sensitive columns: ${cols.join(", ")}\n` +
-          "Review carefully before sharing or running this SQL outside AskDB.\n",
+          "Review carefully before sharing or running this SQL.\n",
       );
     }
     if (sensitive?.unresolvedScope) {

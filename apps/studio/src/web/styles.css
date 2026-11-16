@@ -1613,3 +1613,11 @@ select:focus-visible {
   --color-accent: var(--surface-2);
   --color-accent-foreground: var(--ink-900);
 }
+
+/* Last, so the `font` shorthands above (which reset these) can not undo it. */
+/* Show `<=`, `!=` and `->` as the characters the SQL holds, not as one joined glyph. */
+code, pre, kbd, samp, .mono, .code-block, .kbd, .main-hd .main-sub,
+.concept-id-prefix, .concept-id-slug, .links-chip, .links-dropdown-label {
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0, "calt" 0;
+}

@@ -10,6 +10,7 @@ import { CopyButton } from "../../components/common/CopyButton";
 import { InlineStatus } from "../../components/common/StatusBanner";
 import { EmptyText } from "../../components/common/EmptyText";
 import { GetTheCodePanel } from "./GetTheCodePanel";
+import { playgroundSubtitle, SENSITIVE_REVIEW_ADVICE } from "../../lib/playground-copy";
 import { UsageSummary } from "../../components/common/UsageSummary";
 import type { AskResponse } from "@/shared/api";
 
@@ -64,7 +65,7 @@ export function PlaygroundPage() {
       <div className="main-hd">
         <div className="main-title">
           <h1><Play size={18} style={{ display: "inline", marginRight: 8 }} />Query Playground</h1>
-          <div className="main-sub">Generate SQL from natural language and execute it against your database</div>
+          <div className="main-sub">{playgroundSubtitle(Boolean(executeStatus?.enabled))}</div>
         </div>
       </div>
       <div className="main-body" style={{ overflow: "hidden", padding: 0 }}>
@@ -577,7 +578,7 @@ function SensitiveWarning({ guardrail }: { guardrail: AskResponse["sensitiveGuar
       {guardrail.references.length > 0 && (
         <p className="warning-block">
           Generated SQL references sensitive columns: {guardrail.references.join(", ")}.
-          {" "}Review carefully before sharing or running this SQL outside AskDB.
+          {" "}{SENSITIVE_REVIEW_ADVICE}
         </p>
       )}
       {guardrail.unresolvedScopeNote && <p className="warning-block">Note: {guardrail.unresolvedScopeNote}</p>}

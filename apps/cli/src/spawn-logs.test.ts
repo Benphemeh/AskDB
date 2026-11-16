@@ -55,6 +55,7 @@ describe("cli spawn: structured logs contract", () => {
       expect(exec.status).toBe(0);
       expect(exec.stderr).not.toContain("OPENAI_API_KEY is required");
       expect(exec.stderr).toContain("Warning: generated SQL references sensitive columns:");
+      expect(exec.stderr).toContain("Review carefully before sharing or running this SQL.\n");
 
       const lines = readFileSync(logFile, "utf8")
         .trim()
