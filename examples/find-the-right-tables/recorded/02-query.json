@@ -1,0 +1,101 @@
+{
+  "question": "What's our monthly recurring revenue from active subscriptions?",
+  "k": 8,
+  "results": [
+    {
+      "id": "chunk:askdb:table:public.subscriptions#cql",
+      "score": 0.439425,
+      "type": "cql",
+      "schemaId": "askdb",
+      "refs": [
+        "table:public.subscriptions"
+      ],
+      "textPreview": "# public.subscriptions — common query language\n- An active subscription has status A or P (past due still counts), started_at on or before today, and ended_at NULL or after today. A trial (T) is not a"
+    },
+    {
+      "id": "chunk:askdb:table:public.usage_records",
+      "score": 0.384845,
+      "type": "table",
+      "schemaId": "askdb",
+      "refs": [
+        "table:public.usage_records",
+        "table:public.usage_records#id",
+        "table:public.usage_records#subscription_id",
+        "table:public.usage_records#units",
+        "table:public.usage_records#on_date"
+      ],
+      "textPreview": "# public.usage_records\nRelationships:\n- table:public.usage_records#subscription_id -> table:public.subscriptions#id\nColumns:\n- id INTEGER (PK NOT NULL)\n- subscription_id INTEGER (NULL)\n- units INTEGER"
+    },
+    {
+      "id": "chunk:askdb:table:public.subscriptions",
+      "score": 0.382526,
+      "type": "table",
+      "schemaId": "askdb",
+      "refs": [
+        "table:public.subscriptions",
+        "table:public.subscriptions#id",
+        "table:public.subscriptions#customer_id",
+        "table:public.subscriptions#plan_id",
+        "table:public.subscriptions#status",
+        "table:public.subscriptions#started_at",
+        "table:public.subscriptions#ended_at"
+      ],
+      "textPreview": "# public.subscriptions\nRelationships:\n- table:public.subscriptions#customer_id -> table:public.customers#id\n- table:public.subscriptions#plan_id -> table:public.plans#id\nColumns:\n- id INTEGER (PK NOT "
+    },
+    {
+      "id": "chunk:askdb:table:public.usage_records#subscription_id",
+      "score": 0.380888,
+      "type": "column",
+      "schemaId": "askdb",
+      "refs": [
+        "table:public.usage_records",
+        "table:public.usage_records#subscription_id"
+      ],
+      "textPreview": "Column: public.usage_records.subscription_id INTEGER (NULL)\nId: table:public.usage_records#subscription_id"
+    },
+    {
+      "id": "chunk:askdb:table:public.subscriptions#status",
+      "score": 0.360841,
+      "type": "column",
+      "schemaId": "askdb",
+      "refs": [
+        "table:public.subscriptions",
+        "table:public.subscriptions#status"
+      ],
+      "textPreview": "Column: public.subscriptions.status TEXT (NULL)\nId: table:public.subscriptions#status\nSubscription state, as a one-letter code: A = active, T = trial, P = past due, C = cancelled.\nValues: A, T, P, C"
+    },
+    {
+      "id": "chunk:askdb:table:public.subscriptions#id",
+      "score": 0.355081,
+      "type": "column",
+      "schemaId": "askdb",
+      "refs": [
+        "table:public.subscriptions",
+        "table:public.subscriptions#id"
+      ],
+      "textPreview": "Column: public.subscriptions.id INTEGER (PK NOT NULL)\nId: table:public.subscriptions#id"
+    },
+    {
+      "id": "chunk:askdb:table:public.subscriptions#plan_id",
+      "score": 0.348997,
+      "type": "column",
+      "schemaId": "askdb",
+      "refs": [
+        "table:public.subscriptions",
+        "table:public.subscriptions#plan_id"
+      ],
+      "textPreview": "Column: public.subscriptions.plan_id INTEGER (NULL)\nId: table:public.subscriptions#plan_id"
+    },
+    {
+      "id": "chunk:askdb:table:public.subscription_events#id",
+      "score": 0.341411,
+      "type": "column",
+      "schemaId": "askdb",
+      "refs": [
+        "table:public.subscription_events",
+        "table:public.subscription_events#id"
+      ],
+      "textPreview": "Column: public.subscription_events.id INTEGER (PK NOT NULL)\nId: table:public.subscription_events#id"
+    }
+  ]
+}

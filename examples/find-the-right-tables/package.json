@@ -1,0 +1,22 @@
+{
+  "name": "askdb-find-the-right-tables",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Find the right tables with RAG: a 63-table schema where retrieval misses a join table until you describe it: https://askdb.tools/find-the-right-tables/",
+  "type": "module",
+  "engines": {
+    "node": ">=22.23.4"
+  },
+  "scripts": {
+    "ask": "node --env-file=.env ask.mjs"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "^4.0.0",
+    "@askdb/core": "^1.0.0-rc.2",
+    "@askdb/rag": "^0.2.0-rc.2",
+    "ai": "^7.0.51"
+  },
+  "devDependencies": {
+    "askdb": "^1.0.0-rc.2"
+  }
+}

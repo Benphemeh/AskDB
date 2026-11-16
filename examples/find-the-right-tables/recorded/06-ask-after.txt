@@ -1,0 +1,39 @@
+--- run 1
+Tables in the prompt: plans, subscriptions, usage_records
+SELECT SUM(plans.monthly_price) AS monthly_recurring_revenue
+FROM subscriptions
+JOIN plans ON subscriptions.plan_id = plans.id
+WHERE (subscriptions.status IN ('A', 'P'))
+  AND subscriptions.started_at <= date('now')
+  AND (subscriptions.ended_at IS NULL OR subscriptions.ended_at > date('now'));
+┌─────────┬───────────────────────────┐
+│ (index) │ monthly_recurring_revenue │
+├─────────┼───────────────────────────┤
+│ 0       │ 38                        │
+└─────────┴───────────────────────────┘
+--- run 2
+Tables in the prompt: plans, subscriptions, usage_records
+SELECT SUM(plans.monthly_price) AS monthly_recurring_revenue
+FROM subscriptions
+JOIN plans ON subscriptions.plan_id = plans.id
+WHERE (subscriptions.status = 'A' OR subscriptions.status = 'P')
+  AND subscriptions.started_at <= date('now')
+  AND (subscriptions.ended_at IS NULL OR subscriptions.ended_at > date('now'));
+┌─────────┬───────────────────────────┐
+│ (index) │ monthly_recurring_revenue │
+├─────────┼───────────────────────────┤
+│ 0       │ 38                        │
+└─────────┴───────────────────────────┘
+--- run 3
+Tables in the prompt: plans, subscriptions, usage_records
+SELECT SUM(plans.monthly_price) AS monthly_recurring_revenue
+FROM subscriptions
+JOIN plans ON subscriptions.plan_id = plans.id
+WHERE (subscriptions.status = 'A' OR subscriptions.status = 'P')
+  AND subscriptions.started_at <= date('now')
+  AND (subscriptions.ended_at IS NULL OR subscriptions.ended_at > date('now'));
+┌─────────┬───────────────────────────┐
+│ (index) │ monthly_recurring_revenue │
+├─────────┼───────────────────────────┤
+│ 0       │ 38                        │
+└─────────┴───────────────────────────┘

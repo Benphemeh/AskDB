@@ -506,7 +506,16 @@ const { sql } = await ask({
 
 ### Retrieval misses the tables a question needs
 
-The retriever returns the chunks nearest the question, `retrievalK` of them (default 8), so sparse descriptions make the wrong tables look nearest. Enrich the tables' descriptions, list the questions people ask in each table file's `## Example questions` section, and build the index again. Raising `retrievalK` also helps. See [RAG for large schemas](/guides/rag-for-large-schemas/).
+The retriever returns the chunks nearest the question, `retrievalK` of them (default 8). The prompt holds only the tables those chunks point to. A table with no description looks far from every question, and a table the question reaches only through a join is the one most often missed. The model then guesses, and the SQL checks still pass.
+
+To fix it:
+
+1. Run `askdb rag query --question "<question>"` and find the table that's missing from the results.
+2. Give that table a description, aliases and business context in its `tables/*.md` file. List the questions people ask in its `## Example questions` section.
+3. If the question uses a term that spans tables, add a concept to `concepts.md` that links them. A retrieved concept brings every linked table into the prompt.
+4. Run `askdb rag index` again, then the query.
+
+Raising `retrievalK` also helps. [Check that retrieval finds every table](/guides/rag-for-large-schemas/#check-that-retrieval-finds-every-table) has a worked case, and [Find the right tables in a large schema](/find-the-right-tables/) walks through it.
 
 ## Read next
 

@@ -1,0 +1,366 @@
+---
+title: "Find the right tables in a large schema"
+description: "Ask a 63-table schema a revenue question with retrieval on, see a wrong answer when retrieval leaves out a table, and fix it by describing that table and the business term."
+---
+
+import AgentPrompt from "../../components/AgentPrompt.astro";
+import ExampleLink from "../../components/ExampleLink.astro";
+
+In this tutorial, you'll ask a 63-table schema for its monthly recurring revenue, with retrieval choosing the tables the model sees. The first answer is wrong, because retrieval leaves out the table that holds the prices. You'll find out why, describe that table and the revenue term, and get the right figure.
+
+## Before you start
+
+You need:
+
+- Node.js 22.23.4 or newer.
+- An OpenAI API key. The tutorial uses it for embeddings and for the SQL.
+- The [Quickstart](/quickstart/) helps but isn't required. This tutorial uses the same commands on a bigger database.
+
+Fetch the example and install its packages. `gitpick` copies one folder of a GitHub repo:
+
+```bash
+npx gitpick Ygilany/AskDB/tree/main/examples/find-the-right-tables askdb-saas
+cd askdb-saas
+npm install
+```
+
+Run every command on this page in the `askdb-saas` folder. The folder is <ExampleLink path="examples/find-the-right-tables" /> in the AskDB repo. Its `finished/` folder holds the files you'll write, to compare with yours.
+
+The output on this page is from recorded runs with `text-embedding-3-small` and `gpt-4o-mini` on 2026-11-16. The model writes the SQL, so yours can differ.
+
+## 1. Create the database
+
+Load the example's SQL into a new SQLite file:
+
+```bash
+node make-saas.mjs
+```
+
+```text
+Created saas.db: 63 tables
+```
+
+`saas.db` is a made-up SaaS business: customers, plans, subscriptions, invoices, usage, support tickets and more. Only three tables have rows:
+
+| Table | Rows |
+| --- | --- |
+| `customers` | 4 customers |
+| `plans` | Basic at $9 a month, Pro at $29 a month |
+| `subscriptions` | 5 subscriptions, each on one plan through `plan_id` |
+
+A subscription is active when its status is A (active) or P (past due), it has started, and it hasn't ended:
+
+| Subscription | Plan | Status | Active today? |
+| --- | --- | --- | --- |
+| 1 | Pro | A, started 2026-01-05 | Yes |
+| 2 | Basic | C (cancelled), ended 2026-05-10 | No |
+| 3 | Pro | T (trial) | No |
+| 4 | Basic | P (past due), started 2026-04-20 | Yes |
+| 5 | Pro | A, starts 2099-01-01 | No |
+
+So the right monthly recurring revenue is $29 + $9 = **$38**. Keep that number in mind.
+
+## 2. Set up AskDB and describe subscriptions
+
+Create the config. `askdb init` writes `askdb.config.ts` and an `.env.example` that lists the variables it reads. Copy that to `.env`:
+
+```bash
+npx askdb init --yes --database sqlite --sqlite-file ./saas.db
+cp .env.example .env
+```
+
+Open `.env` and put your key after `OPENAI_API_KEY=`. Leave `OPENAI_MODEL` empty. The `askdb` commands read `.env` themselves. Then read the database's structure into the schema artifact (the files that describe your tables to the model):
+
+```bash
+npx askdb introspect
+```
+
+```text
+Wrote askdb/schema.json: 63 tables (sqlite).
+```
+
+Column names don't say which subscriptions are active. The example's `enrichment/subscriptions.md` holds that rule, the one [Enrich your schema](/guides/author-your-schema/) writes. Copy it into the artifact:
+
+```bash
+mkdir -p askdb/tables
+cp enrichment/subscriptions.md askdb/tables/
+```
+
+```markdown title="askdb/tables/subscriptions.md"
+## Common query language
+
+- An active subscription has status A or P (past due still counts), started_at on or before today, and ended_at NULL or after today. A trial (T) is not active.
+```
+
+The file's front matter, not shown here, explains the one-letter status codes.
+
+## 3. Index the schema
+
+A prompt with 63 tables is long and costly, and it buries the few tables a question needs. Retrieval sends only those. AskDB splits the artifact into chunks: one for each table, each column and each rule you wrote. For each question, it finds the 8 chunks nearest in meaning and puts only the tables they point to in the prompt.
+
+<figure>
+
+```diagram
+flow
+title: Retrieval picks the tables the model sees for each question.
+# Source: packages/rag/src/indexer/index.ts (createRetriever, k = 8 by default) and
+# packages/core/src/retrieval/synthesize-ddl.ts (the prompt lists each table a retrieved chunk points to).
+lane app: Your script
+lane askdb: AskDB
+lane model: Your model
+step question @app: asks a question
+step nearest @askdb: finds the 8 nearest chunks
+step tables @askdb: lists each table they point to
+step sql @model: writes SQL from those tables only
+question -> nearest
+nearest -> tables
+tables -> sql: the prompt
+```
+
+<figcaption>Retrieval decides what the model sees. A table no retrieved chunk points to isn't in the prompt.</figcaption>
+</figure>
+
+`askdb init` set `rag.embedder` to `"mock"`, a word-matching stand-in for tests. Switch to a real embedding model in `askdb.config.ts`. Name the model under `ai.embedding`, then set `rag.embedder` to `"ai"`:
+
+```ts title="askdb.config.ts" ins={14-16,28}
+import { defineConfig, env, type AskDbConfig } from "@askdb/config";
+
+export default defineConfig({
+  ai: {
+    provider: "openai",
+    providerConfig: {
+      openai: {
+        apiKey: env("OPENAI_API_KEY"),
+      },
+    },
+    language: {
+      model: env("OPENAI_MODEL"),
+    },
+    embedding: {
+      model: "text-embedding-3-small",
+    },
+  },
+  introspection: {
+    provider: "sqlite",
+    providerConfig: {
+      sqlite: {
+        file: "./saas.db",
+      },
+    },
+    outputDir: "./askdb",
+  },
+  rag: {
+    embedder: "ai",
+    store: "file",
+    storeConfig: {
+      file: {},
+    },
+  },
+} satisfies AskDbConfig);
+```
+
+Then index the artifact:
+
+```bash
+npx askdb rag index
+```
+
+```json
+{
+  "schemaId": "askdb",
+  "chunksTotal": 292,
+  "chunksIndexed": 292,
+  "chunksReused": 0,
+  "sensitiveExcluded": 0,
+  "sensitiveIncluded": 0
+}
+```
+
+The index is in `askdb/schema.embeddings.bin` and `askdb/schema.embeddings.json`. AskDB embedded the chunks' text only; it never reads the database's rows.
+
+## 4. Ask about revenue
+
+The example's `ask.mjs` asks "What's our monthly recurring revenue from active subscriptions?" It passes AskDB a retriever built on the index you just made. It prints the tables retrieval put in the prompt, the SQL, and the result of running that SQL on `saas.db`, read-only. `--env-file=.env` gives the script your key, and with `OPENAI_MODEL` empty it uses `gpt-4o-mini`:
+
+```bash
+node --env-file=.env ask.mjs
+```
+
+```text
+Tables in the prompt: subscription_events, subscriptions, usage_records
+SELECT SUM(CASE
+             WHEN status IN ('A', 'P')
+             THEN 1
+             ELSE 0
+           END) * 10 AS monthly_recurring_revenue
+FROM subscriptions
+WHERE (status IN ('A', 'P'))
+  AND started_at <= date('now')
+  AND (ended_at IS NULL OR ended_at > date('now'));
+┌─────────┬───────────────────────────┐
+│ (index) │ monthly_recurring_revenue │
+├─────────┼───────────────────────────┤
+│ 0       │ 20                        │
+└─────────┴───────────────────────────┘
+```
+
+The answer is $20, not $38. Notice three things:
+
+- **`plans` isn't in the prompt.** The prices live there, so the model never saw a price.
+- **The model guessed one.** It counted the active subscriptions and multiplied by 10. In three recorded runs, it guessed $10 twice and $100 once.
+- **Nothing failed.** The SQL is a valid read-only query, so AskDB's [SQL checks](/reference/sql-checks/) pass. They check the query's shape, not whether its numbers are right.
+
+If your first answer comes out right, the model guessed well this time. Look at the first line: `plans` is still missing from the prompt.
+
+To see why, look at what retrieval returned. `askdb rag query` prints the chunks it would hand the model:
+
+```bash
+npx askdb rag query --question "What's our monthly recurring revenue from active subscriptions?"
+```
+
+```text
+0.439  table:public.subscriptions#cql
+0.385  table:public.usage_records
+0.383  table:public.subscriptions
+0.381  table:public.usage_records#subscription_id
+0.361  table:public.subscriptions#status
+0.355  table:public.subscriptions#id
+0.349  table:public.subscriptions#plan_id
+0.341  table:public.subscription_events#id
+```
+
+The command prints JSON. This block shows each result's score, higher meaning nearer, and its id, shortened. `#cql` is the common query language section you copied, and any other name after `#` is a column. All 8 results come from subscription and usage tables. The `plans` table has no text beyond its name and its two columns, `name` and `monthly_price`, so nothing about it looks near the question.
+
+## 5. Describe plans and the revenue term
+
+Retrieval can only match the words a chunk holds. So give `plans` words people use, and write down what monthly recurring revenue means.
+
+First, describe the table. Create `askdb/tables/plans.md`:
+
+```markdown title="askdb/tables/plans.md"
+---
+id: 'table:public.plans'
+name: plans
+schemaId: askdb
+aliases: [subscription plans, pricing plans, pricing tiers]
+columns:
+  - id: 'table:public.plans#monthly_price'
+    description: The plan's price per month, in US dollars.
+---
+# Table: plans
+
+The subscription plans a customer can be on, with each plan's monthly price. Every subscription points to one plan through subscriptions.plan_id.
+
+## Business context
+
+- Monthly recurring revenue (MRR) is the sum of plans.monthly_price over active subscriptions, joined through subscriptions.plan_id.
+```
+
+The aliases, the description and the business context each become text that retrieval can match. They also reach the model when `plans` is in the prompt.
+
+Then write down the term itself. A concept is a business term that spans tables, written in `askdb/concepts.md`. Revenue needs both `subscriptions` and `plans`, so it's a concept. Create the file:
+
+```markdown title="askdb/concepts.md"
+---
+concepts:
+  - id: concept:mrr
+    label: Monthly recurring revenue
+    synonyms: [MRR, recurring revenue, monthly revenue]
+    links: [table:public.subscriptions, table:public.plans]
+    description: The sum of plans.monthly_price over active subscriptions. Join subscriptions.plan_id to plans.id.
+---
+
+# Concepts
+```
+
+When retrieval returns a concept, AskDB puts every table in its `links` into the prompt. So a question about revenue brings both `subscriptions` and `plans`, even if neither table's own chunks rank high.
+
+## 6. Index and ask again
+
+Index again. AskDB embeds only the chunks that are new or changed: two new ones (the business context and the concept) and two changed ones (the `plans` table and its price column):
+
+```bash
+npx askdb rag index
+```
+
+```json
+{
+  "schemaId": "askdb",
+  "chunksTotal": 294,
+  "chunksIndexed": 4,
+  "chunksReused": 290,
+  "sensitiveExcluded": 0,
+  "sensitiveIncluded": 0
+}
+```
+
+Ask the same question:
+
+```bash
+node --env-file=.env ask.mjs
+```
+
+```text
+Tables in the prompt: plans, subscriptions, usage_records
+SELECT SUM(plans.monthly_price) AS monthly_recurring_revenue
+FROM subscriptions
+JOIN plans ON subscriptions.plan_id = plans.id
+WHERE (subscriptions.status IN ('A', 'P'))
+  AND subscriptions.started_at <= date('now')
+  AND (subscriptions.ended_at IS NULL OR subscriptions.ended_at > date('now'));
+┌─────────┬───────────────────────────┐
+│ (index) │ monthly_recurring_revenue │
+├─────────┼───────────────────────────┤
+│ 0       │ 38                        │
+└─────────┴───────────────────────────┘
+```
+
+`plans` is in the prompt, the model joins it, and the answer is $38. All three recorded runs returned 38.
+
+`askdb rag query` shows what changed. The concept and the `plans` business context (`#biz`) now come first:
+
+```text
+0.593  concept:mrr
+0.576  table:public.plans#biz
+0.439  table:public.subscriptions#cql
+0.388  table:public.plans
+0.385  table:public.usage_records
+0.383  table:public.subscriptions
+0.381  table:public.usage_records#subscription_id
+0.361  table:public.subscriptions#status
+```
+
+## What you built
+
+You indexed a 63-table schema, found a question that retrieval answered wrong, and fixed it with two files that belong in the artifact, next to `schema.json`. Along the way:
+
+- **Retrieval decides what the model sees.** A table that no retrieved chunk points to isn't in the prompt, and the model can't use columns it never saw.
+- **A wrong answer can pass every check.** The SQL checks test the query's shape. Test the questions your users ask, and check the numbers.
+- **`askdb rag query` shows why.** Run it with a question to see the chunks retrieval returns, before the model is involved.
+- **Describe the tables a question reaches through a join.** Aliases, a description and business context give retrieval words to match.
+- **A term that spans tables is a concept.** Its `links` bring every table it needs into the prompt together.
+
+## Use with your agent
+
+<AgentPrompt>
+
+My AskDB project uses retrieval (`rag.embedder: "ai"`), and some answers are wrong because a table the SQL needs isn't in the prompt. Follow https://askdb.tools/find-the-right-tables.md for the method.
+
+For each question I give you:
+
+1. Run `npx askdb rag query --question "<question>"` and list the tables the results point to.
+2. Name each table the right SQL needs that is missing.
+3. For each missing table, write or extend `askdb/tables/<table>.md`: a description, aliases people use, and business context that names the measures it feeds.
+4. If a term spans several tables, add a concept to `askdb/concepts.md` whose `links` name every table it needs. https://askdb.tools/reference/schema-artifact-format.md lists the fields.
+5. Run `npx askdb rag index`, then the query again, and confirm every needed table appears.
+
+Write only `askdb/tables/*.md` and `askdb/concepts.md`. Never put a row or a value from the database in those files. AskDB returns SQL; this project runs it.
+
+</AgentPrompt>
+
+## Read next
+
+- [RAG for large schemas](/guides/rag-for-large-schemas/): Set up retrieval in your own app, with a pgvector store and `ask()`.
+- [Enrich your schema](/guides/author-your-schema/): Write the rules and descriptions a model needs, and test them.
+- [The schema artifact](/concepts/the-schema-artifact/): What each file in the artifact holds, and what reaches the model.
+- [Schema artifact format](/reference/schema-artifact-format/): Every field of a table file and of `concepts.md`.

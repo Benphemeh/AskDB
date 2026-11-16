@@ -1,0 +1,103 @@
+{
+  "question": "What's our monthly recurring revenue from active subscriptions?",
+  "k": 8,
+  "results": [
+    {
+      "id": "chunk:askdb:concept:mrr",
+      "score": 0.593377,
+      "type": "concept",
+      "schemaId": "askdb",
+      "refs": [
+        "concept:mrr",
+        "table:public.subscriptions",
+        "table:public.plans"
+      ],
+      "textPreview": "# Concept: Monthly recurring revenue\nId: concept:mrr\nSynonyms: MRR, recurring revenue, monthly revenue\nLinks: table:public.subscriptions, table:public.plans\nThe sum of plans.monthly_price over active "
+    },
+    {
+      "id": "chunk:askdb:table:public.plans#biz",
+      "score": 0.576048,
+      "type": "table",
+      "schemaId": "askdb",
+      "refs": [
+        "table:public.plans"
+      ],
+      "textPreview": "# public.plans — business context\n- Monthly recurring revenue (MRR) is the sum of plans.monthly_price over active subscriptions, joined through subscriptions.plan_id."
+    },
+    {
+      "id": "chunk:askdb:table:public.subscriptions#cql",
+      "score": 0.439413,
+      "type": "cql",
+      "schemaId": "askdb",
+      "refs": [
+        "table:public.subscriptions"
+      ],
+      "textPreview": "# public.subscriptions — common query language\n- An active subscription has status A or P (past due still counts), started_at on or before today, and ended_at NULL or after today. A trial (T) is not a"
+    },
+    {
+      "id": "chunk:askdb:table:public.plans",
+      "score": 0.388031,
+      "type": "table",
+      "schemaId": "askdb",
+      "refs": [
+        "table:public.plans",
+        "table:public.plans#id",
+        "table:public.plans#name",
+        "table:public.plans#monthly_price"
+      ],
+      "textPreview": "# public.plans\nThe subscription plans a customer can be on, with each plan's monthly price. Every subscription points to one plan through subscriptions.plan_id.\nAliases: subscription plans, pricing pl"
+    },
+    {
+      "id": "chunk:askdb:table:public.usage_records",
+      "score": 0.384855,
+      "type": "table",
+      "schemaId": "askdb",
+      "refs": [
+        "table:public.usage_records",
+        "table:public.usage_records#id",
+        "table:public.usage_records#subscription_id",
+        "table:public.usage_records#units",
+        "table:public.usage_records#on_date"
+      ],
+      "textPreview": "# public.usage_records\nRelationships:\n- table:public.usage_records#subscription_id -> table:public.subscriptions#id\nColumns:\n- id INTEGER (PK NOT NULL)\n- subscription_id INTEGER (NULL)\n- units INTEGER"
+    },
+    {
+      "id": "chunk:askdb:table:public.subscriptions",
+      "score": 0.382509,
+      "type": "table",
+      "schemaId": "askdb",
+      "refs": [
+        "table:public.subscriptions",
+        "table:public.subscriptions#id",
+        "table:public.subscriptions#customer_id",
+        "table:public.subscriptions#plan_id",
+        "table:public.subscriptions#status",
+        "table:public.subscriptions#started_at",
+        "table:public.subscriptions#ended_at"
+      ],
+      "textPreview": "# public.subscriptions\nRelationships:\n- table:public.subscriptions#customer_id -> table:public.customers#id\n- table:public.subscriptions#plan_id -> table:public.plans#id\nColumns:\n- id INTEGER (PK NOT "
+    },
+    {
+      "id": "chunk:askdb:table:public.usage_records#subscription_id",
+      "score": 0.380906,
+      "type": "column",
+      "schemaId": "askdb",
+      "refs": [
+        "table:public.usage_records",
+        "table:public.usage_records#subscription_id"
+      ],
+      "textPreview": "Column: public.usage_records.subscription_id INTEGER (NULL)\nId: table:public.usage_records#subscription_id"
+    },
+    {
+      "id": "chunk:askdb:table:public.subscriptions#status",
+      "score": 0.360823,
+      "type": "column",
+      "schemaId": "askdb",
+      "refs": [
+        "table:public.subscriptions",
+        "table:public.subscriptions#status"
+      ],
+      "textPreview": "Column: public.subscriptions.status TEXT (NULL)\nId: table:public.subscriptions#status\nSubscription state, as a one-letter code: A = active, T = trial, P = past due, C = cancelled.\nValues: A, T, P, C"
+    }
+  ]
+}

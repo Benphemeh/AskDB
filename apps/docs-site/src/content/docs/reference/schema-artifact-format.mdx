@@ -260,7 +260,7 @@ For a sensitive table, AskDB drops its description, aliases, `primaryEntity`, co
 
 ## `concepts.md`
 
-Business concepts that span tables, such as a *customer* who can be in `users` or in `leads`. The full-schema prompt lists every concept after the tables: its label, synonyms, links (named the way the prompt names tables and columns) and description. A link to an untracked table is left out, and so is a concept whose links are all untracked. With retrieval, the prompt lists only the concepts retrieval picks.
+Business concepts that span tables, such as a *customer* who can be in `users` or in `leads`. The full-schema prompt lists every concept after the tables: its label, synonyms, links (named the way the prompt names tables and columns) and description. A link to an untracked table is left out, and so is a concept whose links are all untracked. With retrieval, the prompt lists only the concepts retrieval picks, and each picked concept also brings every table in its `links` into the prompt.
 
 ```markdown title="concepts.md"
 ---
