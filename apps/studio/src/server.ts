@@ -720,6 +720,22 @@ function saveDraft(state: StudioState, tableId: string, draft: TableDraft): void
 }
 
 async function suggestForSource(state: StudioState, source: SuggestSource): Promise<SuggestResponse["candidates"]> {
+  // `loadSchema()` carries effective sensitivity (front-matter escalations included), and the
+  // prompt follows `modes.omitSensitiveFromPrompt` as `ask()` does (#625, ADR 0026).
+  requireWorkspace(state);
+  const schema = loadSchema(state.schemaDir);
+  // Reject unknown tables and columns before resolving AI config or creating the model.
+  const table = schema.tables.find((t) => t.id === source.tableId);
+  if (!table) throw new StudioHttpError(404, `No such table: ${source.tableId}`);
+  if (source.scope === "column") {
+    const column = table.columns.find((c) => c.id === source.columnId);
+    if (!column) {
+      throw new StudioHttpError(
+        404,
+        `Column not found: ${source.columnId} in ${table.schema}.${table.name}`,
+      );
+    }
+  }
   const rt = getAskDbRuntimeConfig();
   const aiConfig = ai.resolveAiConfigFromSection(rt.ai.language);
   if (!aiConfig) {
@@ -730,10 +746,6 @@ async function suggestForSource(state: StudioState, source: SuggestSource): Prom
   const providerOptions = reasoningEffort
     ? ai.resolveProviderOptions(aiConfig, { reasoningEffort })
     : undefined;
-  // `loadSchema()` carries effective sensitivity (front-matter escalations included), and the
-  // prompt follows `modes.omitSensitiveFromPrompt` as `ask()` does (#625, ADR 0026).
-  requireWorkspace(state);
-  const schema = loadSchema(state.schemaDir);
   let candidates: Awaited<ReturnType<typeof suggestEnrichment>>;
   try {
     candidates = await suggestEnrichment(

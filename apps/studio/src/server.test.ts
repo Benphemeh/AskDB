@@ -374,6 +374,102 @@ describe("AskDB Studio server", () => {
     expect(model.requests).toHaveLength(0);
   });
 
+  it("returns 404 for a suggestion for an unknown table, and calls no model", async () => {
+    const { baseUrl, model } = await startClinicStudio({
+      omitSensitiveFromPrompt: false,
+      reply: "A suggestion.",
+    });
+
+    const response = await postRaw(`${baseUrl}/api/suggest`, {
+      source: {
+        scope: "table",
+        tableId: "table:public.nonexistent",
+        field: "description",
+      },
+    });
+
+    expect(response.status).toBe(404);
+    const { message } = ((await response.json()) as { error: { message: string } }).error;
+    expect(message).toBe(`No such table: table:public.nonexistent`);
+    expect(model.requests).toHaveLength(0);
+  });
+
+  it("returns 404 for a suggestion for an unknown column, and calls no model", async () => {
+    const { baseUrl, model } = await startClinicStudio({
+      omitSensitiveFromPrompt: false,
+      reply: "A suggestion.",
+    });
+
+    const response = await postRaw(`${baseUrl}/api/suggest`, {
+      source: {
+        scope: "column",
+        tableId: "table:public.patients",
+        columnId: "table:public.patients#nonexistent",
+        field: "description",
+      },
+    });
+
+    expect(response.status).toBe(404);
+    const { message } = ((await response.json()) as { error: { message: string } }).error;
+    expect(message).toBe("Column not found: table:public.patients#nonexistent in public.patients");
+    expect(model.requests).toHaveLength(0);
+  });
+
+  it("returns 404 for an unknown table even when AI is not configured", async () => {
+    resetAskDbRuntimeForTests();
+    installStudioRuntime({
+      ...STUDIO_TEST_BASE,
+      ai: {
+        ...STUDIO_TEST_BASE.ai,
+        providerConfig: { openai: {} },
+      },
+    });
+    const schemaDir = writeClinicSchema();
+    const server = createStudioServer({ schema: schemaDir });
+    servers.push(server);
+    const baseUrl = await listen(server);
+
+    const response = await postRaw(`${baseUrl}/api/suggest`, {
+      source: {
+        scope: "table",
+        tableId: "table:public.nonexistent",
+        field: "description",
+      },
+    });
+
+    expect(response.status).toBe(404);
+    const { message } = ((await response.json()) as { error: { message: string } }).error;
+    expect(message).toBe(`No such table: table:public.nonexistent`);
+  });
+
+  it("returns 404 for an unknown column even when AI is not configured", async () => {
+    resetAskDbRuntimeForTests();
+    installStudioRuntime({
+      ...STUDIO_TEST_BASE,
+      ai: {
+        ...STUDIO_TEST_BASE.ai,
+        providerConfig: { openai: {} },
+      },
+    });
+    const schemaDir = writeClinicSchema();
+    const server = createStudioServer({ schema: schemaDir });
+    servers.push(server);
+    const baseUrl = await listen(server);
+
+    const response = await postRaw(`${baseUrl}/api/suggest`, {
+      source: {
+        scope: "column",
+        tableId: "table:public.patients",
+        columnId: "table:public.patients#nonexistent",
+        field: "description",
+      },
+    });
+
+    expect(response.status).toBe(404);
+    const { message } = ((await response.json()) as { error: { message: string } }).error;
+    expect(message).toBe("Column not found: table:public.patients#nonexistent in public.patients");
+  });
+
   // #952: "Suggest all empty fields" skips the sensitive columns the server would refuse.
   it.each([true, false])("reports modes.omitSensitiveFromPrompt (%s) in the workspace", async (omitSensitiveFromPrompt) => {
     const { baseUrl } = await startClinicStudio({ omitSensitiveFromPrompt, reply: "A suggestion." });
