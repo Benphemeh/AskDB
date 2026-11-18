@@ -1,3 +1,5 @@
+import type { NormalizedV2Table } from "./schema/v2/normalized.js";
+
 export class AskDbError extends Error {
   constructor(
     message: string,
@@ -370,6 +372,34 @@ export class SensitiveEnrichmentTargetError extends AskDbError {
       "The suggestion is for a sensitive column, and omitSensitiveIdentifiersFromPrompt keeps sensitive columns out of the prompt.",
     );
     this.name = "SensitiveEnrichmentTargetError";
+  }
+}
+
+/**
+ * An enrichment suggestion targets a table that isn't in the schema (for example,
+ * `POST /api/suggest` with an unknown `tableId`). The owning lookup is `findTable` in
+ * `@askdb/enrich`; Studio maps this to HTTP 404 before resolving AI config or creating a model.
+ */
+export class EnrichmentTableNotFoundError extends AskDbError {
+  constructor(public readonly tableId: string) {
+    super(`No such table: ${tableId}`);
+    this.name = "EnrichmentTableNotFoundError";
+  }
+}
+
+/**
+ * An enrichment suggestion targets a column that doesn't belong to the requested table (for
+ * example, `POST /api/suggest` with a `columnId` from another table but a different `tableId`).
+ * The owning lookup is `findColumn` in `@askdb/core`; Studio maps this to HTTP 404 before
+ * resolving AI config or creating a model.
+ */
+export class EnrichmentColumnNotFoundError extends AskDbError {
+  constructor(
+    public readonly columnId: string,
+    public readonly table: NormalizedV2Table,
+  ) {
+    super(`Column not found: ${columnId} in ${table.schema}.${table.name}`);
+    this.name = "EnrichmentColumnNotFoundError";
   }
 }
 

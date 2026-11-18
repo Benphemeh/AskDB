@@ -26,6 +26,9 @@ import { DialectNotSupportedError, resolveDialect } from "@askdb/client";
 import {
   ask,
   DEFAULT_TENANT_SQL_MODE,
+  EnrichmentColumnNotFoundError,
+  EnrichmentTableNotFoundError,
+  findColumn,
   formatSchemaV2ForNlToSql,
   formatSensitiveReference,
   loadSchema,
@@ -41,6 +44,7 @@ import {
   type AskGenerateDeps,
   type BuiltInDialectId,
   type DialectSpec,
+  type EnrichmentTarget,
   type NormalizedSchemaV2,
   type TenantPolicyFrontmatter,
   type TenantScope,
@@ -724,18 +728,31 @@ async function suggestForSource(state: StudioState, source: SuggestSource): Prom
   // prompt follows `modes.omitSensitiveFromPrompt` as `ask()` does (#625, ADR 0026).
   requireWorkspace(state);
   const schema = loadSchema(state.schemaDir);
+
   // Reject unknown tables and columns before resolving AI config or creating the model.
-  const table = schema.tables.find((t) => t.id === source.tableId);
-  if (!table) throw new StudioHttpError(404, `No such table: ${source.tableId}`);
+  // Table/column lookup rules live in `@askdb/enrich` (`findTable`) and `@askdb/core`
+  // (`findColumn`); Studio maps their typed not-found errors to HTTP 404 here, so no model is
+  // created for an invalid reference. The resolved target is reused below instead of re-looked-up.
+  let target: EnrichmentTarget;
+  try {
+    target = buildSuggestionTarget(schema, source);
+  } catch (error) {
+    if (error instanceof EnrichmentTableNotFoundError) {
+      throw new StudioHttpError(404, error.message);
+    }
+    throw error;
+  }
   if (source.scope === "column") {
-    const column = table.columns.find((c) => c.id === source.columnId);
-    if (!column) {
-      throw new StudioHttpError(
-        404,
-        `Column not found: ${source.columnId} in ${table.schema}.${table.name}`,
-      );
+    try {
+      findColumn(target.table, source.columnId);
+    } catch (error) {
+      if (error instanceof EnrichmentColumnNotFoundError) {
+        throw new StudioHttpError(404, error.message);
+      }
+      throw error;
     }
   }
+
   const rt = getAskDbRuntimeConfig();
   const aiConfig = ai.resolveAiConfigFromSection(rt.ai.language);
   if (!aiConfig) {
@@ -749,7 +766,7 @@ async function suggestForSource(state: StudioState, source: SuggestSource): Prom
   let candidates: Awaited<ReturnType<typeof suggestEnrichment>>;
   try {
     candidates = await suggestEnrichment(
-      buildSuggestionTarget(schema, source),
+      target,
       buildSuggestionContext(schema, source.tableId),
       model,
       {

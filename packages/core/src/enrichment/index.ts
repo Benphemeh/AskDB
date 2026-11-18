@@ -1,6 +1,7 @@
 export {
   ENRICHMENT_SYSTEM_PROMPT,
   buildEnrichmentUserPrompt,
+  findColumn,
 } from "./prompt.js";
 export {
   parseCandidates,

@@ -1,9 +1,10 @@
-import type {
-  EnrichmentCandidate,
-  EnrichmentContext,
-  EnrichmentTarget,
-  NormalizedSchemaV2,
-  NormalizedV2Table,
+import {
+  EnrichmentTableNotFoundError,
+  type EnrichmentCandidate,
+  type EnrichmentContext,
+  type EnrichmentTarget,
+  type NormalizedSchemaV2,
+  type NormalizedV2Table,
 } from "@askdb/core";
 
 export type SuggestEnrichment = (
@@ -97,6 +98,6 @@ export function buildSuggestionContext(
 
 function findTable(schema: NormalizedSchemaV2, tableId: string): NormalizedV2Table {
   const table = schema.tables.find((t) => t.id === tableId);
-  if (!table) throw new Error(`No such table: ${tableId}`);
+  if (!table) throw new EnrichmentTableNotFoundError(tableId);
   return table;
 }

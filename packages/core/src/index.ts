@@ -128,7 +128,7 @@ export type {
   TableTenantClassification,
   TenantPolicyH2Section,
 } from "./schema/v2/index.js";
-export { suggestEnrichment } from "./enrichment/index.js";
+export { findColumn, suggestEnrichment } from "./enrichment/index.js";
 export type {
   EnrichmentCandidate,
   EnrichmentContext,

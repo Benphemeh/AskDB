@@ -1,4 +1,7 @@
-import { SensitiveEnrichmentTargetError } from "../errors.js";
+import {
+  EnrichmentColumnNotFoundError,
+  SensitiveEnrichmentTargetError,
+} from "../errors.js";
 import { formatSchemaV2ForNlToSql } from "../schema/v2/format.js";
 import type { NormalizedSchemaV2, NormalizedV2Column, NormalizedV2Table } from "../schema/v2/normalized.js";
 import type { EnrichmentContext, EnrichmentPromptOptions, EnrichmentTarget } from "./types.js";
@@ -103,9 +106,12 @@ function tableForPrompt(table: NormalizedV2Table, schemaId: string, omit: boolea
   return formatSchemaV2ForNlToSql(physical, { omitSensitiveIdentifiersFromPrompt: omit }).ddl;
 }
 
-function findColumn(table: NormalizedV2Table, columnId: string): NormalizedV2Column {
+export function findColumn(
+  table: NormalizedV2Table,
+  columnId: string,
+): NormalizedV2Column {
   const col = table.columns.find((c) => c.id === columnId);
-  if (!col) throw new Error(`Column not found: ${columnId} in ${qualifiedName(table)}`);
+  if (!col) throw new EnrichmentColumnNotFoundError(columnId, table);
   return col;
 }
 
