@@ -1,5 +1,5 @@
 import {
-  EnrichmentTableNotFoundError,
+  AskDbError,
   type EnrichmentCandidate,
   type EnrichmentContext,
   type EnrichmentTarget,
@@ -29,6 +29,27 @@ export type SuggestSource =
     };
 
 /**
+ * Thrown by `buildSuggestionTarget` (and `findTable`) when a suggestion source names a table
+ * or column that isn't in the schema, or a column that doesn't belong to the requested table.
+ * Studio maps this to HTTP 404 before resolving AI config or creating a model.
+ */
+export class SuggestSourceNotFoundError extends AskDbError {
+  constructor(
+    public readonly tableId: string,
+    public readonly columnId?: string,
+    tableSchema?: string,
+    tableName?: string,
+  ) {
+    super(
+      columnId !== undefined && tableSchema !== undefined && tableName !== undefined
+        ? `Column not found: ${columnId} in ${tableSchema}.${tableName}`
+        : `No such table: ${tableId}`,
+    );
+    this.name = "SuggestSourceNotFoundError";
+  }
+}
+
+/**
  * The table or column a suggestion is for. `schema` is `loadSchema()`'s result, so the target
  * carries effective sensitivity (front-matter escalations included), which the enrichment
  * prompt's sensitivity rule reads.
@@ -38,6 +59,14 @@ export function buildSuggestionTarget(
   source: SuggestSource,
 ): EnrichmentTarget {
   const table = findTable(schema, source.tableId);
+  if (source.scope === "column" && !table.columns.some((c) => c.id === source.columnId)) {
+    throw new SuggestSourceNotFoundError(
+      source.tableId,
+      source.columnId,
+      table.schema,
+      table.name,
+    );
+  }
   if (source.scope === "table") {
     switch (source.field) {
       case "description":
@@ -98,6 +127,6 @@ export function buildSuggestionContext(
 
 function findTable(schema: NormalizedSchemaV2, tableId: string): NormalizedV2Table {
   const table = schema.tables.find((t) => t.id === tableId);
-  if (!table) throw new EnrichmentTableNotFoundError(tableId);
+  if (!table) throw new SuggestSourceNotFoundError(tableId);
   return table;
 }

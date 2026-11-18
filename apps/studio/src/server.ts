@@ -26,9 +26,6 @@ import { DialectNotSupportedError, resolveDialect } from "@askdb/client";
 import {
   ask,
   DEFAULT_TENANT_SQL_MODE,
-  EnrichmentColumnNotFoundError,
-  EnrichmentTableNotFoundError,
-  findColumn,
   formatSchemaV2ForNlToSql,
   formatSensitiveReference,
   loadSchema,
@@ -85,6 +82,7 @@ import {
   saveConcepts,
   saveTable,
   saveTenantPolicy,
+  SuggestSourceNotFoundError,
   type SuggestSource,
   type TableDraft,
   type Workspace,
@@ -730,27 +728,17 @@ async function suggestForSource(state: StudioState, source: SuggestSource): Prom
   const schema = loadSchema(state.schemaDir);
 
   // Reject unknown tables and columns before resolving AI config or creating the model.
-  // Table/column lookup rules live in `@askdb/enrich` (`findTable`) and `@askdb/core`
-  // (`findColumn`); Studio maps their typed not-found errors to HTTP 404 here, so no model is
-  // created for an invalid reference. The resolved target is reused below instead of re-looked-up.
+  // Table/column lookup rules live in `@askdb/enrich` (`buildSuggestionTarget` / `findTable`);
+  // Studio maps their typed not-found errors to HTTP 404 here, so no model is created for an
+  // invalid reference. The resolved target is reused below instead of re-looked-up.
   let target: EnrichmentTarget;
   try {
     target = buildSuggestionTarget(schema, source);
   } catch (error) {
-    if (error instanceof EnrichmentTableNotFoundError) {
+    if (error instanceof SuggestSourceNotFoundError) {
       throw new StudioHttpError(404, error.message);
     }
     throw error;
-  }
-  if (source.scope === "column") {
-    try {
-      findColumn(target.table, source.columnId);
-    } catch (error) {
-      if (error instanceof EnrichmentColumnNotFoundError) {
-        throw new StudioHttpError(404, error.message);
-      }
-      throw error;
-    }
   }
 
   const rt = getAskDbRuntimeConfig();
