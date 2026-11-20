@@ -31,21 +31,31 @@ export type SuggestSource =
 /**
  * Thrown by `buildSuggestionTarget` (and `findTable`) when a suggestion source names a table
  * or column that isn't in the schema, or a column that doesn't belong to the requested table.
- * Studio maps this to HTTP 404 before resolving AI config or creating a model.
+ * Studio maps this to HTTP 404 before resolving AI config or creating a model. Build one with
+ * `SuggestSourceNotFoundError.table()` or `.column()`, so the message always matches the case.
  */
 export class SuggestSourceNotFoundError extends AskDbError {
-  constructor(
+  private constructor(
+    message: string,
     public readonly tableId: string,
     public readonly columnId?: string,
-    tableSchema?: string,
-    tableName?: string,
   ) {
-    super(
-      columnId !== undefined && tableSchema !== undefined && tableName !== undefined
-        ? `Column not found: ${columnId} in ${tableSchema}.${tableName}`
-        : `No such table: ${tableId}`,
-    );
+    super(message);
     this.name = "SuggestSourceNotFoundError";
+  }
+
+  /** The source names a table that isn't in the schema. */
+  static table(tableId: string): SuggestSourceNotFoundError {
+    return new SuggestSourceNotFoundError(`No such table: ${tableId}`, tableId);
+  }
+
+  /** The source names a column that isn't in `table`, the table the source asked for. */
+  static column(table: NormalizedV2Table, columnId: string): SuggestSourceNotFoundError {
+    return new SuggestSourceNotFoundError(
+      `Column not found: ${columnId} in ${table.schema}.${table.name}`,
+      table.id,
+      columnId,
+    );
   }
 }
 
@@ -60,12 +70,7 @@ export function buildSuggestionTarget(
 ): EnrichmentTarget {
   const table = findTable(schema, source.tableId);
   if (source.scope === "column" && !table.columns.some((c) => c.id === source.columnId)) {
-    throw new SuggestSourceNotFoundError(
-      source.tableId,
-      source.columnId,
-      table.schema,
-      table.name,
-    );
+    throw SuggestSourceNotFoundError.column(table, source.columnId);
   }
   if (source.scope === "table") {
     switch (source.field) {
@@ -127,6 +132,6 @@ export function buildSuggestionContext(
 
 function findTable(schema: NormalizedSchemaV2, tableId: string): NormalizedV2Table {
   const table = schema.tables.find((t) => t.id === tableId);
-  if (!table) throw new SuggestSourceNotFoundError(tableId);
+  if (!table) throw SuggestSourceNotFoundError.table(tableId);
   return table;
 }
